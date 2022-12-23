@@ -16,6 +16,22 @@ fn main() {
 
     let peripherals = Peripherals::take().unwrap();
     let i2c = peripherals.i2c0;
-    let sda = peripherals.pins.gpio5;
-    let scl = peripherals.pins.gpio6;
+    let scl = peripherals.pins.gpio22;
+    let sda = peripherals.pins.gpio21;
+    
+
+
+
+    let config = I2cConfig::new().baudrate(100.kHz().into());
+    let mut i2c_driver = I2cDriver::new(i2c, sda, scl, &config).unwrap();
+
+    let mut lcd_2004A = lcd::LCD::new();
+
+    lcd_2004A.init_lcd(&mut i2c_driver);
+    //lcd_2004A.send_string(&mut i2c_driver, String::from("csoki"));
+    lcd_2004A.turn_off_lcd_backlit(&mut i2c_driver);
+
+    
+
+
 }
