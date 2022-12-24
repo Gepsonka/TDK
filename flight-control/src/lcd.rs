@@ -1,114 +1,61 @@
 use esp_idf_hal::{i2c::{I2cDriver}, delay::{FreeRtos, BLOCK}};
 use esp_idf_sys::EspError;
 
+use crate::joystick::{Direction};
+use crate::common::ControlData;
+
 
 const LCD_DRIVER_I2C_ADDR: u8 = 0x27;
 
-enum LCDCommonCmd {
-    LCD_CLEARDISPLAY = 0x01,
-    LCD_ENTRYMODESET = 0x04,
-    LCD_RETURNHOME = 0x02,
-    LCD_DISPLAYCONTROL = 0x08,
-    LCD_CURSORSHIFT = 0x10,
-    LCD_FUNCTIONSET = 0x20,
-    LCD_SETCGRAMLCD_DRIVER_I2C_LCD_ESS = 0x40,
-    LCD_SETDDRAMLCD_DRIVER_I2C_LCD_ESS = 0x80
+
+#[repr(u8)]
+#[derive(Debug, Clone, Copy)]
+pub enum LineNumber {
+    FirstLine = 0x80|0x00,
+    SecondLine = 0x80|0x40,
+    ThirdLine = 0x80|0x14,
+    FourthLine = 0x80|0x54
 }
 
-enum LCDDisplayEntryModeFlag {
-    LCD_ENTRYRIGHT = 0x00,
-    LCD_ENTRYLEFT = 0x02,
-    
+pub enum DisplayMode {
+    Welcome,
+    Data,
 }
 
-enum LCDDisplayEntryShiftFlag {
-    LCD_ENTRYSHIFTINCREMENT = 0x01,
-    LCD_ENTRYSHIFTDECREMENT = 0x00,
-}
-
-enum LCDDisplayOnOffControl {
-    LCD_DISPLAYON = 0x04,
-    LCD_DISPLAYOFF = 0x00,
-}
-
-enum LCDCursonOnOffControl {
-    LCD_CURSORON = 0x02,
-    LCD_CURSOROFF = 0x00,
-}
-
-enum LCDCursorBlinkControl {
-    LCD_BLINKON = 0x01,
-    LCD_BLINKOFF = 0x00,
-}
-
-
-enum LCDMoveMode {
-    // flags for display/cursor shift
-    LCD_DISPLAYMOVE = 0x08,
-    LCD_CURSORMOVE = 0x00,
-}
-
-enum LCDMoveControl {
-    LCD_MOVERIGHT = 0x04,
-    LCD_MOVELEFT = 0x00,
-}
-
-enum LCDBacklitControl {
-    // flags for backlight control
-    LCD_BACKLIGHT = 0x08,
-    LCD_NOBACKLIGHT = 0x00,
-}
-
-enum LCDPinMessageLength {
-    // flags for function set
-    LCD_8BITMODE = 0x10,
-    LCD_4BITMODE = 0x00,
-}
-
-enum LCDLineControl {
-    LCD_2LINE = 0x08,
-    LCD_1LINE = 0x00,
-}
-
-enum LCDDotCounts {
-    LCD_5x10DOTS = 0x04,
-    LCD_5x8DOTS = 0x00,
-}
 
 pub struct LCD {
     content: String,
+    line: LineNumber,
+    index: u8
 }
 
 impl LCD {
     pub fn new() -> LCD {
-        return LCD { content: String::from("") };
+        return LCD { content: String::from(""), line: LineNumber::FirstLine, index: 0 };
     }
 
     pub fn init_lcd(&mut self, i2c: &mut I2cDriver) {
-        println!("Init LCD");
+        FreeRtos::delay_ms(50);
+        self.send_cmd(i2c, 0x30);
+        FreeRtos::delay_ms(5);
+        self.send_cmd(i2c, 0x30);
+        FreeRtos::delay_ms(1);
+        self.send_cmd(i2c, 0x30);
+        FreeRtos::delay_ms(10);
+        self.send_cmd(i2c, 0x20);
+        FreeRtos::delay_ms(10);
 
         FreeRtos::delay_ms(50);
-        i2c.write(LCD_DRIVER_I2C_ADDR, &[0, 0x30], BLOCK).unwrap_or_else(|_| println!("LCD init fails"));
+        self.send_cmd(i2c, 0x28);
         FreeRtos::delay_ms(5);
-        i2c.write(LCD_DRIVER_I2C_ADDR, &[0, 0x30], BLOCK).unwrap_or_else(|_| println!("LCD init fails"));
+        self.send_cmd(i2c, 0x08);
         FreeRtos::delay_ms(1);
-        i2c.write(LCD_DRIVER_I2C_ADDR, &[0, 0x30], BLOCK).unwrap_or_else(|_| println!("LCD init fails"));
+        self.send_cmd(i2c, 0x01);
         FreeRtos::delay_ms(10);
-        i2c.write(LCD_DRIVER_I2C_ADDR, &[0, 0x20], BLOCK).unwrap_or_else(|_| println!("LCD init fails"));
+        self.send_cmd(i2c, 0x06);
         FreeRtos::delay_ms(10);
-
-        FreeRtos::delay_ms(50);
-        i2c.write(LCD_DRIVER_I2C_ADDR, &[0, 0x28], BLOCK).unwrap_or_else(|_| println!("LCD init fails"));
-        FreeRtos::delay_ms(5);
-        i2c.write(LCD_DRIVER_I2C_ADDR, &[0, 0x08], BLOCK).unwrap_or_else(|_| println!("LCD init fails"));
-        FreeRtos::delay_ms(1);
-        i2c.write(LCD_DRIVER_I2C_ADDR, &[0, 0x01], BLOCK).unwrap_or_else(|_| println!("LCD init fails"));
-        FreeRtos::delay_ms(10);
-        i2c.write(LCD_DRIVER_I2C_ADDR, &[0, 0x06], BLOCK).unwrap_or_else(|_| println!("LCD init fails"));
-        FreeRtos::delay_ms(10);
-        i2c.write(LCD_DRIVER_I2C_ADDR, &[0, 0x0c], BLOCK).unwrap_or_else(|_| println!("LCD init fails"));
+        self.send_cmd(i2c, 0x0c);
         FreeRtos::delay_ms(10); 
-
 
     }
 
@@ -125,7 +72,9 @@ impl LCD {
         data[2] = data_l|0x0C;  //en=1, rs=0
         data[3] = data_l|0x08;  //en=0, rs=0
 
-        return i2c.write(LCD_DRIVER_I2C_ADDR, &data, BLOCK);
+        let result = i2c.write(LCD_DRIVER_I2C_ADDR, &data, BLOCK);
+        FreeRtos::delay_ms(1);
+        return result;
 
     }
 
@@ -140,21 +89,57 @@ impl LCD {
         data[2] = data_l|0x0D;  //en=1, rs=1
         data[3] = data_l|0x09;  //en=0, rs=1
 
-        return i2c.write(LCD_DRIVER_I2C_ADDR, &data, BLOCK);
+        let result = i2c.write(LCD_DRIVER_I2C_ADDR, &data, BLOCK);
+        FreeRtos::delay_ms(1);
+        return result;
     }
 
-    pub fn send_string(&mut self,  i2c: &mut I2cDriver, str: String) {
+    pub fn send_string(&mut self,  i2c: &mut I2cDriver, str: String) -> Result<(), EspError> {
         for chr in str.chars() {
             self.send_data(i2c, chr as u8).unwrap();
         }
+
+        Ok(())
     }
 
-    pub fn turn_off_lcd_backlit(&mut self,  i2c: &mut I2cDriver){
-        i2c.write(LCD_DRIVER_I2C_ADDR, &[0, 0x08], BLOCK).unwrap_or_else(|_| println!("LCD init fails"));
+    pub fn clear_screen(&mut self, i2c: &mut I2cDriver) -> Result<(), EspError> {
+        return self.send_cmd(i2c, 0x01);
     }
 
-    // pub fn lcd_send_cmd(&mut self, cmd: u8) {
-    //     self.i2c.write(LCD_DRIVER_I2C_LCD_DRIVER_I2C_LCD_ESSESS, )
-    // }
+    pub fn select_line(&mut self, i2c: &mut I2cDriver, line_num: LineNumber) -> Result<(), EspError>  {
+        return self.send_cmd(i2c, line_num as u8);
+    }
 
+    pub fn set_cursor(&mut self, i2c: &mut I2cDriver, line_num: LineNumber, mut index: u8) -> Result<(), EspError> {
+        if index < 0 {
+            index = 0;
+        }
+
+        if index > 19 {
+            index = 19;
+        }
+
+        self.line = line_num.clone();
+        self.index = index;
+
+        match line_num {
+            LineNumber::FirstLine => self.send_cmd(i2c, 0x80|(0x00+index)),
+            LineNumber::SecondLine => self.send_cmd(i2c, 0x80|(0x40+index)),
+            LineNumber::ThirdLine => self.send_cmd(i2c, 0x80|(0x14+index)),
+            LineNumber::FourthLine => self.send_cmd(i2c, 0x80|(0x54+index)),
+        }
+    }
+
+    pub fn draw_data(&mut self, i2c: &mut I2cDriver, data: ControlData) {
+        self.set_cursor(i2c, LineNumber::FirstLine, 0).unwrap();
+        self.send_string(i2c, String::from("THR: 5%"));
+        self.set_cursor(i2c, LineNumber::FirstLine, 14).unwrap();
+        self.send_string(i2c, String::from("DIR:SW"));
+        self.set_cursor(i2c, LineNumber::SecondLine, 0).unwrap();
+        self.send_string(i2c, String::from("LoRa:Online"));
+        self.set_cursor(i2c, LineNumber::ThirdLine, 0).unwrap();
+        self.send_string(i2c, String::from("Temp: 5C"));
+        self.set_cursor(i2c, LineNumber::FourthLine, 0).unwrap();
+        self.send_string(i2c, String::from("PRS:1029hpa"));
+    }
 }
