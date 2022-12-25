@@ -1,6 +1,11 @@
 use crate::joystick::Direction;
 use crate::lora::LoRaStatus;
+use std::sync::{Arc, Mutex};
 
+
+pub trait PeripherialHandler {
+    fn thread_event_loop(global_control: Arc<Mutex<ControlData>>);
+}
 
 pub struct ControlData {
     throttle: u8,

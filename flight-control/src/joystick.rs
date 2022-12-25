@@ -28,3 +28,7 @@ impl Direction {
         }
     }
 }
+
+pub struct Joystick {
+    
+}
