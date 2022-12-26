@@ -9,7 +9,7 @@ use std::time::Duration;
 use esp_idf_hal::adc::{self, Atten11dB, AdcChannelDriver};
 use esp_idf_hal::adc::config::Config;
 
-use esp_idf_hal::gpio::{Gpio27, PinDriver};
+use esp_idf_hal::gpio::{Gpio27, PinDriver, Pull};
 
 mod lcd;
 mod joystick;
@@ -30,19 +30,23 @@ fn main() {
     let scl = peripherals.pins.gpio22;
     let sda = peripherals.pins.gpio21;
 
-    let mut N_switch = PinDriver::input(peripherals.pins.gpio34);
-    let mut S_switch = PinDriver::input(peripherals.pins.gpio35);
-    let mut E_switch = PinDriver::input(peripherals.pins.gpio32);
-    let mut W_switch = PinDriver::input(peripherals.pins.gpio33);
+    let mut n_switch = PinDriver::input(peripherals.pins.gpio32).unwrap();
+    let mut s_switch = PinDriver::input(peripherals.pins.gpio33).unwrap();
+    let mut e_switch = PinDriver::input(peripherals.pins.gpio25).unwrap();
+    let mut w_switch = PinDriver::input(peripherals.pins.gpio26).unwrap();
+
+    n_switch.set_pull(Pull::Down).unwrap();
+    e_switch.set_pull(Pull::Down).unwrap();
+    w_switch.set_pull(Pull::Down).unwrap();
+    s_switch.set_pull(Pull::Down).unwrap();
 
     let config = I2cConfig::new().baudrate(100.kHz().into());
     let mut i2c_driver = I2cDriver::new(i2c, sda, scl, &config).unwrap();
 
 
     let mut lcd_2004A = lcd::LCD::new();
-
-    lcd_2004A.init_lcd(&mut i2c_driver);
-    lcd_2004A.draw_data(&mut i2c_driver, common::ControlData::new());
+    lcd_2004A.init_lcd(&mut i2c_driver).unwrap();
+    lcd_2004A.draw_data(&mut i2c_driver, common::ControlData::new()).unwrap();
 
 
     let mut thrtl = throttle::Throttle::new(
@@ -50,12 +54,13 @@ fn main() {
         AdcChannelDriver::new(peripherals.pins.gpio27).unwrap()
     );
 
+    let mut stick = joystick::Joystick::new(n_switch, w_switch, e_switch, s_switch);
+
     
     loop {
         // you can change the sleep duration depending on how often you want to sample
-        thread::sleep(Duration::from_millis(100));
-        thrtl.read_adc().unwrap();
-        println!("{}", thrtl.adc_value);
+        thread::sleep(Duration::from_millis(10));
+        println!("{}", stick.read_direction().unwrap().as_str());
     }
 
 }
