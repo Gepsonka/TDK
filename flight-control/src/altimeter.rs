@@ -16,7 +16,7 @@ pub struct Altimeter {
 
 impl Altimeter {
     pub fn new() -> Altimeter {
-        Altimeter{temperature: 0, pressure: 0}
+        Altimeter{temperature: 15, pressure: 300}
     }
 
     pub fn init(&mut self, i2c: &mut I2cDriver) -> Result<(), esp_idf_sys::EspError> {

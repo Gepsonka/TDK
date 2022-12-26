@@ -1,7 +1,7 @@
 use esp_idf_hal::{i2c::{I2cDriver}, delay::{FreeRtos, BLOCK}};
 use esp_idf_sys::EspError;
 
-use crate::joystick::{Direction};
+use crate::{joystick::{Direction}, lora::{LoRaStatus, self}};
 use crate::common::ControlData;
 
 
@@ -61,7 +61,81 @@ impl LCD {
         Ok(())
     }
 
-    pub fn send_cmd(&mut self, i2c: &mut I2cDriver,  cmd: u8) -> Result<(), EspError> {
+    /// Draws to the LCD only when a data changes.
+    pub fn draw_data(&mut self, i2c: &mut I2cDriver, data: ControlData, prev_data_state: ControlData) -> Result<(), EspError> {
+        if data.throttle != prev_data_state.throttle {
+            self.draw_throttle_percentage(i2c, data.throttle.as_)
+        }
+
+        Ok(())
+    }
+
+    pub fn draw_throttle_percentage(&mut self, i2c: &mut I2cDriver, thr_percentage: u8) -> Result<(), EspError> {
+        self.set_cursor(i2c, LineNumber::FirstLine, 3)?;
+
+        let mut thr_percentage_conversion: String = if thr_percentage < 10 {
+            format!("{}{}{}", " ", thr_percentage , "%")
+        } else {
+            format!("{}{}", thr_percentage , "%")
+        };
+
+        self.send_string(i2c, thr_percentage_conversion)?;
+
+        Ok(())
+    }
+
+    pub fn draw_lora_status(&mut self, i2c: &mut I2cDriver, lora_status: LoRaStatus) -> Result<(), EspError> {
+        self.set_cursor(i2c, LineNumber::SecondLine, 5)?;
+
+        self.send_string(i2c, lora_status.as_str().to_string())?;
+
+        Ok(())
+    }
+
+    pub fn draw_direction(&mut self, i2c: &mut I2cDriver, direction: Direction) -> Result<(), EspError> {
+        self.set_cursor(i2c, LineNumber::FirstLine, 17)?;
+
+        let mut direction_conversion = if direction.as_str().len() < 2 {
+            format!("{}{}", " ", direction.as_str())
+        } else {
+            direction.as_str().to_string()
+        };
+
+        self.send_string(i2c, direction_conversion)?;
+
+        Ok(())
+    }
+
+    pub fn draw_temperature(&mut self, i2c: &mut I2cDriver, temp_in_c: i8) -> Result<(), EspError> {
+        self.set_cursor(i2c, LineNumber::ThirdLine, 5)?;
+
+        let temp_conversion = if temp_in_c < 10 && temp_in_c >= 0 {
+            format!("{}{}C", " ", temp_in_c)
+        } else {
+            format!("{}C", temp_in_c)
+        };
+
+        self.send_string(i2c, temp_conversion)?;
+
+        Ok(())
+    }
+
+    pub fn draw_pressure(&mut self, i2c: &mut I2cDriver, pressure_in_hpa: u16) -> Result<(), EspError> {
+        self.set_cursor(i2c, LineNumber::FourthLine, 4)?;
+
+        let prs_conversion = if pressure_in_hpa.to_string().len() < 4 {
+            format!("{}{}{}", " ", pressure_in_hpa, "hPa")
+        } else {
+            format!("{}{}", pressure_in_hpa, "hPa")
+        };
+
+        self.send_string(i2c, prs_conversion)?;
+
+        Ok(())
+    }
+
+
+    fn send_cmd(&mut self, i2c: &mut I2cDriver,  cmd: u8) -> Result<(), EspError> {
         let mut data_u: u8;
         let mut data_l: u8;
         let mut data: [u8; 4] = [0, 0, 0, 0];
@@ -80,7 +154,7 @@ impl LCD {
 
     }
 
-    pub fn send_data(&mut self, i2c: &mut I2cDriver, data_unit: u8) -> Result<(), EspError> {
+    fn send_data(&mut self, i2c: &mut I2cDriver, data_unit: u8) -> Result<(), EspError> {
         let mut data: [u8; 4] = [0, 0, 0, 0];
 
         let data_u: u8 = data_unit & 0xf0;
@@ -96,7 +170,7 @@ impl LCD {
         Ok(())
     }
 
-    pub fn send_string(&mut self,  i2c: &mut I2cDriver, str: String) -> Result<(), EspError> {
+    fn send_string(&mut self,  i2c: &mut I2cDriver, str: String) -> Result<(), EspError> {
         for chr in str.chars() {
             self.send_data(i2c, chr as u8)?;
         }
@@ -104,17 +178,17 @@ impl LCD {
         Ok(())
     }
 
-    pub fn clear_screen(&mut self, i2c: &mut I2cDriver) -> Result<(), EspError> {
+    fn clear_screen(&mut self, i2c: &mut I2cDriver) -> Result<(), EspError> {
         self.send_cmd(i2c, 0x01)?;
         Ok(())
     }
 
-    pub fn select_line(&mut self, i2c: &mut I2cDriver, line_num: LineNumber) -> Result<(), EspError>  {
+    fn select_line(&mut self, i2c: &mut I2cDriver, line_num: LineNumber) -> Result<(), EspError>  {
         self.send_cmd(i2c, line_num as u8)?;
         Ok(())
     }
 
-    pub fn set_cursor(&mut self, i2c: &mut I2cDriver, line_num: LineNumber, mut index: u8) -> Result<(), EspError> {
+    fn set_cursor(&mut self, i2c: &mut I2cDriver, line_num: LineNumber, mut index: u8) -> Result<(), EspError> {
         if index > 19 {
             index = 19;
         }
@@ -130,18 +204,5 @@ impl LCD {
         }
     }
 
-    pub fn draw_data(&mut self, i2c: &mut I2cDriver, data: ControlData) -> Result<(), EspError> {
-        self.set_cursor(i2c, LineNumber::FirstLine, 0)?;
-        self.send_string(i2c, String::from("THR: 5%"))?;
-        self.set_cursor(i2c, LineNumber::FirstLine, 14)?;
-        self.send_string(i2c, String::from("DIR:SW"))?;
-        self.set_cursor(i2c, LineNumber::SecondLine, 0)?;
-        self.send_string(i2c, String::from("LoRa:Online"))?;
-        self.set_cursor(i2c, LineNumber::ThirdLine, 0)?;
-        self.send_string(i2c, String::from("Temp: 5C"))?;
-        self.set_cursor(i2c, LineNumber::FourthLine, 0)?;
-        self.send_string(i2c, String::from("PRS:1029hpa"))?;
-
-        Ok(())
-    }
+    
 }

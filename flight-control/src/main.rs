@@ -1,3 +1,4 @@
+use common::ControlData;
 use esp_idf_sys as _; // If using the `binstart` feature of `esp-idf-sys`, always keep this module imported
 
 use esp_idf_hal::i2c::*;
@@ -17,6 +18,7 @@ mod lora;
 mod throttle;
 mod common;
 mod altimeter;
+mod concurrency;
 
 // TODO: Clean up unwraps everywhere, change function return types to results.S
 
@@ -56,11 +58,12 @@ fn main() {
 
     let mut stick = joystick::Joystick::new(n_switch, w_switch, e_switch, s_switch);
 
+    // Needed to optimize the output drawing to the LCD
+    let mut prev_control_data_state = ControlData::new();
+    let mut control_data = ControlData::new();
     
     loop {
-        // you can change the sleep duration depending on how often you want to sample
-        thread::sleep(Duration::from_millis(10));
-        println!("{}", stick.read_direction().unwrap().as_str());
+        control_data
     }
 
 }
