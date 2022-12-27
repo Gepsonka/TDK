@@ -1,11 +1,14 @@
 use esp_idf_hal::adc::{self, Atten11dB};
 use esp_idf_hal::gpio::{Gpio32, Gpio26, Gpio25, Gpio33, Gpio27, PinDriver, Input};
+use esp_idf_hal::task::thread;
+use esp_idf_sys::EspError;
 
 use crate::altimeter::Altimeter;
 use crate::joystick::Joystick;
 use crate::{joystick::Direction, throttle::Throttle};
 use crate::lora::{LoRaStatus, LoRa};
 use std::sync::{Arc, Mutex};
+use std::time::Duration;
 
 
 pub trait PeripherialHandler {
@@ -33,5 +36,19 @@ impl <'a> ControlData<'a> {
             stick: Joystick::new(stick_N_pin, stick_W_pin, stick_E_pin, stick_S_pin),
             lora: LoRa::new(),
             altimeter: Altimeter::new() }
+    }
+
+    pub fn update_data(data_ptr: Arc<Mutex<ControlData>>) -> Result<(), EspError> {
+        
+        let mut data_obj = data_ptr.lock().unwrap();
+
+        data_obj.throttle.read_adc()?;
+        data_obj.stick.read_direction()?;
+        // TODO: implement LoRa,  GPS and altimeter later...
+
+        println!("throttle%: {}", data_obj.throttle.as_percentage()?);
+        println!("dirtection%: {}", data_obj.stick.read_direction()?.as_str());
+
+        Ok(())
     }
 }

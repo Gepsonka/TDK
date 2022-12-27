@@ -3,11 +3,11 @@ use esp_idf_hal::adc::config::Config;
 use esp_idf_hal::gpio::Gpio27;
 use esp_idf_sys::EspError;
 
-const ADC_LOWES_VALUE: u16 = 128;
-const ADC_HIGHEST_VALUE: u16 = 3130;
+const COMPENSATED_ADC_HIGHEST_VALUE: u16 = 3130 - 128;
 
-const COMPENSATED_ADC_LOWES_VALUE: u16 = 0;
-const COMPENSATED_ADC_Highest_VALUE: u16 = 3130 - 128;
+
+// Lowes value of adc is 128 according to the measurements
+const ADC_VALUE_DIFFERENCE: u8 = 128;
 
 pub struct Throttle<'a, T> where T: Adc, Atten11dB<T>: Attenuation<ADC2>{
     pub adc_value: u16,
@@ -26,7 +26,7 @@ impl <'a, T> Throttle<'a, T> where T: Adc,Atten11dB<T>: Attenuation<ADC2>{
     }
 
     /// Neccessary conversion to calculate the percentage.
-    pub fn compensate_adc_value(&self) -> Result<u16, EspError> {
+    pub fn compensate_adc_value(&mut self) -> Result<u16, EspError> {
         if self.read_adc()? < 128 {
             Ok(0)
         } else {
@@ -34,7 +34,13 @@ impl <'a, T> Throttle<'a, T> where T: Adc,Atten11dB<T>: Attenuation<ADC2>{
         }
     }
 
-    pub fn as_percentage(&self) -> Result<u16, EspError> {
-        Ok(self.compensate_adc_value()? / COMPENSATED_ADC_Highest_VALUE)
+    pub fn as_percentage(&mut self) -> Result<u8, EspError> {
+        let adc_percentage = (f32::from(self.adc_value - ADC_VALUE_DIFFERENCE as u16) / f32::from(COMPENSATED_ADC_HIGHEST_VALUE - ADC_VALUE_DIFFERENCE as u16) * 100 as f32) as u8;
+        
+        if adc_percentage >= 100 {
+            Ok(100)
+        } else {
+            Ok(adc_percentage)
+        }
     }
 }

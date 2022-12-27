@@ -62,13 +62,13 @@ impl LCD {
     }
 
     /// Draws to the LCD only when a data changes.
-    pub fn draw_data(&mut self, i2c: &mut I2cDriver, data: ControlData, prev_data_state: ControlData) -> Result<(), EspError> {
-        if data.throttle != prev_data_state.throttle {
-            self.draw_throttle_percentage(i2c, data.throttle.as_)
-        }
+    // pub fn draw_data(&mut self, i2c: &mut I2cDriver, data: ControlData, prev_data_state: ControlData) -> Result<(), EspError> {
+    //     if data.throttle != prev_data_state.throttle {
+    //         self.draw_throttle_percentage(i2c, data.throttle.as_)
+    //     }
 
-        Ok(())
-    }
+    //     Ok(())
+    // }
 
     pub fn draw_throttle_percentage(&mut self, i2c: &mut I2cDriver, thr_percentage: u8) -> Result<(), EspError> {
         self.set_cursor(i2c, LineNumber::FirstLine, 3)?;

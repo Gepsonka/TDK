@@ -1,4 +1,5 @@
 use common::ControlData;
+use esp_idf_hal::delay::FreeRtos;
 use esp_idf_sys as _; // If using the `binstart` feature of `esp-idf-sys`, always keep this module imported
 
 use esp_idf_hal::i2c::*;
@@ -45,25 +46,38 @@ fn main() {
     let config = I2cConfig::new().baudrate(100.kHz().into());
     let mut i2c_driver = I2cDriver::new(i2c, sda, scl, &config).unwrap();
 
+    // Needed to optimize the output drawing to the LCD
+    let mut control_data = Arc::new(Mutex::new(ControlData::new(
+        adc::AdcDriver::new(peripherals.adc2, &Config::new().calibration(true)).unwrap(),
+        AdcChannelDriver::new(peripherals.pins.gpio27).unwrap(),
+        n_switch,
+        w_switch,
+        e_switch,
+        s_switch
+
+    )));
+
+    let data_control_thread = thread::spawn(move || {
+        //let control_data_ref = control_data.clone();
+        loop{
+            ControlData::update_data(control_data.clone());
+            thread::sleep(Duration::from_millis(1000));
+        }
+        
+    });
+
 
     let mut lcd_2004A = lcd::LCD::new();
     lcd_2004A.init_lcd(&mut i2c_driver).unwrap();
-    lcd_2004A.draw_data(&mut i2c_driver, common::ControlData::new()).unwrap();
+    //lcd_2004A.draw_data(&mut i2c_driver, common::ControlData::new()).unwrap();
 
-
-    let mut thrtl = throttle::Throttle::new(
-        adc::AdcDriver::new(peripherals.adc2, &Config::new().calibration(true)).unwrap(),
-        AdcChannelDriver::new(peripherals.pins.gpio27).unwrap()
-    );
-
-    let mut stick = joystick::Joystick::new(n_switch, w_switch, e_switch, s_switch);
-
-    // Needed to optimize the output drawing to the LCD
-    let mut prev_control_data_state = ControlData::new();
-    let mut control_data = ControlData::new();
+    //data_control_thread.join().unwrap();
     
     loop {
-        control_data
+        println!("Csokiiii");
+        FreeRtos::delay_ms(1000);
     }
+
+    //data_control_thread.join().unwrap();
 
 }
