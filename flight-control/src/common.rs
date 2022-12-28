@@ -46,8 +46,8 @@ impl <'a> ControlData<'a> {
         data_obj.stick.read_direction()?;
         // TODO: implement LoRa,  GPS and altimeter later...
 
-        println!("throttle%: {}", data_obj.throttle.as_percentage()?);
-        println!("dirtection%: {}", data_obj.stick.read_direction()?.as_str());
+        //println!("throttle%: {}", data_obj.throttle.as_percentage()?);
+        //println!("dirtection%: {}", data_obj.stick.read_direction()?.as_str());
 
         Ok(())
     }

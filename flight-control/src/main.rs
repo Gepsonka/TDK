@@ -1,8 +1,9 @@
 use common::ControlData;
-use esp_idf_hal::delay::FreeRtos;
+use esp_idf_hal::delay::{FreeRtos, BLOCK};
+use esp_idf_hal::uart::UartDriver;
 use esp_idf_sys as _; // If using the `binstart` feature of `esp-idf-sys`, always keep this module imported
 
-use esp_idf_hal::i2c::*;
+use esp_idf_hal::{i2c::*, uart, gpio};
 use esp_idf_hal::peripherals::Peripherals;
 use esp_idf_hal::prelude::*;
 use std::thread;
@@ -33,6 +34,8 @@ fn main() {
     let scl = peripherals.pins.gpio22;
     let sda = peripherals.pins.gpio21;
 
+    
+
     let mut n_switch = PinDriver::input(peripherals.pins.gpio32).unwrap();
     let mut s_switch = PinDriver::input(peripherals.pins.gpio33).unwrap();
     let mut e_switch = PinDriver::input(peripherals.pins.gpio25).unwrap();
@@ -45,6 +48,19 @@ fn main() {
 
     let config = I2cConfig::new().baudrate(100.kHz().into());
     let mut i2c_driver = I2cDriver::new(i2c, sda, scl, &config).unwrap();
+
+    let uart_tx = peripherals.pins.gpio17;
+    let uart_rx = peripherals.pins.gpio16;
+
+    let uart_config = uart::config::Config::new().baudrate(Hertz(9600));
+    let uart = UartDriver::new(
+        peripherals.uart2,
+        uart_tx,
+        uart_rx,
+        Option::<gpio::Gpio0>::None,
+        Option::<gpio::Gpio1>::None,
+        &uart_config,
+    ).unwrap();
 
     // Needed to optimize the output drawing to the LCD
     let mut control_data = Arc::new(Mutex::new(ControlData::new(
@@ -73,8 +89,14 @@ fn main() {
 
     //data_control_thread.join().unwrap();
     
+    let mut buf = [0u8; 1024];
+    let n = uart.read(&mut buf, BLOCK).unwrap();
+    let data = String::from_utf8(buf[..n].to_vec()).unwrap();
+    println!("Received data:\n{}", data);
+    
+
     loop {
-        println!("Csokiiii");
+        //println!("Csokiiii");
         FreeRtos::delay_ms(1000);
     }
 
