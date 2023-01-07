@@ -1,3 +1,5 @@
+use std::sync::{Arc, Mutex};
+
 use esp_idf_hal::{i2c::{I2cDriver}, delay::{FreeRtos, BLOCK}};
 use esp_idf_sys::EspError;
 
@@ -61,17 +63,37 @@ impl LCD {
         Ok(())
     }
 
-    /// Draws to the LCD only when a data changes.
-    // pub fn draw_data(&mut self, i2c: &mut I2cDriver, data: ControlData, prev_data_state: ControlData) -> Result<(), EspError> {
-    //     if data.throttle != prev_data_state.throttle {
-    //         self.draw_throttle_percentage(i2c, data.throttle.as_)
-    //     }
 
-    //     Ok(())
-    // }
+    pub fn lcd_thread(&mut self, data_ptr: Arc<Mutex<ControlData>>, i2c_ptr: Arc<Mutex<I2cDriver>>) {
+        let mut data = data_ptr.lock().unwrap();
+        let mut i2c = i2c_ptr.lock().unwrap();
+
+        self.draw_direction(&mut i2c, data.stick.direction);
+        self.draw_throttle_percentage(&mut i2c, data.throttle.as_percentage().unwrap());
+
+    }
+
+    /// Draws to the LCD only when a data changes.
+    pub fn draw_flight_data_template(&mut self, i2c: &mut I2cDriver) -> Result<(), EspError> {
+        self.set_cursor(i2c, LineNumber::FirstLine, 0);
+        self.send_string(i2c, String::from("THR:"));
+
+        self.set_cursor(i2c, LineNumber::FirstLine, 14);
+        self.send_string(i2c, String::from("Dir:"));
+
+        self.set_cursor(i2c, LineNumber::ThirdLine, 0);
+        self.send_string(i2c, String::from("Temp:"));
+
+        self.set_cursor(i2c, LineNumber::FourthLine, 0);
+        self.send_string(i2c, String::from("Pressure:"));
+
+        self.draw_direction(i2c, Direction::NorthEast);
+
+        Ok(())
+    }
 
     pub fn draw_throttle_percentage(&mut self, i2c: &mut I2cDriver, thr_percentage: u8) -> Result<(), EspError> {
-        self.set_cursor(i2c, LineNumber::FirstLine, 3)?;
+        self.set_cursor(i2c, LineNumber::FirstLine, 4)?;
 
         let mut thr_percentage_conversion: String = if thr_percentage < 10 {
             format!("{}{}{}", " ", thr_percentage , "%")
@@ -93,7 +115,7 @@ impl LCD {
     }
 
     pub fn draw_direction(&mut self, i2c: &mut I2cDriver, direction: Direction) -> Result<(), EspError> {
-        self.set_cursor(i2c, LineNumber::FirstLine, 17)?;
+        self.set_cursor(i2c, LineNumber::FirstLine, 18)?;
 
         let mut direction_conversion = if direction.as_str().len() < 2 {
             format!("{}{}", " ", direction.as_str())

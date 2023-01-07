@@ -9,10 +9,10 @@ use esp_idf_hal::prelude::*;
 use std::thread;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
-use esp_idf_hal::adc::{self, Atten11dB, AdcChannelDriver};
+use esp_idf_hal::adc::{self, AdcChannelDriver};
 use esp_idf_hal::adc::config::Config;
 
-use esp_idf_hal::gpio::{Gpio27, PinDriver, Pull};
+use esp_idf_hal::gpio::{ PinDriver, Pull};
 
 mod lcd;
 mod joystick;
@@ -47,7 +47,7 @@ fn main() {
     s_switch.set_pull(Pull::Down).unwrap();
 
     let config = I2cConfig::new().baudrate(100.kHz().into());
-    let mut i2c_driver = I2cDriver::new(i2c, sda, scl, &config).unwrap();
+    let mut i2c_driver = Arc::new(Mutex::new(I2cDriver::new(i2c, sda, scl, &config).unwrap()));
 
     let uart_tx = peripherals.pins.gpio17;
     let uart_rx = peripherals.pins.gpio16;
@@ -73,30 +73,43 @@ fn main() {
 
     )));
 
+    let control_data_control_thread_clone = control_data.clone();
+
     let data_control_thread = thread::spawn(move || {
-        //let control_data_ref = control_data.clone();
         loop{
-            ControlData::update_data(control_data.clone());
-            thread::sleep(Duration::from_millis(1000));
+            ControlData::update_controls_thread(control_data_control_thread_clone.clone());
+            FreeRtos::delay_ms(100);
         }
         
     });
 
 
     let mut lcd_2004A = lcd::LCD::new();
-    lcd_2004A.init_lcd(&mut i2c_driver).unwrap();
+    lcd_2004A.init_lcd(&mut i2c_driver.lock().unwrap()).unwrap();
+    lcd_2004A.draw_flight_data_template(&mut i2c_driver.lock().unwrap());
+    
+    
     //lcd_2004A.draw_data(&mut i2c_driver, common::ControlData::new()).unwrap();
 
-    //data_control_thread.join().unwrap();
+    let mut control_data_lcd_thread_clone = control_data.clone();
+    let mut i2c_lcd_thread_clone = i2c_driver.clone();
+
+    let lcd_control_thread = thread::spawn(move || {
+        loop{
+            lcd_2004A.lcd_thread(control_data_lcd_thread_clone.clone(), i2c_lcd_thread_clone.clone());
+            FreeRtos::delay_ms(100);
+        }
+        
+    });
+
     
-    let mut buf = [0u8; 1024];
-    let n = uart.read(&mut buf, BLOCK).unwrap();
-    let data = String::from_utf8(buf[..n].to_vec()).unwrap();
-    println!("Received data:\n{}", data);
+    // let mut buf = [0u8; 1024];
+    // let n = uart.read(&mut buf, BLOCK).unwrap();
+    // let data = String::from_utf8(buf[..n].to_vec()).unwrap();
+    // println!("Received data:\n{}", data);
     
 
     loop {
-        //println!("Csokiiii");
         FreeRtos::delay_ms(1000);
     }
 

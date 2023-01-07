@@ -3,6 +3,8 @@ use esp_idf_hal::adc::config::Config;
 use esp_idf_hal::gpio::Gpio27;
 use esp_idf_sys::EspError;
 
+use crate::common::PeripherialState;
+
 const COMPENSATED_ADC_HIGHEST_VALUE: u16 = 3130 - 128;
 
 
@@ -42,5 +44,12 @@ impl <'a, T> Throttle<'a, T> where T: Adc,Atten11dB<T>: Attenuation<ADC2>{
         } else {
             Ok(adc_percentage)
         }
+    }
+}
+
+
+impl <'a, T> PeripherialState for Throttle<'a, T> where T: Adc, Atten11dB<T>: Attenuation<ADC2> {
+    fn update_state(&mut self) {
+        self.read_adc();
     }
 }

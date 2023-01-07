@@ -5,7 +5,7 @@ use esp_idf_hal::gpio::{PinDriver, Gpio32, Input, Gpio34, Gpio35, Gpio33};
 use esp_idf_sys::EspError;
 use esp_idf_hal::gpio::Pin;
 
-use crate::common::{PeripherialHandler, ControlData};
+use crate::common::{ControlData, PeripherialState};
 
 
 
@@ -49,7 +49,7 @@ where GpioN: Pin,
     W_pin: PinDriver<'a, GpioW, Input>,
     E_pin: PinDriver<'a, GpioE, Input>,
     S_pin: PinDriver<'a, GpioS, Input>,
-    direction: Direction
+    pub direction: Direction
 }
 
 
@@ -115,4 +115,16 @@ where GpioN: Pin,
     }    
 
 
+}
+
+
+impl<'a, GpioN, GpioW, GpioE, GpioS> PeripherialState for Joystick<'a, GpioN, GpioW, GpioE, GpioS>
+where GpioN: Pin,
+      GpioW: Pin,
+      GpioE: Pin,
+      GpioS: Pin
+{
+    fn update_state(&mut self) {
+        self.read_direction();
+    }
 }
