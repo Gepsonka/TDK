@@ -6,13 +6,15 @@ use esp_idf_sys as _; // If using the `binstart` feature of `esp-idf-sys`, alway
 use esp_idf_hal::{i2c::*, uart, gpio};
 use esp_idf_hal::peripherals::Peripherals;
 use esp_idf_hal::prelude::*;
+use gps::GPS;
 use std::thread;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 use esp_idf_hal::adc::{self, AdcChannelDriver};
 use esp_idf_hal::adc::config::Config;
-
 use esp_idf_hal::gpio::{ PinDriver, Pull};
+
+use esp_idf_hal::interrupt;
 
 mod lcd;
 mod joystick;
@@ -20,6 +22,7 @@ mod lora;
 mod throttle;
 mod common;
 mod concurrency;
+mod gps;
 
 // TODO: Clean up unwraps everywhere, change function return types to results.S
 
@@ -76,10 +79,9 @@ fn main() {
 
     let data_control_thread = thread::spawn(move || {
         loop{
-            ControlData::update_controls_thread(control_data_control_thread_clone.clone());
             FreeRtos::delay_ms(100);
+            ControlData::update_controls_thread(control_data_control_thread_clone.clone());
         }
-        
     });
 
 
@@ -95,8 +97,9 @@ fn main() {
 
     let lcd_control_thread = thread::spawn(move || {
         loop{
-            lcd_2004A.lcd_thread(control_data_lcd_thread_clone.clone(), i2c_lcd_thread_clone.clone());
             FreeRtos::delay_ms(100);
+            lcd_2004A.lcd_thread(control_data_lcd_thread_clone.clone(), i2c_lcd_thread_clone.clone());
+            
         }
         
     });
@@ -107,8 +110,10 @@ fn main() {
     // let data = String::from_utf8(buf[..n].to_vec()).unwrap();
     // println!("Received data:\n{}", data);
     
+    let mut gps = GPS::new(uart);
 
     loop {
+        gps.read_data();
         FreeRtos::delay_ms(1000);
     }
 
