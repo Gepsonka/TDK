@@ -2,7 +2,6 @@ use esp_idf_hal::adc::{self, Atten11dB};
 use esp_idf_hal::gpio::{Gpio32, Gpio26, Gpio25, Gpio33, Gpio27, PinDriver, Input};
 use esp_idf_sys::EspError;
 
-use crate::altimeter::Altimeter;
 use crate::joystick::Joystick;
 use crate::{joystick::Direction, throttle::Throttle};
 use crate::lora::{LoRaStatus, LoRa};
@@ -21,7 +20,6 @@ pub struct ControlData <'a> {
     pub throttle: Throttle<'a, adc::ADC2>,
     pub stick: Joystick<'a, Gpio32, Gpio26, Gpio25, Gpio33>,
     pub lora: LoRa,
-    pub altimeter: Altimeter,
 }
 
 impl <'a> ControlData<'a> {
@@ -37,7 +35,7 @@ impl <'a> ControlData<'a> {
             throttle: Throttle::new(adc_driver, adc_pin),
             stick: Joystick::new(stick_N_pin, stick_W_pin, stick_E_pin, stick_S_pin),
             lora: LoRa::new(),
-            altimeter: Altimeter::new() }
+        }
     }
 
     pub fn update_controls_thread(data_ptr: Arc<Mutex<ControlData>>) -> Result<(), EspError> {

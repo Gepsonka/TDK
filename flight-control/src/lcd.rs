@@ -81,11 +81,8 @@ impl LCD {
         self.set_cursor(i2c, LineNumber::FirstLine, 14);
         self.send_string(i2c, String::from("Dir:"));
 
-        self.set_cursor(i2c, LineNumber::ThirdLine, 0);
-        self.send_string(i2c, String::from("Temp:"));
-
-        self.set_cursor(i2c, LineNumber::FourthLine, 0);
-        self.send_string(i2c, String::from("Pressure:"));
+        self.set_cursor(i2c, LineNumber::SecondLine, 0);
+        self.send_string(i2c, String::from("Alt:"));
 
         self.draw_direction(i2c, Direction::NorthEast);
 
@@ -96,8 +93,9 @@ impl LCD {
         self.set_cursor(i2c, LineNumber::FirstLine, 4)?;
 
         let mut thr_percentage_conversion: String = if thr_percentage < 10 {
-            format!("{}{}{}", " ", thr_percentage , "%")
+            format!("{}{}{}", "  ", thr_percentage , "%")
         } else {
+
             format!("{}{}", thr_percentage , "%")
         };
 
@@ -124,34 +122,6 @@ impl LCD {
         };
 
         self.send_string(i2c, direction_conversion)?;
-
-        Ok(())
-    }
-
-    pub fn draw_temperature(&mut self, i2c: &mut I2cDriver, temp_in_c: i8) -> Result<(), EspError> {
-        self.set_cursor(i2c, LineNumber::ThirdLine, 5)?;
-
-        let temp_conversion = if temp_in_c < 10 && temp_in_c >= 0 {
-            format!("{}{}C", " ", temp_in_c)
-        } else {
-            format!("{}C", temp_in_c)
-        };
-
-        self.send_string(i2c, temp_conversion)?;
-
-        Ok(())
-    }
-
-    pub fn draw_pressure(&mut self, i2c: &mut I2cDriver, pressure_in_hpa: u16) -> Result<(), EspError> {
-        self.set_cursor(i2c, LineNumber::FourthLine, 4)?;
-
-        let prs_conversion = if pressure_in_hpa.to_string().len() < 4 {
-            format!("{}{}{}", " ", pressure_in_hpa, "hPa")
-        } else {
-            format!("{}{}", pressure_in_hpa, "hPa")
-        };
-
-        self.send_string(i2c, prs_conversion)?;
 
         Ok(())
     }

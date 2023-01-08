@@ -19,7 +19,6 @@ mod joystick;
 mod lora;
 mod throttle;
 mod common;
-mod altimeter;
 mod concurrency;
 
 // TODO: Clean up unwraps everywhere, change function return types to results.S
