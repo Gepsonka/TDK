@@ -2,19 +2,22 @@ use common::ControlData;
 use esp_idf_hal::delay::{FreeRtos, BLOCK};
 use esp_idf_hal::uart::UartDriver;
 use esp_idf_sys as _; // If using the `binstart` feature of `esp-idf-sys`, always keep this module imported
-
 use esp_idf_hal::{i2c::*, uart, gpio};
 use esp_idf_hal::peripherals::Peripherals;
 use esp_idf_hal::prelude::*;
 use gps::GPS;
+use lora::LoRa;
 use std::thread;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 use esp_idf_hal::adc::{self, AdcChannelDriver};
 use esp_idf_hal::adc::config::Config;
 use esp_idf_hal::gpio::{ PinDriver, Pull};
-
+use esp_idf_hal;
+use esp_idf_hal::spi::SPI1;
 use esp_idf_hal::interrupt;
+use embedded_hal::spi::MODE_0;
+
 
 mod lcd;
 mod joystick;
@@ -35,9 +38,7 @@ fn main() {
     let i2c = peripherals.i2c0;
     let scl = peripherals.pins.gpio22;
     let sda = peripherals.pins.gpio21;
-
     
-
     let mut n_switch = PinDriver::input(peripherals.pins.gpio32).unwrap();
     let mut s_switch = PinDriver::input(peripherals.pins.gpio33).unwrap();
     let mut e_switch = PinDriver::input(peripherals.pins.gpio25).unwrap();
@@ -64,6 +65,23 @@ fn main() {
         &uart_config,
     ).unwrap();
 
+
+    let spi = peripherals.spi1;
+    let rst = PinDriver::output(peripherals.pins.gpio0).unwrap();
+    let int_pin = PinDriver::output(peripherals.pins.gpio4).unwrap();
+    let sclk = peripherals.pins.gpio18;
+    let mosi = peripherals.pins.gpio23;
+    let miso = peripherals.pins.gpio18;
+    let cs = peripherals.pins.gpio5;
+
+    let config = esp_idf_hal::spi::config::Config::new()
+        .baudrate(4.MHz().into())
+        .data_mode(MODE_0);
+
+
+    let spi_driver = esp_idf_hal::spi::SpiDeviceDriver::new_single(spi, Some(sclk), mosi, Some(miso), esp_idf_hal::spi::Dma::Channel1(()), &config).unwrap();
+
+
     // Needed to optimize the output drawing to the LCD
     let mut control_data = Arc::new(Mutex::new(ControlData::new(
         adc::AdcDriver::new(peripherals.adc2, &Config::new().calibration(true)).unwrap(),
@@ -88,6 +106,9 @@ fn main() {
     let mut lcd_2004A = lcd::LCD::new();
     lcd_2004A.init_lcd(&mut i2c_driver.lock().unwrap()).unwrap();
     lcd_2004A.draw_flight_data_template(&mut i2c_driver.lock().unwrap());
+
+
+    let mut lora = LoRa::new()
     
     
     //lcd_2004A.draw_data(&mut i2c_driver, common::ControlData::new()).unwrap();

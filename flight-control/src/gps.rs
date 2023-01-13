@@ -3,7 +3,20 @@ use esp_idf_sys::EspError;
 
 
 
-
+pub struct GPSData<'a> {
+    pub time: &'a str,
+    pub status: &'a str,
+    pub latitude: &'a str,
+    pub latitude_hemisphere: &'a str,
+    pub longitude: &'a str,
+    pub longitude_hemisphere: &'a str,
+    pub speed: &'a str,
+    pub track_angle: &'a str,
+    pub date: &'a str,
+    pub magnetic_variation: &'a str,
+    pub magnetic_variation_direction: &'a str,
+    pub mode: &'a str,
+}
 
 pub struct GPS<'a> {
     uart: UartDriver<'a>,
@@ -19,11 +32,12 @@ impl <'a> GPS<'a> {
         return GPS{ uart: uart, longitude: None, latitude: None, altitude: None, number_of_satellites_in_view: 0 }
     }
 
-    pub fn init_gps() -> Result<(), EspError> {
-        uart.write(b"$PMTK314,0,1,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0*29\r\n");
+    pub fn init_gps(&self) -> Result<(), EspError> {
+        self.uart.write(b"$PMTK314,0,1,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0*29\r\n")?;
+        Ok(())
     }
 
-    pub fn get_data(&mut self) -> GPSData {
+    pub fn get_data(&mut self) -> Result<GPSData, ()> {
         let mut data = String::new();
 
         // Read data from the GPS device until we receive a newline character
@@ -37,7 +51,7 @@ impl <'a> GPS<'a> {
         let fields: Vec<&str> = data.split(',').collect();
         if fields[0] != "$GPRMC" {
             // Not a valid GPRMC sentence, return an error
-            return GPSData { /* error */ };
+            return Err(());
         }
 
         // Parse the rest of the fields
@@ -54,7 +68,7 @@ impl <'a> GPS<'a> {
         let magnetic_variation_direction = fields[11];
         let mode = fields[12];
 
-        GPSData {
+        Ok(GPSData {
             time,
             status,
             latitude,
@@ -67,7 +81,7 @@ impl <'a> GPS<'a> {
             magnetic_variation,
             magnetic_variation_direction,
             mode,
-        }
+        })
     }
 
 }

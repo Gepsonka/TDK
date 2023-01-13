@@ -3,7 +3,7 @@ use std::sync::{Arc, Mutex};
 use esp_idf_hal::{i2c::{I2cDriver}, delay::{FreeRtos, BLOCK}};
 use esp_idf_sys::EspError;
 
-use crate::{joystick::{Direction}, lora::{LoRaStatus, self}};
+use crate::{joystick::{Direction}};
 use crate::common::ControlData;
 
 
@@ -104,10 +104,8 @@ impl LCD {
         Ok(())
     }
 
-    pub fn draw_lora_status(&mut self, i2c: &mut I2cDriver, lora_status: LoRaStatus) -> Result<(), EspError> {
+    pub fn draw_lora_status(&mut self, i2c: &mut I2cDriver) -> Result<(), EspError> {
         self.set_cursor(i2c, LineNumber::SecondLine, 5)?;
-
-        self.send_string(i2c, lora_status.as_str().to_string())?;
 
         Ok(())
     }
