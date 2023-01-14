@@ -18,7 +18,9 @@ pio = ["esp-idf-sys/pio"]
 [dependencies]
 esp-idf-sys = { version = "0.32.1", features = ["binstart"] }
 esp-idf-hal = "0.40.1"
-embedded-hal = "0.2.7"
+embedded-hal = "=1.0.0-alpha.9"
+embedded-hal-0-2 = { package = "embedded-hal", version = "0.2.7", features = ["unproven"] }
+embedded-hal-nb = "=1.0.0-alpha.1"
 aes-gcm = "0.10.1"
 
 

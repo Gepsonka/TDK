@@ -43,7 +43,7 @@ impl <'a> GPS<'a> {
         // Read data from the GPS device until we receive a newline character
         while !data.ends_with('\n') {
             let mut buf = [0; 128];
-            let n = self.serial.read(&mut buf).unwrap();
+            let n = self.uart.read(&mut buf, BLOCK).unwrap();
             data.push_str(&String::from_utf8_lossy(&buf[..n]));
         }
 
@@ -55,7 +55,7 @@ impl <'a> GPS<'a> {
         }
 
         // Parse the rest of the fields
-        let time = fields[1];
+        let time = fields[1].clone();
         let status = fields[2];
         let latitude = fields[3];
         let latitude_hemisphere = fields[4];

@@ -4,7 +4,7 @@ use esp_idf_sys::EspError;
 
 use crate::joystick::Joystick;
 use crate::{joystick::Direction, throttle::Throttle};
-use crate::lora::{LoRaStatus, LoRa};
+use crate::lora::{LoRa};
 use std::sync::{Arc, Mutex};
 use std::thread;
 use std::time::Duration;
@@ -19,7 +19,6 @@ pub trait PeripherialState {
 pub struct ControlData <'a> {
     pub throttle: Throttle<'a, adc::ADC2>,
     pub stick: Joystick<'a, Gpio32, Gpio26, Gpio25, Gpio33>,
-    pub lora: LoRa,
 }
 
 impl <'a> ControlData<'a> {
@@ -34,7 +33,6 @@ impl <'a> ControlData<'a> {
         ControlData { 
             throttle: Throttle::new(adc_driver, adc_pin),
             stick: Joystick::new(stick_N_pin, stick_W_pin, stick_E_pin, stick_S_pin),
-            lora: LoRa::new(),
         }
     }
 

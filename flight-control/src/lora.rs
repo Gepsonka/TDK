@@ -1,6 +1,10 @@
+use aes_gcm::KeyInit;
+use embedded_hal::spi::SpiDevice;
 use esp_idf_hal::delay::FreeRtos;
-use esp_idf_hal::spi::{self, Spi};
+use esp_idf_hal::gpio::{Pin, PinDriver, Input, Output};
+use esp_idf_hal::spi::{self, Spi, SpiDriver, SpiDeviceDriver};
 use esp_idf_hal::{gpio, prelude::*};
+use esp_idf_sys::EspError;
 // use embedded_hal::blocking::delay::{DelayMs, DelayUs};
 
 const REG_FIFO: u8 = 0x00;
@@ -180,42 +184,37 @@ impl PktConfig {
     }
 }
 
-pub struct LoRa<SPI, CS, RESET, DIO0, DIO1>
+pub struct LoRa<'a, ResetPin, DIO0Pin, DIO1Pin>
 where
-    CS: gpio::OutputPin,
-    RESET: gpio::OutputPin,
-    DIO0: gpio::InputPin,
-    DIO1: gpio::InputPin,
-    SPI: Spi,
+    ResetPin: Pin,
+    DIO0Pin: Pin,
+    DIO1Pin: Pin,
 {
-    spi: SPI,
-    cs: CS,
-    reset: RESET,
-    dio0: DIO0,
-    dio1: DIO1,
+    spi: SpiDeviceDriver<'a, SpiDriver<'a>>,
+    reset: PinDriver<'a, ResetPin, Output>,
+    dio0: PinDriver<'a, DIO0Pin, Input>,
+    dio1: PinDriver<'a, DIO1Pin, Input>,
     frequency: u32,
     pub tx_in_progress: bool,
 }
 
-impl<SPI, CS, RESET, DIO0, DIO1> LoRa<SPI, CS, RESET, DIO0, DIO1>
+
+
+impl<'a, ResetPin, DIO0Pin, DIO1Pin> LoRa<'a, ResetPin, DIO0Pin, DIO1Pin>
 where
-    CS: gpio::OutputPin,
-    RESET: gpio::OutputPin,
-    DIO0: gpio::InputPin,
-    DIO1: gpio::InputPin,
-    SPI: Spi,
+    ResetPin: Pin,
+    DIO0Pin: Pin,
+    DIO1Pin: Pin,
 {
     pub fn new(
-        spi: SPI,
-        cs: CS,
-        reset: RESET,
-        dio0: DIO0,
-        dio1: DIO1,
+        spi: SpiDeviceDriver<'a, SpiDriver<'a>>,
+        reset: PinDriver<'a, ResetPin, Output>,
+        dio0: PinDriver<'a, DIO0Pin, Input>,
+        dio1: PinDriver<'a, DIO1Pin, Input>,
         frequency: u32,
     ) -> Self {
         LoRa {
             spi,
-            cs,
             reset,
             dio0,
             dio1,
@@ -224,7 +223,7 @@ where
         }
     }
 
-    pub fn init(&mut self, modem_config: ModemConfig) -> Result<(), ()> {
+    pub fn init(&mut self, modem_config: ModemConfig) -> Result<(), EspError> {
         self.reset();
         self.set_mode(MODE_STDBY)?;
         self.set_modem_config(modem_config)?;
@@ -233,50 +232,49 @@ where
     }
 
     fn reset(&mut self) {
-        self.reset.set_low().ok();
+        self.reset.set_low();
         FreeRtos::delay_ms(10);
         self.reset.set_high().ok();
         FreeRtos::delay_ms(10);
     }
 
-    fn set_mode(&mut self, mode: u8) -> Result<(), ()> {
+    fn set_mode(&mut self, mode: u8) -> Result<(), EspError> {
         let mut buf = [0];
-        self.cs.set_low().ok();
+        let mut receive_buf: [u8; 1]= [0];
+        //self.cs.set_low().ok();
         buf[0] = mode | MODE_LONG_RANGE_MODE;
         self.spi
-            .transfer(&mut buf)
-            .map_err(|_| ())
-            .and_then(|_| self.cs.set_high().map_err(|_| ()))
+            .transfer(&mut receive_buf, &mut buf)?;
+        
+        Ok(())
     }
 
-    fn set_modem_config(&mut self, config: ModemConfig) -> Result<(), ()> {
+    fn set_modem_config(&mut self, config: ModemConfig) -> Result<(), EspError> {
         let mut buf = [0; 2];
-        self.cs.set_low().ok();
+        //self.cs.set_low().ok();
+        let mut receive_buf: [u8; 1]= [0];
         buf[0] = REG_MODEM_CONFIG_1 | 0x80;
         buf[1] = config.to_reg_val();
         self.spi
-            .transfer(&mut buf)
-            .map_err(|_| ())
-            .and_then(|_| self.cs.set_high().map_err(|_| ()))
+            .transfer(&mut receive_buf, &mut buf)
     }
 
-    fn set_frequency(&mut self, frequency: u32) -> Result<(), ()> {
+    fn set_frequency(&mut self, frequency: u32) -> Result<(), EspError> {
         let mut buf = [0; 4];
-        self.cs.set_low().ok();
+        //self.cs.set_low().ok();
+        let mut receive_buf: [u8; 1]= [0];
         buf[0] = REG_FRF_MSB | 0x80;
         buf[1] = (frequency >> 16) as u8;
         buf[2] = (frequency >> 8) as u8;
         buf[3] = frequency as u8;
         self.spi
-            .transfer(&mut buf)
-            .map_err(|_| ())
-            .and_then(|_| self.cs.set_high().map_err(|_| ()))
+            .transfer(&mut receive_buf, &mut buf)
     }
 
-    pub fn send(&mut self, data: &[u8]) -> Result<(), ()> {
+    pub fn send(&mut self, data: &[u8]) -> Result<(), EspError> {
         self.set_mode(MODE_STDBY)?;
-        self.write_reg(REG_FIFO_ADDR_PTR, 0)?;
-        self.write_reg(REG_PAYLOAD_LENGTH, data.len() as u8)?;
+        self.write_reg(REG_FIFO_ADDR_PTR, &[0])?;
+        self.write_reg(REG_PAYLOAD_LENGTH, &[data.len() as u8])?;
         self.write_reg(REG_FIFO, &data)?;
         self.set_mode(MODE_TX)?;
         self.tx_in_progress = true;
@@ -284,25 +282,26 @@ where
     }
 
     pub fn receive_packet(&mut self, timeout: u8) -> Result<Vec<u8>, ()> {
-        self.set_mode(MODE_RX_SINGLE)?;
+        self.set_mode(MODE_RX_SINGLE).ok();
         let mut buf = [0; 2];
+        let mut receive_buf: [u8; 1]= [0];
         let mut data = Vec::new();
         let mut done = false;
         let mut t = 0;
         while !done && t < timeout {
-            if self.dio0.is_high().ok()? {
-                self.cs.set_low().ok();
+            if self.dio0.is_high() {
+                //self.cs.set_low().ok();
                 buf[0] = REG_IRQ_FLAGS | 0x80;
-                self.spi.transfer(&mut buf).ok();
+                self.spi.transfer(&mut receive_buf, &mut buf).ok();
                 if buf[1] & IRQ_RX_DONE_MASK != 0 {
-                    self.cs.set_high().ok();
+                    //self.cs.set_high().ok();
                     let mut len = [0];
                     self.read_reg(REG_RX_NB_BYTES, &mut len).ok();
                     data.reserve(len[0] as usize);
                     self.read_reg(REG_FIFO, &mut data).ok();
                     done = true;
                 } else {
-                    self.cs.set_high().ok();
+                    //self.cs.set_high().ok();
                 }
             }
             t += 1;
@@ -314,32 +313,34 @@ where
         Ok(data)
     }
 
-    fn read_reg(&mut self, reg: u8, data: &mut [u8]) -> Result<(), ()> {
+    fn read_reg(&mut self, reg: u8, data: &mut [u8]) -> Result<(), EspError> {
         let mut buf = [0; 2];
-        self.cs.set_low().ok();
+        //self.cs.set_low().ok();
+        let mut receive_buf: [u8; 1]= [0];
         buf[0] = reg & 0x7F;
-        self.spi.transfer(&mut buf).ok();
-        self.cs.set_high().ok();
-        self.cs.set_low().ok();
+        self.spi.transfer(&mut receive_buf, &mut buf)?;
+        //self.cs.set_high().ok();
+        //self.cs.set_low().ok();
         buf[0] = 0x00;
         for d in data {
             buf[1] = 0;
-            self.spi.transfer(&mut buf).ok();
+            self.spi.transfer(&mut receive_buf, &mut buf)?;
             *d = buf[1];
         }
-        self.cs.set_high().ok();
+        //self.cs.set_high().ok();
         Ok(())
     }
 
-    fn write_reg(&mut self, reg: u8, data: &[u8]) -> Result<(), ()> {
+    fn write_reg(&mut self, reg: u8, data: &[u8]) -> Result<(), EspError> {
         let mut buf = [0; 2];
-        self.cs.set_low().ok();
+        //self.cs.set_low().ok();
+        let mut receive_buf: [u8; 1]= [0];
         buf[0] = reg | 0x80;
         for d in data {
             buf[1] = *d;
-            self.spi.transfer(&mut buf).ok();
+            self.spi.transfer(&mut receive_buf, &mut buf).ok();
         }
-        self.cs.set_high().ok();
+        //self.cs.set_high().ok();
         Ok(())
     }
 }

@@ -6,7 +6,7 @@ use esp_idf_hal::{i2c::*, uart, gpio};
 use esp_idf_hal::peripherals::Peripherals;
 use esp_idf_hal::prelude::*;
 use gps::GPS;
-use lora::LoRa;
+use lora::{LoRa, ModemConfig, CodingRate, SpreadingFactor};
 use std::thread;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
@@ -14,8 +14,9 @@ use esp_idf_hal::adc::{self, AdcChannelDriver};
 use esp_idf_hal::adc::config::Config;
 use esp_idf_hal::gpio::{ PinDriver, Pull};
 use esp_idf_hal;
-use esp_idf_hal::spi::SPI1;
+use esp_idf_hal::spi::{SPI1, SPI2};
 use esp_idf_hal::interrupt;
+use embedded_hal::spi::Mode;
 use embedded_hal::spi::MODE_0;
 
 
@@ -66,12 +67,15 @@ fn main() {
     ).unwrap();
 
 
-    let spi = peripherals.spi1;
+    let spi = peripherals.spi2;
     let rst = PinDriver::output(peripherals.pins.gpio0).unwrap();
-    let int_pin = PinDriver::output(peripherals.pins.gpio4).unwrap();
+    let mut int_pin = PinDriver::input(peripherals.pins.gpio4).unwrap();
+    int_pin.set_pull(Pull::Down).unwrap();
+    let mut dio1 = PinDriver::input(peripherals.pins.gpio2).unwrap();
+    dio1.set_pull(Pull::Down).unwrap();
     let sclk = peripherals.pins.gpio18;
-    let mosi = peripherals.pins.gpio23;
-    let miso = peripherals.pins.gpio18;
+    let mosi = peripherals.pins.gpio19;
+    let miso = peripherals.pins.gpio23;
     let cs = peripherals.pins.gpio5;
 
     let config = esp_idf_hal::spi::config::Config::new()
@@ -79,7 +83,7 @@ fn main() {
         .data_mode(MODE_0);
 
 
-    let spi_driver = esp_idf_hal::spi::SpiDeviceDriver::new_single(spi, Some(sclk), mosi, Some(miso), esp_idf_hal::spi::Dma::Channel1(()), &config).unwrap();
+    let spi_driver = esp_idf_hal::spi::SpiDeviceDriver::new_single(spi, sclk, mosi, Some(miso), esp_idf_hal::spi::Dma::Disabled, Some(cs), &config).unwrap();
 
 
     // Needed to optimize the output drawing to the LCD
@@ -108,8 +112,18 @@ fn main() {
     lcd_2004A.draw_flight_data_template(&mut i2c_driver.lock().unwrap());
 
 
-    let mut lora = LoRa::new()
-    
+    let mut modem_config = ModemConfig {
+        bandwidth: lora::Bandwidth::K125,
+        coding_rate: CodingRate::K12,
+        spreading_factor: SpreadingFactor::SF6,
+        implicit_header: true,
+        rx_continuous: false,
+        crc_on: true,
+    };
+
+    let mut lora__transceiver = LoRa::new(spi_driver, rst, int_pin, dio1, 433);
+    lora__transceiver.init(modem_config).unwrap();
+    lora__transceiver.send(&[23, 12, 43]).unwrap();
     
     //lcd_2004A.draw_data(&mut i2c_driver, common::ControlData::new()).unwrap();
 
@@ -132,9 +146,11 @@ fn main() {
     // println!("Received data:\n{}", data);
     
     let mut gps = GPS::new(uart);
+    gps.init_gps().unwrap();
 
     loop {
-        gps.read_data();
+        gps.get_data();
+        println!("{}", gps.latitude.unwrap());
         FreeRtos::delay_ms(1000);
     }
 
