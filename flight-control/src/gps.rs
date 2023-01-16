@@ -3,19 +3,19 @@ use esp_idf_sys::EspError;
 
 
 
-pub struct GPSData<'a> {
-    pub time: &'a str,
-    pub status: &'a str,
-    pub latitude: &'a str,
-    pub latitude_hemisphere: &'a str,
-    pub longitude: &'a str,
-    pub longitude_hemisphere: &'a str,
-    pub speed: &'a str,
-    pub track_angle: &'a str,
-    pub date: &'a str,
-    pub magnetic_variation: &'a str,
-    pub magnetic_variation_direction: &'a str,
-    pub mode: &'a str,
+pub struct GPSData {
+    pub time: String,
+    pub status: String,
+    pub latitude: String,
+    pub latitude_hemisphere: String,
+    pub longitude: String,
+    pub longitude_hemisphere: String,
+    pub speed: String,
+    pub track_angle: String,
+    pub date: String,
+    pub magnetic_variation: String,
+    pub magnetic_variation_direction: String,
+    pub mode: String,
 }
 
 pub struct GPS<'a> {
@@ -55,18 +55,18 @@ impl <'a> GPS<'a> {
         }
 
         // Parse the rest of the fields
-        let time = fields[1].clone();
-        let status = fields[2];
-        let latitude = fields[3];
-        let latitude_hemisphere = fields[4];
-        let longitude = fields[5];
-        let longitude_hemisphere = fields[6];
-        let speed = fields[7];
-        let track_angle = fields[8];
-        let date = fields[9];
-        let magnetic_variation = fields[10];
-        let magnetic_variation_direction = fields[11];
-        let mode = fields[12];
+        let time = fields[1].to_string();
+        let status = fields[2].to_string();
+        let latitude = fields[3].to_string();
+        let latitude_hemisphere = fields[4].to_string();
+        let longitude = fields[5].to_string();
+        let longitude_hemisphere = fields[6].to_string();
+        let speed = fields[7].to_string();
+        let track_angle = fields[8].to_string();
+        let date = fields[9].to_string();
+        let magnetic_variation = fields[10].to_string();
+        let magnetic_variation_direction = fields[11].to_string();
+        let mode = fields[12].to_string();
 
         Ok(GPSData {
             time,
@@ -82,6 +82,12 @@ impl <'a> GPS<'a> {
             magnetic_variation_direction,
             mode,
         })
+    }
+
+    pub fn get_raw_data(&mut self) -> Result<String, EspError> {
+        let mut buf = [0; 128];
+        let n = self.uart.read(&mut buf, BLOCK).unwrap();
+        return Ok(String::from_utf8(buf.to_vec()).unwrap());
     }
 
 }
