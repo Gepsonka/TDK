@@ -121,9 +121,10 @@ fn main() {
         crc_on: true,
     };
 
-    let mut lora__transceiver = LoRa::new(spi_driver, rst, int_pin, dio1, 433);
-    lora__transceiver.init(modem_config).unwrap();
-    lora__transceiver.send(&[23, 12, 43]).unwrap();
+    let mut lora_transceiver = LoRa::new(spi_driver, rst, int_pin, dio1, 433);
+    lora_transceiver.init(modem_config).unwrap();
+    lora_transceiver.send(&[23, 12, 43]).unwrap();
+    
     
     //lcd_2004A.draw_data(&mut i2c_driver, common::ControlData::new()).unwrap();
 
@@ -149,9 +150,10 @@ fn main() {
     gps.init_gps().unwrap();
 
     loop {
-        gps.get_data();
-        println!("{}", gps.latitude.unwrap());
+        //let gps_data = gps.get_data().unwrap();
+        // println!("{}", gps.get_raw_data().unwrap());
         FreeRtos::delay_ms(1000);
+        lora_transceiver.send(&[12, 32, 12, 41, 54]).unwrap();
     }
 
     //data_control_thread.join().unwrap();
