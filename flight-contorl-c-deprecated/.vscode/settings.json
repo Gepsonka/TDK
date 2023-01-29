@@ -11,5 +11,13 @@
     "idf.port": "/dev/ttyS1",
     "idf.pythonBinPath": "/home/gepsonka/.espressif/python_env/idf3.3_py3.10_env/bin/python",
     "idf.toolsPath": "/home/gepsonka/.espressif",
+    "files.associations": {
+        "lcd.c": "cpp",
+        "array": "c",
+        "string_view": "c",
+        "initializer_list": "c",
+        "utility": "c"
+    },
+    "idf.flashType": "UART",
     "cmake.configureOnOpen": true
 }
