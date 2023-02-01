@@ -13,7 +13,7 @@ typedef enum {
     SecondLine = 0x80|0x40,
     ThirdLine = 0x80|0x14,
     FourthLine = 0x80|0x54
-} LineNumber;
+} LCD_LineNumber;
 
 
 typedef struct {
@@ -25,7 +25,7 @@ typedef struct {
 void init_lcd(i2c_port_t i2c_num);
 void lcd_send_string(i2c_port_t i2c_num, char* string);
 void lcd_clear_screen(i2c_port_t i2c_num);
-void lcd_set_cursor(i2c_port_t i2c_num, LineNumber line_num, uint8_t index);
+void lcd_set_cursor(i2c_port_t i2c_num, LCD_LineNumber line_num, uint8_t index);
 
 
 

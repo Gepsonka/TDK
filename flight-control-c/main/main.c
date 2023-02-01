@@ -13,6 +13,7 @@
 #include "lcd.h"
 #include "gps.h"
 #include "lora.h"
+#include "joystick.h"
 #include <sx127x.h>
 
 
@@ -20,7 +21,6 @@
 #define UART_TX_PIN 17
 #define UART_RX_PIN 16
 #define UART_RX_BUFF_SIZE 2048
-
 #define I2C_MASTER_SCL_IO    22    /*!< gpio number for I2C master clock */
 #define I2C_MASTER_SDA_IO    21    /*!< gpio number for I2C master data  */
 #define I2C_MASTER_NUM 0   /*!< I2C port number for master dev */
@@ -39,7 +39,17 @@ TaskHandle_t handle_interrupt;
 
 void IRAM_ATTR handle_interrupt_fromisr(void *arg)
 {
-    xTaskResumeFromISR(handle_interrupt);
+    uint32_t gpio_num = (uint32_t) arg;
+
+    switch(gpio_num) {
+        case LORA_DIO0_PIN:
+            xTaskResumeFromISR(handle_interrupt);
+            break;
+        
+        case SOUTH_PIN:
+
+    }
+    
 }
 
 void handle_interrupt_task(void *arg)
@@ -86,7 +96,8 @@ void rx_callback(sx127x *device) {
   ESP_ERROR_CHECK(sx127x_get_frequency_error(device, &frequency_error));
 
   ESP_LOGI(TAG, "received: %d %s rssi: %d snr: %f freq_error: %ld", data_length, payload, rssi, snr, frequency_error);
-
+  lcd_set_cursor(0, SecondLine, 0);
+  lcd_send_string(0, (char*) payload);
   total_packets_received++;
 }
 
@@ -154,6 +165,7 @@ void app_main()
     ESP_ERROR_CHECK(sx127x_set_syncword(18, lora_device));
     ESP_ERROR_CHECK(sx127x_set_preamble_length(8, lora_device));
     sx127x_set_tx_callback(tx_callback, lora_device);
+    sx127x_set_rx_callback(rx_callback, lora_device);
 
     
 
@@ -165,25 +177,33 @@ void app_main()
         return;
     }
 
-    gpio_set_direction((gpio_num_t)LORA_DIO0_PIN, GPIO_MODE_INPUT);
-    gpio_pulldown_en((gpio_num_t)LORA_DIO0_PIN);
-    gpio_pullup_dis((gpio_num_t)LORA_DIO0_PIN);
-    gpio_set_intr_type((gpio_num_t)LORA_DIO0_PIN, GPIO_INTR_POSEDGE);
-    gpio_install_isr_service(0);
-    gpio_isr_handler_add((gpio_num_t)LORA_DIO0_PIN, handle_interrupt_fromisr, (void *)lora_device);
+    ESP_ERROR_CHECK(gpio_set_direction((gpio_num_t)LORA_DIO0_PIN, GPIO_MODE_INPUT));
+    ESP_ERROR_CHECK(gpio_pulldown_en((gpio_num_t)LORA_DIO0_PIN));
+    ESP_ERROR_CHECK(gpio_pullup_dis((gpio_num_t)LORA_DIO0_PIN));
+    ESP_ERROR_CHECK(gpio_set_intr_type((gpio_num_t)LORA_DIO0_PIN, GPIO_INTR_POSEDGE));
+    ESP_ERROR_CHECK(gpio_install_isr_service(0));
+    ESP_ERROR_CHECK(gpio_isr_handler_add((gpio_num_t)LORA_DIO0_PIN, handle_interrupt_fromisr, (void *)lora_device));
+    ESP_ERROR_CHECK(sx127x_set_opmod(SX127x_MODE_RX_CONT, lora_device));
 
     // 4 is OK
     ESP_ERROR_CHECK(sx127x_set_pa_config(SX127x_PA_PIN_BOOST, 4, lora_device));
 
+
+    ESP_ERROR_CHECK(gpio_set_direction((gpio_num_t)SOUTH_PIN, GPIO_MODE_INPUT));
+    ESP_ERROR_CHECK(gpio_pulldown_en((gpio_num_t)SOUTH_PIN));
+    ESP_ERROR_CHECK(gpio_pullup_dis((gpio_num_t)SOUTH_PIN));
+    ESP_ERROR_CHECK(gpio_set_intr_type((gpio_num_t)SOUTH_PIN, GPIO_INTR_POSEDGE));
+    ESP_ERROR_CHECK(gpio_isr_handler_add((gpio_num_t)SOUTH_PIN, handle_interrupt_fromisr, (void *)lora_device));
+    
     init_lcd(0);
 
-    lcd_send_string(0, "Csovii");
+    lcd_send_string(0, "Csoka");
 
     init_gps();
 
     while (1)
     {
-        vTaskDelay(1000 / portTICK_PERIOD_MS);
+        vTaskDelay(100 / portTICK_PERIOD_MS);
         uint8_t data[] = {0xCA, 0xFE};
         ESP_ERROR_CHECK(sx127x_set_for_transmission(data, sizeof(data), lora_device));
         ESP_ERROR_CHECK(sx127x_set_opmod(SX127x_MODE_TX, lora_device));

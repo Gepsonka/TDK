@@ -50,7 +50,6 @@ static void send_data(i2c_port_t i2c_num, uint8_t data_unit) {
 }
 
 
-
 void init_lcd(i2c_port_t i2c_num) {
     vTaskDelay(50 / portTICK_PERIOD_MS);
     send_cmd(0, 0x30);
@@ -81,3 +80,21 @@ void lcd_send_string(i2c_port_t i2c_num, char* string) {
         send_data(0, string[i]);
     }
 }
+
+void lcd_set_cursor(i2c_port_t i2c_num, LCD_LineNumber line_num, uint8_t index) {
+    switch (line_num) {
+        case FirstLine:
+            send_cmd(i2c_num, 0x80|(0x00+index));
+            break;
+        case SecondLine:
+            send_cmd(i2c_num, 0x80|(0x40+index));
+            break;
+        case ThirdLine:
+            send_cmd(i2c_num, 0x80|(0x14+index));
+            break;
+        case FourthLine:
+            send_cmd(i2c_num, 0x80|(0x54+index));
+            break;
+    }
+}
+

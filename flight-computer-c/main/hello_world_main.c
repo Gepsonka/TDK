@@ -124,15 +124,16 @@ void app_main() {
   ESP_ERROR_CHECK(gpio_set_intr_type((gpio_num_t)DIO0, GPIO_INTR_POSEDGE));
   ESP_ERROR_CHECK(gpio_install_isr_service(0));
   ESP_ERROR_CHECK(gpio_isr_handler_add((gpio_num_t)DIO0, handle_interrupt_fromisr, (void *)lora_device));
-  ESP_ERROR_CHECK(sx127x_set_opmod(SX127x_MODE_RX_CONT, lora_device));
+  //ESP_ERROR_CHECK(sx127x_set_opmod(SX127x_MODE_RX_CONT, lora_device));
+  ESP_ERROR_CHECK(sx127x_set_opmod(SX127x_MODE_TX, lora_device));
   ESP_LOGI(TAG, "end of starting up");
 
   while (1) {
     vTaskDelay(3000 / portTICK_PERIOD_MS);
     uint8_t data[] = {0xCB, 0xFF};
-    // ESP_ERROR_CHECK(sx127x_set_for_transmission(data, sizeof(data), lora_device));
-    // ESP_ERROR_CHECK(sx127x_set_opmod(SX127x_MODE_TX, lora_device));
-    // ESP_LOGI(TAG, "transmitting");
-    //ESP_ERROR_CHECK(sx127x_set_opmod(SX127x_MODE_RX_CONT, lora_device));
+    ESP_ERROR_CHECK(sx127x_set_for_transmission(data, sizeof(data), lora_device));
+    ESP_ERROR_CHECK(sx127x_set_opmod(SX127x_MODE_TX, lora_device));
+    ESP_LOGI(TAG, "transmitting");
+
   }
 }
