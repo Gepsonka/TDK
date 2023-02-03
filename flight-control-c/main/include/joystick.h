@@ -1,3 +1,4 @@
+#include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 
 #ifndef JOYSTICK_H
