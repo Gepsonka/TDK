@@ -8,12 +8,10 @@
 #include "freertos/task.h"
 #include "esp_system.h"
 #include "esp_spi_flash.h"
-#include "driver/i2c.h"
 #include "driver/adc.h"
 #include "esp_adc_cal.h"
 #include "esp_adc/adc_oneshot.h"
 #include "esp_adc/adc_cali.h"
-#include "esp_adc/adc_cali_scheme.h"
 #include "i2c.h"
 #include "lcd.h"
 #include "gps.h"
@@ -53,13 +51,15 @@ TaskHandle_t handle_interrupt;
 void IRAM_ATTR handle_interrupt_fromisr(void *arg)
 {
     uint32_t gpio_num = (uint32_t) arg;
-
     switch(gpio_num) {
         case LORA_DIO0_PIN:
             xTaskResumeFromISR(handle_interrupt);
             break;
         
         case SOUTH_PIN:
+        case NORTH_PIN:
+        case EAST_PIN:
+        case WEST_PIN:
             break;
     }
     
@@ -73,6 +73,8 @@ void handle_interrupt_task(void *arg)
         sx127x_handle_interrupt((sx127x *)arg);
     }
 }
+
+
 
 
 void tx_callback(sx127x *device)
@@ -208,11 +210,32 @@ void app_main()
     // 4 is OK
     ESP_ERROR_CHECK(sx127x_set_pa_config(SX127x_PA_PIN_BOOST, 4, lora_device));
 
+    joystick_init();
+
+    // Setting up joystick pins
     ESP_ERROR_CHECK(gpio_set_direction((gpio_num_t)SOUTH_PIN, GPIO_MODE_INPUT));
     ESP_ERROR_CHECK(gpio_pulldown_en((gpio_num_t)SOUTH_PIN));
     ESP_ERROR_CHECK(gpio_pullup_dis((gpio_num_t)SOUTH_PIN));
     ESP_ERROR_CHECK(gpio_set_intr_type((gpio_num_t)SOUTH_PIN, GPIO_INTR_ANYEDGE));
     ESP_ERROR_CHECK(gpio_isr_handler_add((gpio_num_t)SOUTH_PIN, handle_interrupt_fromisr, (void *)joysctick_state));
+
+    ESP_ERROR_CHECK(gpio_set_direction((gpio_num_t)NORTH_PIN, GPIO_MODE_INPUT));
+    ESP_ERROR_CHECK(gpio_pulldown_en((gpio_num_t)NORTH_PIN));
+    ESP_ERROR_CHECK(gpio_pullup_dis((gpio_num_t)NORTH_PIN));
+    ESP_ERROR_CHECK(gpio_set_intr_type((gpio_num_t)NORTH_PIN, GPIO_INTR_ANYEDGE));
+    ESP_ERROR_CHECK(gpio_isr_handler_add((gpio_num_t)NORTH_PIN, handle_interrupt_fromisr, (void *)joysctick_state));
+
+    ESP_ERROR_CHECK(gpio_set_direction((gpio_num_t)EAST_PIN, GPIO_MODE_INPUT));
+    ESP_ERROR_CHECK(gpio_pulldown_en((gpio_num_t)EAST_PIN));
+    ESP_ERROR_CHECK(gpio_pullup_dis((gpio_num_t)EAST_PIN));
+    ESP_ERROR_CHECK(gpio_set_intr_type((gpio_num_t)EAST_PIN, GPIO_INTR_ANYEDGE));
+    ESP_ERROR_CHECK(gpio_isr_handler_add((gpio_num_t)EAST_PIN, handle_interrupt_fromisr, (void *)joysctick_state));
+    
+    ESP_ERROR_CHECK(gpio_set_direction((gpio_num_t)WEST_PIN, GPIO_MODE_INPUT));
+    ESP_ERROR_CHECK(gpio_pulldown_en((gpio_num_t)WEST_PIN));
+    ESP_ERROR_CHECK(gpio_pullup_dis((gpio_num_t)WEST_PIN));
+    ESP_ERROR_CHECK(gpio_set_intr_type((gpio_num_t)WEST_PIN, GPIO_INTR_ANYEDGE));
+    ESP_ERROR_CHECK(gpio_isr_handler_add((gpio_num_t)WEST_PIN, handle_interrupt_fromisr, (void *)joysctick_state));
     
     init_lcd();
 
@@ -223,8 +246,6 @@ void app_main()
     init_throttle();
 
     lcd_print_display_base();
-
-
 
     while (1)
     {

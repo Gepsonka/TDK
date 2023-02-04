@@ -1,9 +1,16 @@
+#ifndef LCD_H
+#define LCD_H
 #include "i2c.h"
 #include <string.h>
 #include <stdio.h>
+#include "throttle.h"
+#include "driver/adc.h"
+#include "esp_adc_cal.h"
+#include "esp_adc/adc_oneshot.h"
+#include "esp_adc/adc_cali.h"
+#include "joystick.h"
+#include "freertos/semphr.h"
 
-#ifndef LCD_H
-#define LCD_H
 
 #define LCD_I2C_DEFAULT_PORT 0
 #define LCD_DRIVER_I2C_ADDR 0x27
@@ -24,5 +31,6 @@ void lcd_print_display_base();
 void lcd_print_current_throttle_percentage();
 void lcd_print_throttle_percentage(uint16_t raw_val);
 void lcd_print_joystick_direction();
+void lcd_print_current_joystick_direction(uint8_t joystick_direction);
 
 #endif

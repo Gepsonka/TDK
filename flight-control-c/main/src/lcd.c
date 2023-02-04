@@ -1,12 +1,9 @@
-#include <string.h>
 #include "lcd.h"
-#include "throttle.h"
-#include "driver/adc.h"
-#include "esp_adc_cal.h"
-#include "esp_adc/adc_oneshot.h"
-#include "esp_adc/adc_cali.h"
-#include "esp_adc/adc_cali_scheme.h"
 
+
+
+extern Joystick_Direction joysctick_state;
+extern SemaphoreHandle_t joystick_semaphore_handle;
 
 static void send_cmd(uint8_t cmd) {
     uint8_t data_u;
@@ -137,5 +134,53 @@ void lcd_print_throttle_percentage(uint16_t raw_val){
 }
 
 void lcd_print_joystick_direction(){
-    uint8_t asd = 0;
+    lcd_set_cursor(SecondLine, 4);
+    if (xSemaphoreTake(joystick_semaphore_handle, portMAX_DELAY) == pdTRUE) {
+        switch (joysctick_state) {
+            case NA:
+                lcd_send_string("NA");
+            case NORTH:
+                lcd_send_string("N ");
+            case SOUTH:
+                lcd_send_string("S ");
+            case NORTH_EAST:
+                lcd_send_string("NE");
+            case NORTH_WEST:
+                lcd_send_string("NW");
+            case SOUTH_EAST:
+                lcd_send_string("SE");
+            case SOUTH_WEST:
+                lcd_send_string("SW");
+            case EAST:
+                lcd_send_string("E ");
+            case WEST:
+                lcd_send_string("W ");
+        }
+        xSemaphoreGive(joystick_semaphore_handle);
+    }
+    
+}
+
+void lcd_print_current_joystick_direction(uint8_t joystick_direction){
+    lcd_set_cursor(SecondLine, 4);
+    switch (joystick_direction) {
+        case NA:
+            lcd_send_string("NA");
+        case NORTH:
+            lcd_send_string("N ");
+        case SOUTH:
+            lcd_send_string("S ");
+        case NORTH_EAST:
+            lcd_send_string("NE");
+        case NORTH_WEST:
+            lcd_send_string("NW");
+        case SOUTH_EAST:
+            lcd_send_string("SE");
+        case SOUTH_WEST:
+            lcd_send_string("SW");
+        case EAST:
+            lcd_send_string("E ");
+        case WEST:
+            lcd_send_string("W ");
+    }
 }
