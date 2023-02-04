@@ -28,5 +28,8 @@ void lcd_clear_screen(i2c_port_t i2c_num);
 void lcd_set_cursor(i2c_port_t i2c_num, LCD_LineNumber line_num, uint8_t index);
 
 
+void lcd_print_display_base();
+void lcd_print_current_throttle_percentage();
+void lcd_print_joystick_direction()
 
 #endif

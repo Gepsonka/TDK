@@ -19,6 +19,7 @@
 #include "gps.h"
 #include "lora.h"
 #include "joystick.h"
+#include "throttle.h"
 #include <sx127x.h>
 
 
@@ -35,14 +36,10 @@
 #define ACK_CHECK_EN 1
 #define NACK_VAL 0
 
-#define ADC_CHANNEL (ADC2_CHANNEL_6)
-#define ADC_WIDTH (ADC_WIDTH_BIT_12)
-#define ADC_ATTEN (ADC_ATTEN_DB_11)
+
 
 
 static const char *TAG = "sx127x";
-
-int adc_value;
 
 extern sx127x *lora_device;
 int messages_sent = 0;
@@ -115,11 +112,7 @@ void rx_callback(sx127x *device) {
 }
 
 
-void adc_init()
-{
-    adc1_config_width(ADC_WIDTH);
-    adc2_config_channel_atten(ADC_CHANNEL, ADC_ATTEN);
-}
+
 
 
 void app_main()
@@ -216,44 +209,13 @@ void app_main()
     ESP_ERROR_CHECK(gpio_set_intr_type((gpio_num_t)SOUTH_PIN, GPIO_INTR_POSEDGE));
     ESP_ERROR_CHECK(gpio_isr_handler_add((gpio_num_t)SOUTH_PIN, handle_interrupt_fromisr, (void *)lora_device));
     
-    // // config ADC
-    // adc_oneshot_unit_handle_t adc2_handle;
-    // adc_oneshot_unit_init_cfg_t init_config2 = {
-    //     .unit_id = ADC_UNIT_2,
-    //     .ulp_mode = ADC_ULP_MODE_DISABLE,
-    // };
-    // ESP_ERROR_CHECK(adc_oneshot_new_unit(&init_config2, &adc2_handle));
-
-    // //-------------ADC2 Calibration Init---------------//
-    // adc_cali_handle_t adc2_cali_handle = NULL;
-    // // bool do_calibration2 = example_adc_calibration_init(ADC_UNIT_2, EXAMPLE_ADC_ATTEN, &adc2_cali_handle);
-
-    // //-------------ADC2 Config---------------//
-    // adc_oneshot_chan_cfg_t adc_config = {
-    //     .bitwidth = ADC_BITWIDTH_DEFAULT,
-    //     .atten = EXAMPLE_ADC_ATTEN,
-    // };
-
-    // ESP_ERROR_CHECK(adc_oneshot_config_channel(adc2_handle, EXAMPLE_ADC2_CHAN0, &adc_config));
-    
     init_lcd(0);
 
     lcd_send_string(0, "Csoka");
 
     init_gps();
 
-    adc_init();
-
-    esp_adc_cal_characteristics_t adc1_chars;
-    esp_adc_cal_characterize(ADC_UNIT_1, ADC_ATTEN, ADC_WIDTH, 0, &adc1_chars);
-    
-    adc_cali_line_fitting_config_t cali_config = {
-    .unit_id = ADC_UNIT_1,
-    .atten = ADC_ATTEN,
-    .bitwidth = ADC_WIDTH,
-    };
-    adc_cali_handle_t handle = NULL;
-    ESP_ERROR_CHECK(adc_cali_create_scheme_line_fitting(&cali_config, &handle));
+    init_throttle();
 
     while (1)
     {
@@ -264,10 +226,9 @@ void app_main()
         ESP_LOGI(TAG, "transmitting");
         ESP_ERROR_CHECK(sx127x_set_opmod(SX127x_MODE_RX_CONT, lora_device));
 
-        //adc_value = adc1_get_raw(ADC_CHANNEL);
-        uint32_t mV;
-        esp_adc_cal_raw_to_voltage(adc2_get_raw(ADC_CHANNEL, ADC_WIDTH, &mV), &adc1_chars);
-        ESP_LOGI(TAG, "mV value: %lu", mV);
-        vTaskDelay(1000 / portTICK_PERIOD_MS);
+        uint16_t raw;
+        adc2_get_raw(ADC_CHANNEL, ADC_WIDTH, &raw);
+        ESP_LOGI(TAG, "Raw value: %lu", raw);
+        
     }
 }
