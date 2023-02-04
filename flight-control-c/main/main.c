@@ -73,6 +73,7 @@ void handle_interrupt_task(void *arg)
     }
 }
 
+
 void tx_callback(sx127x *device)
 {
     ESP_LOGI(TAG, "transmitted");
@@ -117,7 +118,7 @@ void rx_callback(sx127x *device) {
 void adc_init()
 {
     adc1_config_width(ADC_WIDTH);
-    adc1_config_channel_atten(ADC_CHANNEL, ADC_ATTEN);
+    adc2_config_channel_atten(ADC_CHANNEL, ADC_ATTEN);
 }
 
 
@@ -244,7 +245,7 @@ void app_main()
     adc_init();
 
     esp_adc_cal_characteristics_t adc1_chars;
-    esp_adc_cal_characterize(ADC_UNIT_1, ADC_ATTEN_DB_11, ADC_WIDTH_BIT_DEFAULT, 0, &adc1_chars);
+    esp_adc_cal_characterize(ADC_UNIT_1, ADC_ATTEN, ADC_WIDTH, 0, &adc1_chars);
     
     adc_cali_line_fitting_config_t cali_config = {
     .unit_id = ADC_UNIT_1,
@@ -264,7 +265,8 @@ void app_main()
         ESP_ERROR_CHECK(sx127x_set_opmod(SX127x_MODE_RX_CONT, lora_device));
 
         //adc_value = adc1_get_raw(ADC_CHANNEL);
-        uint32_t mV = esp_adc_cal_raw_to_voltage(adc1_get_raw(ADC_CHANNEL), &adc1_chars);
+        uint32_t mV;
+        esp_adc_cal_raw_to_voltage(adc2_get_raw(ADC_CHANNEL, ADC_WIDTH, &mV), &adc1_chars);
         ESP_LOGI(TAG, "mV value: %lu", mV);
         vTaskDelay(1000 / portTICK_PERIOD_MS);
     }
