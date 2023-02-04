@@ -1,7 +1,5 @@
 #include <string.h>
 #include "lcd.h"
-#include "throttle.h"
-
 
 
 
@@ -100,13 +98,3 @@ void lcd_set_cursor(i2c_port_t i2c_num, LCD_LineNumber line_num, uint8_t index) 
     }
 }
 
-void lcd_print_current_throttle_percentage() {
-    uint16_t raw_val;
-    adc2_get_raw(ADC_CHANNEL, ADC_WIDTH, &raw_val);
-    uint8_t percentage_val = throttle_convert_to_percentage(raw_val);
-    char percentage_str_format[4] = "    ";
-    sprintf(percentage_str_format, "%d", percentage_val);
-    percentage_str_format[3] = '%';
-    lcd_set_cursor(LCD_I2C_DEFAULT_PORT, FirstLine, 4);
-    lcd_send_string(LCD_I2C_DEFAULT_PORT, percentage_str_format);
-}
