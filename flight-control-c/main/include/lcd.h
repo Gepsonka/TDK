@@ -15,18 +15,14 @@ typedef enum {
     FourthLine = 0x80|0x54
 } LCD_LineNumber;
 
+void init_lcd();
+void lcd_send_string( char* string);
+void lcd_clear_screen();
+void lcd_set_cursor(LCD_LineNumber line_num, uint8_t index);
 
-typedef struct {
-    i2c_port_t i2c_port;
-} LCD;
-
-
-
-void init_lcd(i2c_port_t i2c_num);
-void lcd_send_string(i2c_port_t i2c_num, char* string);
-void lcd_clear_screen(i2c_port_t i2c_num);
-void lcd_set_cursor(i2c_port_t i2c_num, LCD_LineNumber line_num, uint8_t index);
-
-
+void lcd_print_display_base();
+void lcd_print_current_throttle_percentage();
+void lcd_print_throttle_percentage(uint16_t raw_val);
+void lcd_print_joystick_direction();
 
 #endif

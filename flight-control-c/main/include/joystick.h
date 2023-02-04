@@ -1,5 +1,9 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
+#include "freertos/semphr.h"
+#include <driver/gpio.h>
+#include <esp_log.h>
+
 
 #ifndef JOYSTICK_H
 #define JOYSTICK_H
@@ -9,14 +13,12 @@
 #define EAST_PIN 25
 #define WEST_PIN 26
 
-TaskHandle_t north_int_task;
-TaskHandle_t west_int_task;
-TaskHandle_t east_int_task;
-TaskHandle_t south_int_task;
+
 
 
 
 typedef enum {
+    NA,
     NORTH,
     NORTH_EAST,
     EAST,

@@ -2,7 +2,8 @@
     "idf.adapterTargetName": "esp32",
     "files.associations": {
         "i2c.h": "c",
-        "task.h": "c"
+        "task.h": "c",
+        "semphr.h": "c"
     },
     "workbench.colorCustomizations": {
         "activityBar.activeBackground": "#65c89b",
