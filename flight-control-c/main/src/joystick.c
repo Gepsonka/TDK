@@ -2,19 +2,34 @@
 
 
 
+TaskHandle_t xJoystickInteruptTask;
 SemaphoreHandle_t joystick_semaphore_handle = NULL;
-
 Joystick_Direction joysctick_state;
 
-void joystick_init(){ 
-    joystick_semaphore_handle = xSemaphoreCreateBinary();
+void IRAM_ATTR joystick_handle_interrupt_from_isr(void *arg) {
+    xTaskResumeFromISR(xJoystickInteruptTask);
+}
+
+void vTaskJoystick(void* pvParameters){
+    while (1) {
+        vTaskSuspend(NULL);
+        printf("Joystick interrupt task\n");
+        joystick_int_handler();
+    }
+}
+
+void joystick_init(){
+    joystick_semaphore_handle = xSemaphoreCreateMutex();
     joysctick_state = NA;
+    lcd_print_current_joystick_direction(joysctick_state);
+    xTaskCreate(vTaskJoystick, "JoystickInterruptTask", 1024, NULL, 1, &xJoystickInteruptTask);
 
 }
 
 
 void joystick_int_handler() {
-    if (xSemaphoreTake(joystick_semaphore_handle, portMAX_DELAY) == pdTRUE) {
+    printf("Joystick int handler\n");
+    if (xSemaphoreTake(joystick_semaphore_handle, 10) == pdTRUE) {
         if (gpio_get_level(SOUTH_PIN) && gpio_get_level(EAST_PIN)) {
             joysctick_state = SOUTH_EAST;
         } else if (gpio_get_level(SOUTH_PIN) && gpio_get_level(WEST_PIN)) {
@@ -38,5 +53,7 @@ void joystick_int_handler() {
         lcd_print_current_joystick_direction(joysctick_state);
 
         xSemaphoreGive(joystick_semaphore_handle);
+    } else {
+        printf("Could not acquire semaphore\n");
     }
 }

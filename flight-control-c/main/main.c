@@ -10,8 +10,8 @@
 #include "esp_spi_flash.h"
 #include "driver/adc.h"
 #include "esp_adc_cal.h"
-#include "esp_adc/adc_oneshot.h"
 #include "esp_adc/adc_cali.h"
+#include "freertos/queue.h"
 #include "i2c.h"
 #include "lcd.h"
 #include "gps.h"
@@ -41,7 +41,9 @@
 
 static const char *TAG = "sx127x";
 
+
 extern Joystick_Direction joysctick_state;
+extern TaskHandle_t xJoystickInteruptTask;
 
 extern sx127x *lora_device;
 int messages_sent = 0;
@@ -54,12 +56,6 @@ void IRAM_ATTR handle_interrupt_fromisr(void *arg)
     switch(gpio_num) {
         case LORA_DIO0_PIN:
             xTaskResumeFromISR(handle_interrupt);
-            break;
-        
-        case SOUTH_PIN:
-        case NORTH_PIN:
-        case EAST_PIN:
-        case WEST_PIN:
             break;
     }
     
@@ -115,12 +111,6 @@ void rx_callback(sx127x *device) {
   total_packets_received++;
 }
 
-
-void adc_init()
-{
-    adc1_config_width(ADC_WIDTH);
-    adc2_config_channel_atten(ADC_CHANNEL, ADC_ATTEN);
-}
 
 
 void app_main()
@@ -210,6 +200,10 @@ void app_main()
     // 4 is OK
     ESP_ERROR_CHECK(sx127x_set_pa_config(SX127x_PA_PIN_BOOST, 4, lora_device));
 
+    init_lcd();
+
+    lcd_print_display_base();
+
     joystick_init();
 
     // Setting up joystick pins
@@ -217,35 +211,30 @@ void app_main()
     ESP_ERROR_CHECK(gpio_pulldown_en((gpio_num_t)SOUTH_PIN));
     ESP_ERROR_CHECK(gpio_pullup_dis((gpio_num_t)SOUTH_PIN));
     ESP_ERROR_CHECK(gpio_set_intr_type((gpio_num_t)SOUTH_PIN, GPIO_INTR_ANYEDGE));
-    ESP_ERROR_CHECK(gpio_isr_handler_add((gpio_num_t)SOUTH_PIN, handle_interrupt_fromisr, (void *)joysctick_state));
+    ESP_ERROR_CHECK(gpio_isr_handler_add((gpio_num_t)SOUTH_PIN, joystick_handle_interrupt_from_isr, (void *)joysctick_state));
 
     ESP_ERROR_CHECK(gpio_set_direction((gpio_num_t)NORTH_PIN, GPIO_MODE_INPUT));
     ESP_ERROR_CHECK(gpio_pulldown_en((gpio_num_t)NORTH_PIN));
     ESP_ERROR_CHECK(gpio_pullup_dis((gpio_num_t)NORTH_PIN));
     ESP_ERROR_CHECK(gpio_set_intr_type((gpio_num_t)NORTH_PIN, GPIO_INTR_ANYEDGE));
-    ESP_ERROR_CHECK(gpio_isr_handler_add((gpio_num_t)NORTH_PIN, handle_interrupt_fromisr, (void *)joysctick_state));
+    ESP_ERROR_CHECK(gpio_isr_handler_add((gpio_num_t)NORTH_PIN, joystick_handle_interrupt_from_isr, (void *)joysctick_state));
 
     ESP_ERROR_CHECK(gpio_set_direction((gpio_num_t)EAST_PIN, GPIO_MODE_INPUT));
     ESP_ERROR_CHECK(gpio_pulldown_en((gpio_num_t)EAST_PIN));
     ESP_ERROR_CHECK(gpio_pullup_dis((gpio_num_t)EAST_PIN));
     ESP_ERROR_CHECK(gpio_set_intr_type((gpio_num_t)EAST_PIN, GPIO_INTR_ANYEDGE));
-    ESP_ERROR_CHECK(gpio_isr_handler_add((gpio_num_t)EAST_PIN, handle_interrupt_fromisr, (void *)joysctick_state));
+    ESP_ERROR_CHECK(gpio_isr_handler_add((gpio_num_t)EAST_PIN, joystick_handle_interrupt_from_isr, (void *)joysctick_state));
     
     ESP_ERROR_CHECK(gpio_set_direction((gpio_num_t)WEST_PIN, GPIO_MODE_INPUT));
     ESP_ERROR_CHECK(gpio_pulldown_en((gpio_num_t)WEST_PIN));
     ESP_ERROR_CHECK(gpio_pullup_dis((gpio_num_t)WEST_PIN));
     ESP_ERROR_CHECK(gpio_set_intr_type((gpio_num_t)WEST_PIN, GPIO_INTR_ANYEDGE));
-    ESP_ERROR_CHECK(gpio_isr_handler_add((gpio_num_t)WEST_PIN, handle_interrupt_fromisr, (void *)joysctick_state));
-    
-    init_lcd();
-
-    lcd_send_string("Csoka");
+    ESP_ERROR_CHECK(gpio_isr_handler_add((gpio_num_t)WEST_PIN, joystick_handle_interrupt_from_isr, (void *)joysctick_state));
 
     init_gps();
 
     init_throttle();
 
-    lcd_print_display_base();
 
     while (1)
     {

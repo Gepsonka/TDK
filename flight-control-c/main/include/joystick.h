@@ -15,6 +15,7 @@
 #define WEST_PIN 26
 
 
+
 typedef enum {
     NA,
     NORTH,
@@ -26,7 +27,11 @@ typedef enum {
     WEST,
     NORTH_WEST,
 } Joystick_Direction;
- 
+
+void IRAM_ATTR joystick_handle_interrupt_from_isr(void *arg);
+
+void vTaskJoystick(void* pvParameters);
+
 // start tasks, install interrupts
 void joystick_init();
 
