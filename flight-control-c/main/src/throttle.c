@@ -1,11 +1,20 @@
 #include "throttle.h"
 
+
 esp_adc_cal_characteristics_t adc1_chars;
+TaskHandle_t xThrottleDisplayTaskHandler;
 
 static void adc_init()
 {
     adc1_config_width(ADC_WIDTH);
     adc2_config_channel_atten(ADC_CHANNEL, ADC_ATTEN);
+}
+
+void vTaskThrottleDisplay(void* pvParameters) {
+    while(1) {
+        lcd_print_current_throttle_percentage();
+        vTaskDelay(100 / portTICK_PERIOD_MS);
+    }
 }
 
 void init_throttle() {
@@ -18,9 +27,10 @@ void init_throttle() {
         .bitwidth = ADC_WIDTH,
     };
     ESP_ERROR_CHECK(adc_cali_create_scheme_line_fitting(&cali_config, &calib_handle));
+    xTaskCreate(vTaskThrottleDisplay, "ThrottleDisplayTask", 2048, NULL, 1, &xThrottleDisplayTaskHandler);
+
 }
 
-
 uint16_t throttle_convert_to_percentage(uint16_t raw_value){
-    return (raw_value / THROTTLE_RAW_MAX ) * 100;
+    return (uint16_t)(((float)raw_value / (float)THROTTLE_RAW_MAX ) * 100);
 }

@@ -7,15 +7,6 @@
 #include <sx127x.h>
 #include <stdio.h>
 
-
-#define SCK 18
-#define MISO 19
-#define MOSI 23
-#define SS 5
-#define RST 0
-#define DIO0 4
-
-sx127x *lora_device = NULL;
 TaskHandle_t handle_interrupt;
 int total_packets_received = 0;
 static const char *TAG = "sx127x";

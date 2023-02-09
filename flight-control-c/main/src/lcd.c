@@ -117,19 +117,26 @@ void lcd_print_current_throttle_percentage() {
     uint16_t raw_val;
     adc2_get_raw(ADC_CHANNEL, ADC_WIDTH, &raw_val);
     uint8_t percentage_val = throttle_convert_to_percentage(raw_val);
-    char percentage_str_format[4] = "    ";
-    sprintf(percentage_str_format, "%d", percentage_val);
-    percentage_str_format[3] = '%';
-    lcd_set_cursor(FirstLine, 4);
+    char percentage_str_format[5] = "    ";
+    sprintf(percentage_str_format, "%d%%", percentage_val);
+    if (percentage_val < 10) {
+        memset(&percentage_str_format[2], ' ', 2);
+    } else if (percentage_val < 100) {
+        memset(&percentage_str_format[3], ' ', 1);
+    }
+    ESP_LOGI("Thr percent", "%s", percentage_str_format);
+    lcd_set_cursor(FirstLine, 3);
     lcd_send_string(percentage_str_format);
 }
 
 void lcd_print_throttle_percentage(uint16_t raw_val){
+    fflush(stdout);
     uint8_t percentage_val = throttle_convert_to_percentage(raw_val);
-    char percentage_str_format[4] = "    ";
-    sprintf(percentage_str_format, "%d", percentage_val);
-    percentage_str_format[3] = '%';
-    lcd_set_cursor(FirstLine, 4);
+    char percentage_str_format[5] = "    ";
+    snprintf(percentage_str_format, 5, "%d%%", percentage_val);
+    // percentage_str_format[3] = '%';
+    printf(percentage_str_format, "\n");
+    lcd_set_cursor(FirstLine, 3);
     lcd_send_string(percentage_str_format);
 }
 

@@ -50,10 +50,10 @@ void joystick_int_handler() {
             joysctick_state = NA;
         }
 
-        lcd_print_current_joystick_direction(joysctick_state);
-
         xSemaphoreGive(joystick_semaphore_handle);
     } else {
         printf("Could not acquire semaphore\n");
     }
+
+    lcd_print_joystick_direction();
 }
