@@ -23,10 +23,19 @@ uint8_t iv[12] = {
 
 mbedtls_gcm_context aes;
 
-void aes_gcm(mbedtls_gcm_context* aes_ctx, uint8_t operation, uint8_t* input, uint16_t input_len, uint8_t * output,uint16_t output_length_in_bytes, uint16_t output_length){
+void aes_gcm(mbedtls_gcm_context* aes_ctx,
+             uint8_t operation,
+             uint8_t init_vec,
+             uint8_t len_of_init_vec,
+             uint8_t* input,
+             uint16_t input_len,
+             uint8_t * output,
+             uint16_t output_length_in_bytes,
+             uint16_t output_length
+             ){
     mbedtls_gcm_init(aes_ctx);
     mbedtls_gcm_setkey(aes_ctx,MBEDTLS_CIPHER_ID_AES , (const unsigned char*) aes_key, strlen(aes_key) * 8);
-    mbedtls_gcm_starts(aes_ctx, operation, (const unsigned char*)iv, strlen(iv));
+    mbedtls_gcm_starts(aes_ctx, operation, (const unsigned char*)init_vec, len_of_init_vec);
     mbedtls_gcm_update(aes_ctx, input, input_len, output, output_length_in_bytes, (size_t *) output_length);
     mbedtls_gcm_free(aes_ctx);
 }

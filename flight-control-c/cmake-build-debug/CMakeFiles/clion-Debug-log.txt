@@ -1,20 +1,4 @@
 /snap/clion/222/bin/cmake/linux/x64/bin/cmake -DCMAKE_BUILD_TYPE=Debug -DCMAKE_MAKE_PROGRAM=/snap/clion/222/bin/ninja/linux/x64/ninja -G Ninja -S /home/molnar/Projects/TDK/flight-control-c -B /home/molnar/Projects/TDK/flight-control-c/cmake-build-debug
--- IDF_TARGET not set, using default target: esp32
--- Found Git: /usr/bin/git (found version "2.37.2") 
--- The C compiler identification is GNU 11.2.0
--- The CXX compiler identification is GNU 11.2.0
--- The ASM compiler identification is GNU
--- Found assembler: /home/molnar/.espressif/tools/xtensa-esp32-elf/esp-2022r1-11.2.0/xtensa-esp32-elf/bin/xtensa-esp32-elf-gcc
--- Detecting C compiler ABI info
--- Detecting C compiler ABI info - done
--- Check for working C compiler: /home/molnar/.espressif/tools/xtensa-esp32-elf/esp-2022r1-11.2.0/xtensa-esp32-elf/bin/xtensa-esp32-elf-gcc - skipped
--- Detecting C compile features
--- Detecting C compile features - done
--- Detecting CXX compiler ABI info
--- Detecting CXX compiler ABI info - done
--- Check for working CXX compiler: /home/molnar/.espressif/tools/xtensa-esp32-elf/esp-2022r1-11.2.0/xtensa-esp32-elf/bin/xtensa-esp32-elf-g++ - skipped
--- Detecting CXX compile features
--- Detecting CXX compile features - done
 -- Building ESP-IDF components for target esp32
 -- Checking Python dependencies...
 Python requirements are satisfied.
@@ -29,18 +13,7 @@ Processing 3 dependencies:
 -- Project sdkconfig file /home/molnar/Projects/TDK/flight-control-c/sdkconfig
 Compiler supported targets: xtensa-esp32-elf
 
--- Looking for sys/types.h
--- Looking for sys/types.h - found
--- Looking for stdint.h
--- Looking for stdint.h - found
--- Looking for stddef.h
--- Looking for stddef.h - found
--- Check size of time_t
--- Check size of time_t - done
--- Found Python3: /home/molnar/.espressif/python_env/idf5.1_py3.10_env/bin/python3.10 (found version "3.10.7") found components: Interpreter 
--- Performing Test C_COMPILER_SUPPORTS_WFORMAT_SIGNEDNESS
--- Performing Test C_COMPILER_SUPPORTS_WFORMAT_SIGNEDNESS - Success
--- App "flight-computer" version: d320e39-dirty
+-- App "flight-computer" version: fd478ce-dirty
 -- Adding linker script /home/molnar/Projects/TDK/flight-control-c/cmake-build-debug/esp-idf/esp_system/ld/memory.ld
 -- Adding linker script /home/molnar/esp/esp-idf/components/esp_system/ld/esp32/sections.ld.in
 -- Adding linker script /home/molnar/esp/esp-idf/components/esp_rom/esp32/ld/esp32.rom.ld

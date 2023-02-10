@@ -13,7 +13,7 @@ typedef struct  {
     uint16_t src_device_addr;
     uint16_t dest_device_addr;
     uint8_t num_of_packets;
-    uint8_t pakcet_num;
+    uint8_t packet_num;
     uint8_t payload[514];
 } LoRa_Packet;
 
