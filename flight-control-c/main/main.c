@@ -15,6 +15,7 @@
 #include "lora.h"
 #include "joystick.h"
 #include "throttle.h"
+#include "security.h"
 #include <sx127x.h>
 
 
@@ -140,6 +141,19 @@ void app_main()
     init_gps();
 
     init_throttle();
+
+    extern uint8_t aes_key[16];
+    extern uint8_t plain_data[32];
+    extern uint8_t iv[12];
+
+    extern mbedtls_gcm_context aes;
+
+    uint8_t output[32];
+
+    aes_gcm(&aes, aes_key, AES_GCM_ENCRYPT, iv, 12, plain_data, 32, output, 32, 32);
+    for (uint8_t i = 0; i < 32; i++) {
+        printf("%02X\n", output[i]);
+    }
 
     while (1)
     {

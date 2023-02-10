@@ -2,6 +2,8 @@
 
 static const char TAG[] = "LoRa";
 
+const uint8_t lora_device_addr = 0x01;
+
 sx127x *lora_device = NULL;
 spi_device_handle_t lora_spi_device;
 TaskHandle_t lora_interrupt_handler;
@@ -19,15 +21,6 @@ typedef struct  {
 
 
 void init_lora() {
-    spi_bus_config_t config = {
-            .mosi_io_num = LORA_MOSI_PIN,
-            .miso_io_num = LORA_MISO_PIN,
-            .sclk_io_num = LORA_SCK_PIN,
-            .quadwp_io_num = -1,
-            .quadhd_io_num = -1,
-            .max_transfer_sz = 0,
-    };
-    ESP_ERROR_CHECK(spi_bus_initialize(VSPI_HOST, &config, SPI_DMA_CH_AUTO));
     spi_device_interface_config_t dev_cfg = {
             .clock_speed_hz = 100000,
             .spics_io_num = LORA_SS_PIN,
@@ -37,7 +30,7 @@ void init_lora() {
             .dummy_bits = 0,
             .mode = 0};
     spi_device_handle_t spi_device;
-    ESP_ERROR_CHECK(spi_bus_add_device(VSPI_HOST, &dev_cfg, &spi_device));
+    ESP_ERROR_CHECK(spi_bus_add_device(LORA_SPI_HOST, &dev_cfg, &spi_device));
     ESP_ERROR_CHECK(sx127x_create(spi_device, &lora_device));
     ESP_ERROR_CHECK(sx127x_set_opmod(SX127x_MODE_SLEEP, lora_device));
     ESP_ERROR_CHECK(sx127x_set_frequency(437200012, lora_device));
@@ -45,7 +38,7 @@ void init_lora() {
     ESP_ERROR_CHECK(sx127x_set_opmod(SX127x_MODE_STANDBY, lora_device));
     ESP_ERROR_CHECK(sx127x_set_bandwidth(SX127x_BW_125000, lora_device));
     ESP_ERROR_CHECK(sx127x_set_implicit_header(NULL, lora_device));
-    ESP_ERROR_CHECK(sx127x_set_modem_config_2(SX127x_SF_6, lora_device));
+    ESP_ERROR_CHECK(sx127x_set_modem_config_2(SX127x_SF_9, lora_device));
     ESP_ERROR_CHECK(sx127x_set_syncword(18, lora_device));
     ESP_ERROR_CHECK(sx127x_set_preamble_length(8, lora_device));
     sx127x_set_tx_callback(tx_callback, lora_device);

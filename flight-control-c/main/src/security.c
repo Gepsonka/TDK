@@ -24,8 +24,9 @@ uint8_t iv[12] = {
 mbedtls_gcm_context aes;
 
 void aes_gcm(mbedtls_gcm_context* aes_ctx,
+             uint8_t* aes_key,
              uint8_t operation,
-             uint8_t init_vec,
+             uint8_t *init_vec,
              uint8_t len_of_init_vec,
              uint8_t* input,
              uint16_t input_len,
@@ -34,8 +35,13 @@ void aes_gcm(mbedtls_gcm_context* aes_ctx,
              uint16_t output_length
              ){
     mbedtls_gcm_init(aes_ctx);
-    mbedtls_gcm_setkey(aes_ctx,MBEDTLS_CIPHER_ID_AES , (const unsigned char*) aes_key, strlen(aes_key) * 8);
-    mbedtls_gcm_starts(aes_ctx, operation, (const unsigned char*)init_vec, len_of_init_vec);
+    printf("AES context created\n");
+    mbedtls_gcm_setkey(aes_ctx,MBEDTLS_CIPHER_ID_AES , aes_key, 16 * 8);
+    printf("Setting AES key\n");
+    mbedtls_gcm_starts(aes_ctx, operation, init_vec, len_of_init_vec);
+    printf("Send the initialized cipher some data and store it...\n");
     mbedtls_gcm_update(aes_ctx, input, input_len, output, output_length_in_bytes, (size_t *) output_length);
+    printf("Write encrypred text to output\n");
     mbedtls_gcm_free(aes_ctx);
+    printf("Free ctx\n  ");
 }

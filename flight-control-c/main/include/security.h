@@ -11,8 +11,9 @@
 #define AES_GCM_DECRYPT MBEDTLS_GCM_DECRYPT
 
 void aes_gcm(mbedtls_gcm_context* aes_ctx,
+             uint8_t* aes_key,
              uint8_t operation,
-             uint8_t init_vec,
+             uint8_t* init_vec,
              uint8_t len_of_init_vec,
              uint8_t* input,
              uint16_t input_len,

@@ -31,9 +31,6 @@ typedef struct  {
     uint16_t crc;
 } LoRa_Packet_Header;
 
-
-const uint8_t lora_device_addr = 0x01;
-
 void init_lora();
 
 void handle_interrupt_task(void *arg);
