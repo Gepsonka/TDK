@@ -6,6 +6,7 @@
 #include <esp_intr_alloc.h>
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
+#include "aes/esp_aes_gcm.h"
 #include "esp_system.h"
 #include "esp_spi_flash.h"
 #include "esp_adc/adc_cali.h"
@@ -109,6 +110,7 @@ void app_main()
     init_lora();
 
     init_lcd();
+    lcd_clear_screen();
 
     lcd_print_display_base();
 
@@ -150,10 +152,12 @@ void app_main()
 
     uint8_t output[32];
 
-    aes_gcm(&aes, aes_key, AES_GCM_ENCRYPT, iv, 12, plain_data, 32, output, 32, 32);
+    aes_gcm(&aes, aes_key, AES_GCM_ENCRYPT, iv, 12, plain_data, 32, output, 32, (size_t) 32);
     for (uint8_t i = 0; i < 32; i++) {
         printf("%02X\n", output[i]);
     }
+
+
 
     while (1)
     {

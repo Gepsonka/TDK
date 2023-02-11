@@ -13,7 +13,7 @@ Processing 3 dependencies:
 -- Project sdkconfig file /home/molnar/Projects/TDK/flight-control-c/sdkconfig
 Compiler supported targets: xtensa-esp32-elf
 
--- App "flight-computer" version: 2bbfa91-dirty
+-- App "flight-computer" version: 7b05a8f-dirty
 -- Adding linker script /home/molnar/Projects/TDK/flight-control-c/cmake-build-debug/esp-idf/esp_system/ld/memory.ld
 -- Adding linker script /home/molnar/esp/esp-idf/components/esp_system/ld/esp32/sections.ld.in
 -- Adding linker script /home/molnar/esp/esp-idf/components/esp_rom/esp32/ld/esp32.rom.ld

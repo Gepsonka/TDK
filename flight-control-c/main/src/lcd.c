@@ -76,7 +76,7 @@ void init_lcd() {
     vTaskDelay(10 / portTICK_PERIOD_MS);
 }
 
-void lcd_clear_display() {
+void lcd_clear_screen() {
     send_cmd(0x01);
     vTaskDelay(1 / portTICK_PERIOD_MS);
 }
@@ -106,7 +106,7 @@ void lcd_set_cursor(LCD_LineNumber line_num, uint8_t index) {
 
 // To be modified later! Adding LoRa status and gps status
 void lcd_print_display_base() {
-    lcd_clear_display();
+    lcd_clear_screen();
     lcd_set_cursor(FirstLine, 0);
     lcd_send_string("THR:");
     lcd_set_cursor(SecondLine, 0);
