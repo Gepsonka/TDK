@@ -14,15 +14,16 @@
 #define INIT_VECTOR_LENGTH 12
 
 void aes_gcm(mbedtls_gcm_context* aes_ctx,
-             uint8_t* aes_key,
-             uint8_t operation,
-             uint8_t *init_vec,
-             uint8_t len_of_init_vec,
-             uint8_t* input,
-             uint16_t input_len,
-             uint8_t * output,
-             uint16_t output_length_in_bytes,
-             size_t* output_length
+             uint8_t* key,
+             uint8_t* init_vec,
+             uint8_t init_vec_len,
+             uint8_t* plain_data,
+             uint8_t plain_data_len,
+             uint8_t* add_data,
+             uint8_t add_data_len,
+             uint8_t ciphertext,
+             uint8_t* tag,
+             uint8_t tag_len
              );
 
 

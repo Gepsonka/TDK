@@ -29,20 +29,24 @@ uint8_t tag[16];
 mbedtls_gcm_context aes;
 
 void aes_gcm(mbedtls_gcm_context* aes_ctx,
-             uint8_t* aes_key,
-             uint8_t *init_vec,
-             uint8_t len_of_init_vec,
-             uint8_t* input,
-             uint16_t input_len,
-             uint8_t * output,
-             uint16_t output_length_in_bytes,
-             size_t* output_length
+             uint8_t* key,
+             uint8_t* init_vec,
+             uint8_t init_vec_len,
+             uint8_t* plain_data,
+             uint8_t plain_data_len,
+             uint8_t* add_data,
+             uint8_t add_data_len,
+             char* ciphertext,
+             uint8_t* tag,
+             uint8_t tag_len
              ){
     mbedtls_gcm_init(aes_ctx);
     printf("AES context created\n");
-    mbedtls_gcm_setkey(aes_ctx,MBEDTLS_CIPHER_ID_AES , (const unsigned char*)aes_key, 16 * 8);
+    mbedtls_gcm_setkey(aes_ctx,MBEDTLS_CIPHER_ID_AES , (const unsigned char*)aes_key, AES_KEY_SIZE_BIT);
     printf("Setting AES key\n");
-    mbedtls_gcm_crypt_and_tag(aes_ctx, ESP_AES_ENCRYPT, );
+    mbedtls_gcm_crypt_and_tag(aes_ctx, ESP_AES_ENCRYPT, 16, init_vec, init_vec_len,
+                              add_data, add_data_len, plain_data,
+                              ciphertext, plain_data_len, tag);
     printf("Encrypting Data\n");
     mbedtls_gcm_free(aes_ctx);
     printf("Free ctx\n  ");
