@@ -5,5 +5,5 @@
 #include "lora.h"
 
 sx127x *lora_device = NULL;
-TaskHandle_t handle_interrupt;
+//TaskHandle_t handle_interrupt;
 

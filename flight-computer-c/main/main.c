@@ -6,7 +6,9 @@
 #include <freertos/task.h>
 #include <sx127x.h>
 #include <stdio.h>
+#include "lora.h"
 
+extern sx127x *lora_device;
 TaskHandle_t handle_interrupt;
 int total_packets_received = 0;
 static const char *TAG = "sx127x";
@@ -63,43 +65,41 @@ void rx_callback(sx127x *lora_device) {
 
 void app_main() {
   ESP_LOGI(TAG, "starting up");
-  spi_bus_config_t config = {
-      .mosi_io_num = MOSI,
-      .miso_io_num = MISO,
-      .sclk_io_num = SCK,
-      .quadwp_io_num = -1,
-      .quadhd_io_num = -1,
-      .max_transfer_sz = 0,
-  };
-  ESP_ERROR_CHECK(spi_bus_initialize(VSPI_HOST, &config, 1));
-  spi_device_interface_config_t dev_cfg = {
-      .clock_speed_hz = 100000,
-      .spics_io_num = SS,
-      .queue_size = 16,
-      .command_bits = 0,
-      .address_bits = 8,
-      .dummy_bits = 0,
-      .mode = 0};
-  spi_device_handle_t spi_device;
-  ESP_ERROR_CHECK(spi_bus_add_device(VSPI_HOST, &dev_cfg, &spi_device));
-  ESP_ERROR_CHECK(sx127x_create(spi_device, &lora_device));
-  ESP_ERROR_CHECK(sx127x_set_opmod(SX127x_MODE_SLEEP, lora_device));
-  ESP_ERROR_CHECK(sx127x_set_frequency(437200012, lora_device));
-  ESP_ERROR_CHECK(sx127x_reset_fifo(lora_device));
-  ESP_ERROR_CHECK(sx127x_set_lna_boost_hf(SX127x_LNA_BOOST_HF_ON, lora_device));
-  ESP_ERROR_CHECK(sx127x_set_opmod(SX127x_MODE_STANDBY, lora_device));
-  ESP_ERROR_CHECK(sx127x_set_lna_gain(SX127x_LNA_GAIN_G4, lora_device));
-  ESP_ERROR_CHECK(sx127x_set_bandwidth(SX127x_BW_125000, lora_device));
-  sx127x_implicit_header_t header = {
-      .coding_rate = SX127x_CR_4_5,
-      .crc = SX127x_RX_PAYLOAD_CRC_ON,
-      .length = 2};
-  ESP_ERROR_CHECK(sx127x_set_implicit_header(&header, lora_device));
-  ESP_ERROR_CHECK(sx127x_set_modem_config_2(SX127x_SF_9, lora_device));
-  ESP_ERROR_CHECK(sx127x_set_syncword(18, lora_device));
-  ESP_ERROR_CHECK(sx127x_set_preamble_length(8, lora_device));
-  sx127x_set_rx_callback(rx_callback, lora_device);
-  sx127x_set_tx_callback(tx_callback, lora_device);
+    spi_bus_config_t config = {
+            .mosi_io_num = LORA_MOSI_PIN,
+            .miso_io_num = LORA_MISO_PIN,
+            .sclk_io_num = LORA_SCK_PIN,
+            .quadwp_io_num = -1,
+            .quadhd_io_num = -1,
+            .max_transfer_sz = 0,
+    };
+    ESP_ERROR_CHECK(spi_bus_initialize(VSPI_HOST, &config, SPI_DMA_CH_AUTO));
+
+    spi_device_interface_config_t dev_cfg = {
+            .clock_speed_hz = 100000,
+            .spics_io_num = LORA_SS_PIN,
+            .queue_size = 16,
+            .command_bits = 0,
+            .address_bits = 8,
+            .dummy_bits = 0,
+            .mode = 0};
+    spi_device_handle_t spi_device;
+    ESP_ERROR_CHECK(spi_bus_add_device(LORA_SPI_HOST, &dev_cfg, &spi_device));
+    ESP_ERROR_CHECK(sx127x_create(spi_device, &lora_device));
+    ESP_ERROR_CHECK(sx127x_set_opmod(SX127x_MODE_SLEEP, lora_device));
+    ESP_ERROR_CHECK(sx127x_set_frequency(437200012, lora_device));
+    ESP_ERROR_CHECK(sx127x_reset_fifo(lora_device));
+    ESP_ERROR_CHECK(sx127x_set_opmod(SX127x_MODE_STANDBY, lora_device));
+    ESP_ERROR_CHECK(sx127x_set_bandwidth(SX127x_BW_125000, lora_device));
+    ESP_ERROR_CHECK(sx127x_set_implicit_header(NULL, lora_device));
+    ESP_ERROR_CHECK(sx127x_set_modem_config_2(SX127x_SF_10, lora_device));
+    ESP_ERROR_CHECK(sx127x_set_syncword(18, lora_device));
+    ESP_ERROR_CHECK(sx127x_set_preamble_length(8, lora_device));
+    sx127x_set_tx_callback(tx_callback, lora_device);
+    sx127x_set_rx_callback(rx_callback, lora_device);
+
+    ESP_ERROR_CHECK(sx127x_set_opmod(SX127x_MODE_RX_CONT, lora_device));
+    ESP_ERROR_CHECK(sx127x_set_pa_config(SX127x_PA_PIN_BOOST, 4, lora_device));
 
 
   BaseType_t task_code = xTaskCreatePinnedToCore(handle_interrupt_task, "handle interrupt", 8196, lora_device, 2, &handle_interrupt, xPortGetCoreID());
@@ -109,22 +109,20 @@ void app_main() {
     return;
   }
 
-  ESP_ERROR_CHECK(gpio_set_direction((gpio_num_t)DIO0, GPIO_MODE_INPUT));
-  ESP_ERROR_CHECK(gpio_pulldown_en((gpio_num_t)DIO0));
-  ESP_ERROR_CHECK(gpio_pullup_dis((gpio_num_t)DIO0));
-  ESP_ERROR_CHECK(gpio_set_intr_type((gpio_num_t)DIO0, GPIO_INTR_POSEDGE));
-  ESP_ERROR_CHECK(gpio_install_isr_service(0));
-  ESP_ERROR_CHECK(gpio_isr_handler_add((gpio_num_t)DIO0, handle_interrupt_fromisr, (void *)lora_device));
-  //ESP_ERROR_CHECK(sx127x_set_opmod(SX127x_MODE_RX_CONT, lora_device));
-  ESP_ERROR_CHECK(sx127x_set_opmod(SX127x_MODE_TX, lora_device));
-  ESP_LOGI(TAG, "end of starting up");
+    ESP_ERROR_CHECK(gpio_set_direction((gpio_num_t)LORA_DIO0_PIN, GPIO_MODE_INPUT));
+    ESP_ERROR_CHECK(gpio_pulldown_en((gpio_num_t)LORA_DIO0_PIN));
+    ESP_ERROR_CHECK(gpio_pullup_dis((gpio_num_t)LORA_DIO0_PIN));
+    ESP_ERROR_CHECK(gpio_set_intr_type((gpio_num_t)LORA_DIO0_PIN, GPIO_INTR_POSEDGE));
+    ESP_ERROR_CHECK(gpio_install_isr_service(0));
+    ESP_ERROR_CHECK(
+            gpio_isr_handler_add((gpio_num_t) LORA_DIO0_PIN, handle_interrupt_fromisr, (void *) lora_device));
+
+    ESP_ERROR_CHECK(sx127x_set_opmod(SX127x_MODE_RX_CONT, lora_device));
+    ESP_LOGI(TAG, "end of starting up");
 
   while (1) {
     vTaskDelay(3000 / portTICK_PERIOD_MS);
-    uint8_t data[] = {0xCB, 0xFF};
-    ESP_ERROR_CHECK(sx127x_set_for_transmission(data, sizeof(data), lora_device));
-    ESP_ERROR_CHECK(sx127x_set_opmod(SX127x_MODE_TX, lora_device));
-    ESP_LOGI(TAG, "transmitting");
+
 
   }
 }

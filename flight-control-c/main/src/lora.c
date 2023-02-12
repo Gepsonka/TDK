@@ -34,7 +34,7 @@ void init_lora() {
     ESP_ERROR_CHECK(sx127x_set_opmod(SX127x_MODE_STANDBY, lora_device));
     ESP_ERROR_CHECK(sx127x_set_bandwidth(SX127x_BW_125000, lora_device));
     ESP_ERROR_CHECK(sx127x_set_implicit_header(NULL, lora_device));
-    ESP_ERROR_CHECK(sx127x_set_modem_config_2(SX127x_SF_9, lora_device));
+    ESP_ERROR_CHECK(sx127x_set_modem_config_2(SX127x_SF_7, lora_device));
     ESP_ERROR_CHECK(sx127x_set_syncword(18, lora_device));
     ESP_ERROR_CHECK(sx127x_set_preamble_length(8, lora_device));
     sx127x_set_tx_callback(tx_callback, lora_device);
