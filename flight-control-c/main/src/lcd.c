@@ -125,7 +125,7 @@ void lcd_print_current_throttle_percentage() {
         memset(&percentage_str_format[3], ' ', 1);
     }
     ESP_LOGI("Thr percent", "%s", percentage_str_format);
-    lcd_set_cursor(FirstLine, 3);
+    lcd_set_cursor(FirstLine, 4);
     lcd_send_string(percentage_str_format);
 }
 

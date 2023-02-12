@@ -1,32 +1,32 @@
-"/Users/gepsonka/Library/Application Support/JetBrains/Toolbox/apps/CLion/ch-0/223.8617.54/CLion.app/Contents/bin/cmake/mac/bin/cmake" -DCMAKE_BUILD_TYPE=Debug -G "CodeBlocks - Unix Makefiles" -S /Users/gepsonka/Documents/GitHub/TDK/flight-control-c -B /Users/gepsonka/Documents/GitHub/TDK/flight-control-c/cmake-build-debug
+/snap/clion/222/bin/cmake/linux/x64/bin/cmake -DCMAKE_BUILD_TYPE=Debug -DCMAKE_MAKE_PROGRAM=/snap/clion/222/bin/ninja/linux/x64/ninja -G Ninja -S /home/molnar/Projects/TDK/flight-control-c -B /home/molnar/Projects/TDK/flight-control-c/cmake-build-debug
 -- IDF_TARGET not set, using default target: esp32
--- Found Git: /usr/bin/git (found version "2.37.1 (Apple Git-137.1)") 
+-- Found Git: /usr/bin/git (found version "2.37.2") 
 -- The C compiler identification is GNU 11.2.0
 -- The CXX compiler identification is GNU 11.2.0
 -- The ASM compiler identification is GNU
--- Found assembler: /Users/gepsonka/.espressif/tools/xtensa-esp32-elf/esp-2022r1-11.2.0/xtensa-esp32-elf/bin/xtensa-esp32-elf-gcc
+-- Found assembler: /home/molnar/.espressif/tools/xtensa-esp32-elf/esp-2022r1-11.2.0/xtensa-esp32-elf/bin/xtensa-esp32-elf-gcc
 -- Detecting C compiler ABI info
 -- Detecting C compiler ABI info - done
--- Check for working C compiler: /Users/gepsonka/.espressif/tools/xtensa-esp32-elf/esp-2022r1-11.2.0/xtensa-esp32-elf/bin/xtensa-esp32-elf-gcc - skipped
+-- Check for working C compiler: /home/molnar/.espressif/tools/xtensa-esp32-elf/esp-2022r1-11.2.0/xtensa-esp32-elf/bin/xtensa-esp32-elf-gcc - skipped
 -- Detecting C compile features
 -- Detecting C compile features - done
 -- Detecting CXX compiler ABI info
 -- Detecting CXX compiler ABI info - done
--- Check for working CXX compiler: /Users/gepsonka/.espressif/tools/xtensa-esp32-elf/esp-2022r1-11.2.0/xtensa-esp32-elf/bin/xtensa-esp32-elf-g++ - skipped
+-- Check for working CXX compiler: /home/molnar/.espressif/tools/xtensa-esp32-elf/esp-2022r1-11.2.0/xtensa-esp32-elf/bin/xtensa-esp32-elf-g++ - skipped
 -- Detecting CXX compile features
 -- Detecting CXX compile features - done
 -- Building ESP-IDF components for target esp32
 -- Checking Python dependencies...
 Python requirements are satisfied.
-Constraint file: /Users/gepsonka/.espressif/espidf.constraints.v5.1.txt
+Constraint file: /home/molnar/.espressif/espidf.constraints.v5.1.txt
 Requirement files:
- - /Users/gepsonka/esp/esp-idf/tools/requirements/requirements.core.txt
-Python being checked: /Users/gepsonka/.espressif/python_env/idf5.1_py3.10_env/bin/python
+ - /home/molnar/esp/esp-idf/tools/requirements/requirements.core.txt
+Python being checked: /home/molnar/.espressif/python_env/idf5.1_py3.10_env/bin/python
 Processing 3 dependencies:
 [1/3] dernasherbrezon/sx127x (2.0.1)
 [2/3] idf (5.1.0)
 [3/3] igrr/libnmea (0.1.1)
--- Project sdkconfig file /Users/gepsonka/Documents/GitHub/TDK/flight-control-c/sdkconfig
+-- Project sdkconfig file /home/molnar/Projects/TDK/flight-control-c/sdkconfig
 Compiler supported targets: xtensa-esp32-elf
 
 -- Looking for sys/types.h
@@ -37,21 +37,21 @@ Compiler supported targets: xtensa-esp32-elf
 -- Looking for stddef.h - found
 -- Check size of time_t
 -- Check size of time_t - done
--- Found Python3: /opt/homebrew/Frameworks/Python.framework/Versions/3.11/bin/python3.11 (found version "3.11.1") found components: Interpreter 
+-- Found Python3: /home/molnar/.espressif/python_env/idf5.1_py3.10_env/bin/python3.10 (found version "3.10.7") found components: Interpreter 
 -- Performing Test C_COMPILER_SUPPORTS_WFORMAT_SIGNEDNESS
 -- Performing Test C_COMPILER_SUPPORTS_WFORMAT_SIGNEDNESS - Success
--- App "flight-computer" version: 9a92c07-dirty
--- Adding linker script /Users/gepsonka/Documents/GitHub/TDK/flight-control-c/cmake-build-debug/esp-idf/esp_system/ld/memory.ld
--- Adding linker script /Users/gepsonka/esp/esp-idf/components/esp_system/ld/esp32/sections.ld.in
--- Adding linker script /Users/gepsonka/esp/esp-idf/components/esp_rom/esp32/ld/esp32.rom.ld
--- Adding linker script /Users/gepsonka/esp/esp-idf/components/esp_rom/esp32/ld/esp32.rom.api.ld
--- Adding linker script /Users/gepsonka/esp/esp-idf/components/esp_rom/esp32/ld/esp32.rom.libgcc.ld
--- Adding linker script /Users/gepsonka/esp/esp-idf/components/esp_rom/esp32/ld/esp32.rom.newlib-data.ld
--- Adding linker script /Users/gepsonka/esp/esp-idf/components/esp_rom/esp32/ld/esp32.rom.syscalls.ld
--- Adding linker script /Users/gepsonka/esp/esp-idf/components/esp_rom/esp32/ld/esp32.rom.newlib-funcs.ld
--- Adding linker script /Users/gepsonka/esp/esp-idf/components/soc/esp32/ld/esp32.peripherals.ld
+-- App "flight-computer" version: 609b854-dirty
+-- Adding linker script /home/molnar/Projects/TDK/flight-control-c/cmake-build-debug/esp-idf/esp_system/ld/memory.ld
+-- Adding linker script /home/molnar/esp/esp-idf/components/esp_system/ld/esp32/sections.ld.in
+-- Adding linker script /home/molnar/esp/esp-idf/components/esp_rom/esp32/ld/esp32.rom.ld
+-- Adding linker script /home/molnar/esp/esp-idf/components/esp_rom/esp32/ld/esp32.rom.api.ld
+-- Adding linker script /home/molnar/esp/esp-idf/components/esp_rom/esp32/ld/esp32.rom.libgcc.ld
+-- Adding linker script /home/molnar/esp/esp-idf/components/esp_rom/esp32/ld/esp32.rom.newlib-data.ld
+-- Adding linker script /home/molnar/esp/esp-idf/components/esp_rom/esp32/ld/esp32.rom.syscalls.ld
+-- Adding linker script /home/molnar/esp/esp-idf/components/esp_rom/esp32/ld/esp32.rom.newlib-funcs.ld
+-- Adding linker script /home/molnar/esp/esp-idf/components/soc/esp32/ld/esp32.peripherals.ld
 -- Components: app_trace app_update bootloader bootloader_support bt cmock console cxx dernasherbrezon__sx127x driver efuse esp-tls esp_adc esp_app_format esp_common esp_eth esp_event esp_gdbstub esp_hid esp_http_client esp_http_server esp_https_ota esp_https_server esp_hw_support esp_lcd esp_local_ctrl esp_netif esp_netif_stack esp_partition esp_phy esp_pm esp_psram esp_ringbuf esp_rom esp_system esp_timer esp_wifi espcoredump esptool_py fatfs freertos hal heap http_parser idf_test ieee802154 igrr__libnmea json log lwip main mbedtls mqtt newlib nvs_flash openthread partition_table perfmon protobuf-c protocomm pthread sdmmc soc spi_flash spiffs tcp_transport ulp unity usb vfs wear_levelling wifi_provisioning wpa_supplicant xtensa
--- Component paths: /Users/gepsonka/esp/esp-idf/components/app_trace /Users/gepsonka/esp/esp-idf/components/app_update /Users/gepsonka/esp/esp-idf/components/bootloader /Users/gepsonka/esp/esp-idf/components/bootloader_support /Users/gepsonka/esp/esp-idf/components/bt /Users/gepsonka/esp/esp-idf/components/cmock /Users/gepsonka/esp/esp-idf/components/console /Users/gepsonka/esp/esp-idf/components/cxx /Users/gepsonka/Documents/GitHub/TDK/flight-control-c/managed_components/dernasherbrezon__sx127x /Users/gepsonka/esp/esp-idf/components/driver /Users/gepsonka/esp/esp-idf/components/efuse /Users/gepsonka/esp/esp-idf/components/esp-tls /Users/gepsonka/esp/esp-idf/components/esp_adc /Users/gepsonka/esp/esp-idf/components/esp_app_format /Users/gepsonka/esp/esp-idf/components/esp_common /Users/gepsonka/esp/esp-idf/components/esp_eth /Users/gepsonka/esp/esp-idf/components/esp_event /Users/gepsonka/esp/esp-idf/components/esp_gdbstub /Users/gepsonka/esp/esp-idf/components/esp_hid /Users/gepsonka/esp/esp-idf/components/esp_http_client /Users/gepsonka/esp/esp-idf/components/esp_http_server /Users/gepsonka/esp/esp-idf/components/esp_https_ota /Users/gepsonka/esp/esp-idf/components/esp_https_server /Users/gepsonka/esp/esp-idf/components/esp_hw_support /Users/gepsonka/esp/esp-idf/components/esp_lcd /Users/gepsonka/esp/esp-idf/components/esp_local_ctrl /Users/gepsonka/esp/esp-idf/components/esp_netif /Users/gepsonka/esp/esp-idf/components/esp_netif_stack /Users/gepsonka/esp/esp-idf/components/esp_partition /Users/gepsonka/esp/esp-idf/components/esp_phy /Users/gepsonka/esp/esp-idf/components/esp_pm /Users/gepsonka/esp/esp-idf/components/esp_psram /Users/gepsonka/esp/esp-idf/components/esp_ringbuf /Users/gepsonka/esp/esp-idf/components/esp_rom /Users/gepsonka/esp/esp-idf/components/esp_system /Users/gepsonka/esp/esp-idf/components/esp_timer /Users/gepsonka/esp/esp-idf/components/esp_wifi /Users/gepsonka/esp/esp-idf/components/espcoredump /Users/gepsonka/esp/esp-idf/components/esptool_py /Users/gepsonka/esp/esp-idf/components/fatfs /Users/gepsonka/esp/esp-idf/components/freertos /Users/gepsonka/esp/esp-idf/components/hal /Users/gepsonka/esp/esp-idf/components/heap /Users/gepsonka/esp/esp-idf/components/http_parser /Users/gepsonka/esp/esp-idf/components/idf_test /Users/gepsonka/esp/esp-idf/components/ieee802154 /Users/gepsonka/Documents/GitHub/TDK/flight-control-c/managed_components/igrr__libnmea /Users/gepsonka/esp/esp-idf/components/json /Users/gepsonka/esp/esp-idf/components/log /Users/gepsonka/esp/esp-idf/components/lwip /Users/gepsonka/Documents/GitHub/TDK/flight-control-c/main /Users/gepsonka/esp/esp-idf/components/mbedtls /Users/gepsonka/esp/esp-idf/components/mqtt /Users/gepsonka/esp/esp-idf/components/newlib /Users/gepsonka/esp/esp-idf/components/nvs_flash /Users/gepsonka/esp/esp-idf/components/openthread /Users/gepsonka/esp/esp-idf/components/partition_table /Users/gepsonka/esp/esp-idf/components/perfmon /Users/gepsonka/esp/esp-idf/components/protobuf-c /Users/gepsonka/esp/esp-idf/components/protocomm /Users/gepsonka/esp/esp-idf/components/pthread /Users/gepsonka/esp/esp-idf/components/sdmmc /Users/gepsonka/esp/esp-idf/components/soc /Users/gepsonka/esp/esp-idf/components/spi_flash /Users/gepsonka/esp/esp-idf/components/spiffs /Users/gepsonka/esp/esp-idf/components/tcp_transport /Users/gepsonka/esp/esp-idf/components/ulp /Users/gepsonka/esp/esp-idf/components/unity /Users/gepsonka/esp/esp-idf/components/usb /Users/gepsonka/esp/esp-idf/components/vfs /Users/gepsonka/esp/esp-idf/components/wear_levelling /Users/gepsonka/esp/esp-idf/components/wifi_provisioning /Users/gepsonka/esp/esp-idf/components/wpa_supplicant /Users/gepsonka/esp/esp-idf/components/xtensa
+-- Component paths: /home/molnar/esp/esp-idf/components/app_trace /home/molnar/esp/esp-idf/components/app_update /home/molnar/esp/esp-idf/components/bootloader /home/molnar/esp/esp-idf/components/bootloader_support /home/molnar/esp/esp-idf/components/bt /home/molnar/esp/esp-idf/components/cmock /home/molnar/esp/esp-idf/components/console /home/molnar/esp/esp-idf/components/cxx /home/molnar/Projects/TDK/flight-control-c/managed_components/dernasherbrezon__sx127x /home/molnar/esp/esp-idf/components/driver /home/molnar/esp/esp-idf/components/efuse /home/molnar/esp/esp-idf/components/esp-tls /home/molnar/esp/esp-idf/components/esp_adc /home/molnar/esp/esp-idf/components/esp_app_format /home/molnar/esp/esp-idf/components/esp_common /home/molnar/esp/esp-idf/components/esp_eth /home/molnar/esp/esp-idf/components/esp_event /home/molnar/esp/esp-idf/components/esp_gdbstub /home/molnar/esp/esp-idf/components/esp_hid /home/molnar/esp/esp-idf/components/esp_http_client /home/molnar/esp/esp-idf/components/esp_http_server /home/molnar/esp/esp-idf/components/esp_https_ota /home/molnar/esp/esp-idf/components/esp_https_server /home/molnar/esp/esp-idf/components/esp_hw_support /home/molnar/esp/esp-idf/components/esp_lcd /home/molnar/esp/esp-idf/components/esp_local_ctrl /home/molnar/esp/esp-idf/components/esp_netif /home/molnar/esp/esp-idf/components/esp_netif_stack /home/molnar/esp/esp-idf/components/esp_partition /home/molnar/esp/esp-idf/components/esp_phy /home/molnar/esp/esp-idf/components/esp_pm /home/molnar/esp/esp-idf/components/esp_psram /home/molnar/esp/esp-idf/components/esp_ringbuf /home/molnar/esp/esp-idf/components/esp_rom /home/molnar/esp/esp-idf/components/esp_system /home/molnar/esp/esp-idf/components/esp_timer /home/molnar/esp/esp-idf/components/esp_wifi /home/molnar/esp/esp-idf/components/espcoredump /home/molnar/esp/esp-idf/components/esptool_py /home/molnar/esp/esp-idf/components/fatfs /home/molnar/esp/esp-idf/components/freertos /home/molnar/esp/esp-idf/components/hal /home/molnar/esp/esp-idf/components/heap /home/molnar/esp/esp-idf/components/http_parser /home/molnar/esp/esp-idf/components/idf_test /home/molnar/esp/esp-idf/components/ieee802154 /home/molnar/Projects/TDK/flight-control-c/managed_components/igrr__libnmea /home/molnar/esp/esp-idf/components/json /home/molnar/esp/esp-idf/components/log /home/molnar/esp/esp-idf/components/lwip /home/molnar/Projects/TDK/flight-control-c/main /home/molnar/esp/esp-idf/components/mbedtls /home/molnar/esp/esp-idf/components/mqtt /home/molnar/esp/esp-idf/components/newlib /home/molnar/esp/esp-idf/components/nvs_flash /home/molnar/esp/esp-idf/components/openthread /home/molnar/esp/esp-idf/components/partition_table /home/molnar/esp/esp-idf/components/perfmon /home/molnar/esp/esp-idf/components/protobuf-c /home/molnar/esp/esp-idf/components/protocomm /home/molnar/esp/esp-idf/components/pthread /home/molnar/esp/esp-idf/components/sdmmc /home/molnar/esp/esp-idf/components/soc /home/molnar/esp/esp-idf/components/spi_flash /home/molnar/esp/esp-idf/components/spiffs /home/molnar/esp/esp-idf/components/tcp_transport /home/molnar/esp/esp-idf/components/ulp /home/molnar/esp/esp-idf/components/unity /home/molnar/esp/esp-idf/components/usb /home/molnar/esp/esp-idf/components/vfs /home/molnar/esp/esp-idf/components/wear_levelling /home/molnar/esp/esp-idf/components/wifi_provisioning /home/molnar/esp/esp-idf/components/wpa_supplicant /home/molnar/esp/esp-idf/components/xtensa
 -- Configuring done
 -- Generating done
--- Build files have been written to: /Users/gepsonka/Documents/GitHub/TDK/flight-control-c/cmake-build-debug
+-- Build files have been written to: /home/molnar/Projects/TDK/flight-control-c/cmake-build-debug

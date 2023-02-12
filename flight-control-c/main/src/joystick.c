@@ -24,6 +24,29 @@ void joystick_init(){
     lcd_print_current_joystick_direction(joysctick_state);
     xTaskCreate(vTaskJoystick, "JoystickInterruptTask", 1024, NULL, 1, &xJoystickInteruptTask);
 
+    ESP_ERROR_CHECK(gpio_set_direction((gpio_num_t)SOUTH_PIN, GPIO_MODE_INPUT));
+    ESP_ERROR_CHECK(gpio_pulldown_en((gpio_num_t)SOUTH_PIN));
+    ESP_ERROR_CHECK(gpio_pullup_dis((gpio_num_t)SOUTH_PIN));
+    ESP_ERROR_CHECK(gpio_set_intr_type((gpio_num_t)SOUTH_PIN, GPIO_INTR_ANYEDGE));
+    ESP_ERROR_CHECK(gpio_isr_handler_add((gpio_num_t)SOUTH_PIN, joystick_handle_interrupt_from_isr, (void *)joysctick_state));
+
+    ESP_ERROR_CHECK(gpio_set_direction((gpio_num_t)NORTH_PIN, GPIO_MODE_INPUT));
+    ESP_ERROR_CHECK(gpio_pulldown_en((gpio_num_t)NORTH_PIN));
+    ESP_ERROR_CHECK(gpio_pullup_dis((gpio_num_t)NORTH_PIN));
+    ESP_ERROR_CHECK(gpio_set_intr_type((gpio_num_t)NORTH_PIN, GPIO_INTR_ANYEDGE));
+    ESP_ERROR_CHECK(gpio_isr_handler_add((gpio_num_t)NORTH_PIN, joystick_handle_interrupt_from_isr, (void *)joysctick_state));
+
+    ESP_ERROR_CHECK(gpio_set_direction((gpio_num_t)EAST_PIN, GPIO_MODE_INPUT));
+    ESP_ERROR_CHECK(gpio_pulldown_en((gpio_num_t)EAST_PIN));
+    ESP_ERROR_CHECK(gpio_pullup_dis((gpio_num_t)EAST_PIN));
+    ESP_ERROR_CHECK(gpio_set_intr_type((gpio_num_t)EAST_PIN, GPIO_INTR_ANYEDGE));
+    ESP_ERROR_CHECK(gpio_isr_handler_add((gpio_num_t)EAST_PIN, joystick_handle_interrupt_from_isr, (void *)joysctick_state));
+
+    ESP_ERROR_CHECK(gpio_set_direction((gpio_num_t)WEST_PIN, GPIO_MODE_INPUT));
+    ESP_ERROR_CHECK(gpio_pulldown_en((gpio_num_t)WEST_PIN));
+    ESP_ERROR_CHECK(gpio_pullup_dis((gpio_num_t)WEST_PIN));
+    ESP_ERROR_CHECK(gpio_set_intr_type((gpio_num_t)WEST_PIN, GPIO_INTR_ANYEDGE));
+    ESP_ERROR_CHECK(gpio_isr_handler_add((gpio_num_t)WEST_PIN, joystick_handle_interrupt_from_isr, (void *)joysctick_state));
 }
 
 

@@ -91,98 +91,21 @@ void app_main()
 
     init_lora();
 
-    ESP_ERROR_CHECK(gpio_set_direction((gpio_num_t)LORA_DIO0_PIN, GPIO_MODE_INPUT));
-    ESP_ERROR_CHECK(gpio_pulldown_en((gpio_num_t)LORA_DIO0_PIN));
-    ESP_ERROR_CHECK(gpio_pullup_dis((gpio_num_t)LORA_DIO0_PIN));
-    ESP_ERROR_CHECK(gpio_set_intr_type((gpio_num_t)LORA_DIO0_PIN, GPIO_INTR_POSEDGE));
-    ESP_ERROR_CHECK(gpio_install_isr_service(0));
-    ESP_ERROR_CHECK(
-            gpio_isr_handler_add((gpio_num_t) LORA_DIO0_PIN, lora_handle_interrupt_fromisr, (void *) lora_device));
-
     init_lcd();
+
     lcd_clear_screen();
 
     lcd_print_display_base();
 
     joystick_init();
 
-    ESP_ERROR_CHECK(gpio_set_direction((gpio_num_t)SOUTH_PIN, GPIO_MODE_INPUT));
-    ESP_ERROR_CHECK(gpio_pulldown_en((gpio_num_t)SOUTH_PIN));
-    ESP_ERROR_CHECK(gpio_pullup_dis((gpio_num_t)SOUTH_PIN));
-    ESP_ERROR_CHECK(gpio_set_intr_type((gpio_num_t)SOUTH_PIN, GPIO_INTR_ANYEDGE));
-    ESP_ERROR_CHECK(gpio_isr_handler_add((gpio_num_t)SOUTH_PIN, joystick_handle_interrupt_from_isr, (void *)joysctick_state));
-
-    ESP_ERROR_CHECK(gpio_set_direction((gpio_num_t)NORTH_PIN, GPIO_MODE_INPUT));
-    ESP_ERROR_CHECK(gpio_pulldown_en((gpio_num_t)NORTH_PIN));
-    ESP_ERROR_CHECK(gpio_pullup_dis((gpio_num_t)NORTH_PIN));
-    ESP_ERROR_CHECK(gpio_set_intr_type((gpio_num_t)NORTH_PIN, GPIO_INTR_ANYEDGE));
-    ESP_ERROR_CHECK(gpio_isr_handler_add((gpio_num_t)NORTH_PIN, joystick_handle_interrupt_from_isr, (void *)joysctick_state));
-
-    ESP_ERROR_CHECK(gpio_set_direction((gpio_num_t)EAST_PIN, GPIO_MODE_INPUT));
-    ESP_ERROR_CHECK(gpio_pulldown_en((gpio_num_t)EAST_PIN));
-    ESP_ERROR_CHECK(gpio_pullup_dis((gpio_num_t)EAST_PIN));
-    ESP_ERROR_CHECK(gpio_set_intr_type((gpio_num_t)EAST_PIN, GPIO_INTR_ANYEDGE));
-    ESP_ERROR_CHECK(gpio_isr_handler_add((gpio_num_t)EAST_PIN, joystick_handle_interrupt_from_isr, (void *)joysctick_state));
-    
-    ESP_ERROR_CHECK(gpio_set_direction((gpio_num_t)WEST_PIN, GPIO_MODE_INPUT));
-    ESP_ERROR_CHECK(gpio_pulldown_en((gpio_num_t)WEST_PIN));
-    ESP_ERROR_CHECK(gpio_pullup_dis((gpio_num_t)WEST_PIN));
-    ESP_ERROR_CHECK(gpio_set_intr_type((gpio_num_t)WEST_PIN, GPIO_INTR_ANYEDGE));
-    ESP_ERROR_CHECK(gpio_isr_handler_add((gpio_num_t)WEST_PIN, joystick_handle_interrupt_from_isr, (void *)joysctick_state));
-
     init_gps();
 
     init_throttle();
 
-    extern uint8_t aes_key[16];
-    extern uint8_t iv[12];
-
-    extern mbedtls_gcm_context aes_context;
-    uint8_t output[32];
-
-    uint8_t sec_plain_data[] = {
-            0x55, 0x73, 0x69, 0x6e, 0x67, 0x20, 0x6c, 0x69,
-            0x62, 0x69, 0x63, 0x61, 0x20, 0x69, 0x73, 0x20,
-            0x73, 0x6d, 0x61, 0x72, 0x74, 0x20, 0x61, 0x6e,
-            0x64, 0x20, 0x65, 0x61, 0x73, 0x79, 0x21, 0x00
-    };
-
-    uint8_t sec_plain_data_out[32];
-
-    uint8_t associated_data[] = {0x22, 0x23, 0x24, 0x25, 0x26, 0x27};
-
-    uint8_t sec_ciphertext[32];
-    uint8_t sec_tag[16];
-
-    aes_gcm_encrypt(&aes_context, aes_key, iv, 12, sec_plain_data,
-                    32, associated_data, 6, sec_ciphertext, sec_tag, 16);
-
-    for (uint8_t i = 0; i < 32; i++) {
-        printf("%02X ", sec_ciphertext[i]);
-    }
-
-    printf("\nTAG\n");
-
-    for (uint8_t i = 0; i < 16; i++) {
-        printf("%02X ", sec_tag[i]);
-    }
-
-    printf("\nDecrypted data\n");
-
-    aes_gcm_decrypt(&aes_context, aes_key, iv, 12, sec_plain_data_out, associated_data, 6, sec_ciphertext, 32, sec_tag, 16);
-
-    for (uint8_t i = 0; i < 32; i++) {
-        printf("%02X ", sec_plain_data_out[i]);
-    }
 
     while (1)
     {
-        vTaskDelay(2000 / portTICK_PERIOD_MS);
-        uint8_t data[255];
-        memset(data, 23, 255);
-        ESP_ERROR_CHECK(sx127x_set_for_transmission(data, 255, lora_device));
-        ESP_ERROR_CHECK(sx127x_set_opmod(SX127x_MODE_TX, lora_device));
-        ESP_LOGI(TAG, "transmitting");
-        ESP_ERROR_CHECK(sx127x_set_opmod(SX127x_MODE_RX_CONT, lora_device));
+        vTaskDelay(1000 / portTICK_PERIOD_MS);
     }
 }
