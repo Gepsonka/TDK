@@ -11,14 +11,10 @@ uint8_t lora_rx_buff[2048];
 uint8_t lora_tx_buff[2048];
 
 
-typedef struct  {
-    uint16_t src_device_addr;
-    uint16_t dest_device_addr;
-    uint8_t num_of_packets;
-    uint8_t packet_num;
-    uint8_t payload[514];
-} LoRa_Packet;
-
+void IRAM_ATTR lora_handle_interrupt_fromisr(void *arg)
+{
+    xTaskResumeFromISR(lora_interrupt_handler);
+}
 
 void init_lora() {
     spi_device_interface_config_t dev_cfg = {
@@ -43,10 +39,9 @@ void init_lora() {
     ESP_ERROR_CHECK(sx127x_set_preamble_length(8, lora_device));
     sx127x_set_tx_callback(tx_callback, lora_device);
     sx127x_set_rx_callback(rx_callback, lora_device);
+
     ESP_ERROR_CHECK(sx127x_set_opmod(SX127x_MODE_RX_CONT, lora_device));
     ESP_ERROR_CHECK(sx127x_set_pa_config(SX127x_PA_PIN_BOOST, 4, lora_device));
-
-
 
     BaseType_t task_code = xTaskCreatePinnedToCore(handle_interrupt_task, "handle interrupt", 8196, lora_device, 2, &lora_interrupt_handler, xPortGetCoreID());
     if (task_code != pdPASS)
@@ -69,6 +64,7 @@ void handle_interrupt_task(void *arg)
 void tx_callback(sx127x *device)
 {
     ESP_LOGI(TAG, "transmitted");
+    printf("Transmitted\n");
 }
 
 

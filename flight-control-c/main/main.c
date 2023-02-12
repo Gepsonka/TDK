@@ -47,16 +47,6 @@ extern TaskHandle_t xJoystickInteruptTask;
 extern sx127x *lora_device;
 extern TaskHandle_t lora_interrupt_handler;
 
-void IRAM_ATTR lora_handle_interrupt_fromisr(void *arg)
-{
-    uint32_t gpio_num = (uint32_t) arg;
-    switch(gpio_num) {
-        case LORA_DIO0_PIN:
-            xTaskResumeFromISR(lora_interrupt_handler);
-            break;
-    }
-}
-
 
 
 void app_main()
@@ -99,6 +89,8 @@ void app_main()
     };
     ESP_ERROR_CHECK(spi_bus_initialize(VSPI_HOST, &config, SPI_DMA_CH_AUTO));
 
+    init_lora();
+
     ESP_ERROR_CHECK(gpio_set_direction((gpio_num_t)LORA_DIO0_PIN, GPIO_MODE_INPUT));
     ESP_ERROR_CHECK(gpio_pulldown_en((gpio_num_t)LORA_DIO0_PIN));
     ESP_ERROR_CHECK(gpio_pullup_dis((gpio_num_t)LORA_DIO0_PIN));
@@ -106,8 +98,6 @@ void app_main()
     ESP_ERROR_CHECK(gpio_install_isr_service(0));
     ESP_ERROR_CHECK(
             gpio_isr_handler_add((gpio_num_t) LORA_DIO0_PIN, lora_handle_interrupt_fromisr, (void *) lora_device));
-
-    init_lora();
 
     init_lcd();
     lcd_clear_screen();
@@ -187,9 +177,10 @@ void app_main()
 
     while (1)
     {
-        vTaskDelay(1000 / portTICK_PERIOD_MS);
-        uint8_t data[] = {0xCA, 0xFE};
-        ESP_ERROR_CHECK(sx127x_set_for_transmission(data, sizeof(data), lora_device));
+        vTaskDelay(2000 / portTICK_PERIOD_MS);
+        uint8_t data[255];
+        memset(data, 23, 255);
+        ESP_ERROR_CHECK(sx127x_set_for_transmission(data, 255, lora_device));
         ESP_ERROR_CHECK(sx127x_set_opmod(SX127x_MODE_TX, lora_device));
         ESP_LOGI(TAG, "transmitting");
         ESP_ERROR_CHECK(sx127x_set_opmod(SX127x_MODE_RX_CONT, lora_device));

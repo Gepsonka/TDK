@@ -31,6 +31,8 @@ typedef struct  {
     uint16_t crc;
 } LoRa_Packet_Header;
 
+void IRAM_ATTR lora_handle_interrupt_fromisr(void *arg);
+
 void init_lora();
 
 void handle_interrupt_task(void *arg);
