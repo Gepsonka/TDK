@@ -1,0 +1,8 @@
+//
+// Created by molnar on 2023.02.14..
+//
+
+#ifndef FLIGHT_COMPUTER_NETWORK_H
+#define FLIGHT_COMPUTER_NETWORK_H
+
+#endif //FLIGHT_COMPUTER_NETWORK_H
