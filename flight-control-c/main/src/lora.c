@@ -211,8 +211,8 @@ uint8_t lora_send_packet(sx127x *lora_dev, LoRa_Packet* packet){
     memcpy(&data[7], packet->payload.payload, packet->header.payload_size);
     memset(&data[7 + packet->header.payload_size], packet->payload.payload_crc, sizeof(uint16_t));
     printf("preparing data for tx\n");
-    //uint8_t res = sx127x_set_for_transmission(data, packet->header.payload_size + 10, lora_dev);
-    uint8_t res = sx127x_set_for_transmission(data, 255, lora_dev);
+    uint8_t res = sx127x_set_for_transmission(data, packet->header.payload_size + LORA_HEADER_SIZE, lora_dev);
+    //uint8_t res = sx127x_set_for_transmission(data, 255, lora_dev);
     printf("just sent data for tx\n");
     return res;
 

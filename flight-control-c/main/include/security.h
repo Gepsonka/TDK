@@ -11,8 +11,11 @@
 #define AES_GCM_ENCRYPT MBEDTLS_GCM_ENCRYPT
 #define AES_GCM_DECRYPT MBEDTLS_GCM_DECRYPT
 
-#define AES_KEY_SIZE_BIT 128
-#define INIT_VECTOR_LENGTH 12
+#define SECURITY_AES_KEY_SIZE_BIT 128
+#define SECURITY_AES_KEY_SIZE_BYTE 16
+#define SECURITY_INIT_VECTOR_SIZE 12 // minimum for strong security
+#define SECURITY_AUTH_TAG_SIZE 16 // Strong enough
+#define SECURITY_ADDITIONAL_AUTH_DATA_SIZE 16
 
 void aes_gcm_encrypt(mbedtls_gcm_context* aes_ctx,
              uint8_t* key,

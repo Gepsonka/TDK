@@ -42,7 +42,7 @@ void aes_gcm_encrypt(mbedtls_gcm_context* aes_ctx,
              ){
     esp_aes_gcm_init(aes_ctx);
     printf("AES context created\n");
-    esp_aes_gcm_setkey(aes_ctx,MBEDTLS_CIPHER_ID_AES , (const unsigned char*)key, AES_KEY_SIZE_BIT);
+    esp_aes_gcm_setkey(aes_ctx, MBEDTLS_CIPHER_ID_AES , (const unsigned char*)key, SECURITY_AES_KEY_SIZE_BIT);
     printf("Setting AES key\n");
     esp_aes_gcm_crypt_and_tag(aes_ctx, ESP_AES_ENCRYPT, plain_data_len, init_vec, init_vec_len,
                               add_data, add_data_len, plain_data,
@@ -66,7 +66,7 @@ void aes_gcm_decrypt(mbedtls_gcm_context* aes_ctx,
              ) {
     esp_aes_gcm_init(aes_ctx);
     printf("AES context created\n");
-    esp_aes_gcm_setkey(aes_ctx,MBEDTLS_CIPHER_ID_AES , (const unsigned char*)key, AES_KEY_SIZE_BIT);
+    esp_aes_gcm_setkey(aes_ctx, MBEDTLS_CIPHER_ID_AES , (const unsigned char*)key, SECURITY_AES_KEY_SIZE_BIT);
     printf("Setting AES key\n");
     esp_aes_gcm_auth_decrypt(aes_ctx, ciphertext_len, init_vec, init_vec_len, aad_data, aad_data_len,
                              tag, tag_len, ciphertext, plain_data);

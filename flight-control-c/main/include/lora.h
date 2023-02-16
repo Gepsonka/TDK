@@ -25,6 +25,7 @@
 #define LORA_DIO0_PIN 4
 
 #define LORA_PAYLOAD_MAX_SIZE 246
+#define LORA_HEADER_SIZE 10
 #define LORA_MAX_NUM_OF_PACKETS 10 // Will be changed, currently this is enough
 
 #define LORA_BASE_STATION_ADDR 0x00
