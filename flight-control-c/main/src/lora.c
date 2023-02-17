@@ -260,9 +260,6 @@ uint8_t lora_send_message(uint8_t src_addr, uint8_t dest_addr, uint8_t* message,
         xQueueSend(lora_tx_queue, (void*) &packet, portMAX_DELAY);
 
     }
-
-
-
     free(lora_packets_buff);
 
     return MESSAGE_OK;

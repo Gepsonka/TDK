@@ -82,6 +82,10 @@ typedef enum {
 /// \param message_len Length of the message
 /// \return 0 if successful, anything else is error.
 uint8_t lora_send_message(uint8_t src_addr, uint8_t dest_addr, uint8_t* message, uint8_t message_len);
+uint8_t lora_send_packets(LoRa_Packet* packets);
+uint8_t lora_calc_packet_num_for_message_size(uint16_t message_size);
+
+uint8_t lora_fragment_message(uint8_t* message, uint16_t message_size);
 
 /// The network is pinged by the base station at every 2 seconds,
 /// so other devices get alerted and with the correct
