@@ -17,30 +17,24 @@
 #define SECURITY_AUTH_TAG_SIZE 16 // Strong enough
 #define SECURITY_ADDITIONAL_AUTH_DATA_SIZE 16
 
-void aes_gcm_encrypt(mbedtls_gcm_context* aes_ctx,
+void aes_gcm_encrypt(
              uint8_t* key,
              uint8_t* init_vec,
-             uint8_t init_vec_len,
              uint8_t* plain_data,
              uint8_t plain_data_len,
-             uint8_t* add_data,
-             uint8_t add_data_len,
+             uint8_t* aad_data,
              uint8_t* ciphertext,
-             uint8_t* tag,
-             uint8_t tag_len
+             uint8_t* tag
              );
 
-void aes_gcm_decrypt(mbedtls_gcm_context* aes_ctx,
+void aes_gcm_decrypt(
                      uint8_t* key,
                      uint8_t* init_vec,
-                     uint8_t init_vec_len,
                      uint8_t* plain_data,
                      uint8_t* aad_data,
-                     uint8_t aad_data_len,
                      uint8_t* ciphertext,
                      uint8_t ciphertext_len,
-                     uint8_t* tag,
-                     uint8_t tag_len
+                     uint8_t* tag
 );
 
 #endif
