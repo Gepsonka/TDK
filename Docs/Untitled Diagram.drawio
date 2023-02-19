@@ -1,6 +1,6 @@
-<mxfile host="app.diagrams.net" modified="2023-02-19T12:38:19.537Z" agent="5.0 (Macintosh)" etag="w12HHYaGBT8L2UI71ZjQ" version="20.6.0" type="github">
+<mxfile host="app.diagrams.net" modified="2023-02-19T13:50:55.429Z" agent="5.0 (Macintosh)" etag="AAl3E2d2WYCP4aGIhAUh" version="20.6.0" type="github">
   <diagram name="Page-1" id="74e2e168-ea6b-b213-b513-2b3c1d86103e">
-    <mxGraphModel dx="1018" dy="2384" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1100" pageHeight="850" background="none" math="0" shadow="0">
+    <mxGraphModel dx="970" dy="2351" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1100" pageHeight="850" background="none" math="0" shadow="0">
       <root>
         <mxCell id="0" />
         <mxCell id="1" parent="0" />
@@ -75,8 +75,10 @@
         <mxCell id="x8ZqoaQMToTmZbeyhLuj-23" value="Yes" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=12;" parent="1" vertex="1">
           <mxGeometry x="135" y="-535" width="30" height="30" as="geometry" />
         </mxCell>
-        <mxCell id="x8ZqoaQMToTmZbeyhLuj-90" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;fontSize=12;" parent="1" source="x8ZqoaQMToTmZbeyhLuj-28" target="x8ZqoaQMToTmZbeyhLuj-88" edge="1">
-          <mxGeometry relative="1" as="geometry" />
+        <mxCell id="x8ZqoaQMToTmZbeyhLuj-90" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=0.5;exitY=1;exitDx=0;exitDy=0;fontSize=12;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" parent="1" source="x8ZqoaQMToTmZbeyhLuj-28" target="x8ZqoaQMToTmZbeyhLuj-91" edge="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="150" y="160" as="targetPoint" />
+          </mxGeometry>
         </mxCell>
         <mxCell id="x8ZqoaQMToTmZbeyhLuj-28" value="" style="rounded=1;whiteSpace=wrap;html=1;fontSize=25;" parent="1" vertex="1">
           <mxGeometry x="30" y="-135" width="240" height="120" as="geometry" />
@@ -133,15 +135,6 @@
         </mxCell>
         <mxCell id="x8ZqoaQMToTmZbeyhLuj-85" value="&lt;div&gt;Add deivce to the ARP with UNAUTHENTICATED status&lt;/div&gt;" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=12;" parent="1" vertex="1">
           <mxGeometry x="410" y="-1090" width="220" height="100" as="geometry" />
-        </mxCell>
-        <mxCell id="x8ZqoaQMToTmZbeyhLuj-93" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;fontSize=12;" parent="1" source="x8ZqoaQMToTmZbeyhLuj-88" target="x8ZqoaQMToTmZbeyhLuj-91" edge="1">
-          <mxGeometry relative="1" as="geometry" />
-        </mxCell>
-        <mxCell id="x8ZqoaQMToTmZbeyhLuj-88" value="" style="rounded=1;whiteSpace=wrap;html=1;fontSize=25;" parent="1" vertex="1">
-          <mxGeometry x="30" y="15" width="240" height="120" as="geometry" />
-        </mxCell>
-        <mxCell id="x8ZqoaQMToTmZbeyhLuj-89" value="&lt;div&gt;Extract auth tag from message&lt;/div&gt;&lt;div&gt;(last 16 bytes)&lt;br&gt;&lt;/div&gt;" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=12;" parent="1" vertex="1">
-          <mxGeometry x="40" y="25" width="220" height="100" as="geometry" />
         </mxCell>
         <mxCell id="x8ZqoaQMToTmZbeyhLuj-98" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;fontSize=12;" parent="1" source="x8ZqoaQMToTmZbeyhLuj-91" target="x8ZqoaQMToTmZbeyhLuj-96" edge="1">
           <mxGeometry relative="1" as="geometry" />
@@ -214,7 +207,7 @@
         <mxCell id="-I_yGtAx3R6FAixwHysc-3" value="" style="rhombus;whiteSpace=wrap;html=1;fontSize=12;" vertex="1" parent="1">
           <mxGeometry x="30" y="-415" width="240" height="150" as="geometry" />
         </mxCell>
-        <mxCell id="-I_yGtAx3R6FAixwHysc-4" value="Is packet and header crc correct?" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=12;" vertex="1" parent="1">
+        <mxCell id="-I_yGtAx3R6FAixwHysc-4" value="Are packet and header crc correct?" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=12;" vertex="1" parent="1">
           <mxGeometry x="70" y="-355" width="160" height="30" as="geometry" />
         </mxCell>
         <mxCell id="-I_yGtAx3R6FAixwHysc-12" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" edge="1" parent="1" source="-I_yGtAx3R6FAixwHysc-5" target="x8ZqoaQMToTmZbeyhLuj-28">
