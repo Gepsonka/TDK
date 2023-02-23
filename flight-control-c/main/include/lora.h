@@ -14,6 +14,7 @@
 #include "esp_crc.h"
 #include <rom/crc.h>
 #include "memory.h"
+#include "network.h"
 
 #define LORA_SPI_HOST VSPI_HOST
 
@@ -25,8 +26,6 @@
 #define LORA_DIO0_PIN 4
 
 #define LORA_PAYLOAD_MAX_SIZE 246
-#define LORA_HEADER_SIZE 10
-#define LORA_MAX_NUM_OF_PACKETS 10 // Will be changed, currently this is enough
 
 #define LORA_BASE_STATION_ADDR 0x00
 #define LORA_NETWORK_BROADCAST_ADDR 0xFF
@@ -55,6 +54,9 @@ typedef struct  {
     LoRa_Packet_Payload payload;
 
 } LoRa_Packet;
+
+uint16_t lora_calc_header_crc(LoRa_Packet_Header* header);
+uint16_t lora_calc_packet_crc(LoRa_Packet_Payload* payload, uint8_t payload_length);
 
 void IRAM_ATTR lora_handle_interrupt_fromisr(void *arg);
 
@@ -85,6 +87,10 @@ uint8_t lora_send_message(uint8_t src_addr, uint8_t dest_addr, uint8_t* message,
 uint8_t lora_send_packets(LoRa_Packet* packets);
 uint8_t lora_calc_packet_num_for_message_size(uint16_t message_size);
 
+/// Slice up message into
+/// \param message
+/// \param message_size
+/// \return
 uint8_t lora_fragment_message(uint8_t* message, uint16_t message_size);
 
 /// The network is pinged by the base station at every 2 seconds,

@@ -16,16 +16,16 @@ TaskHandle_t lora_interrupt_handler;
 TaskHandle_t lora_packet_sender_handler;
 LoRa_Packet lora_rx_buff[20];
 
-static void calc_header_crc(LoRa_Packet_Header* header){
+uint16_t lora_calc_header_crc(LoRa_Packet_Header* header){
     uint8_t header_arr[5] = {header->src_device_addr, header->dest_device_addr,
                              header->num_of_packets, header->packet_num,
                              header->payload_size};
 
-    header->header_crc =  crc16_be(0, header_arr, 5);
+    return crc16_be(0, header_arr, 5);
 }
 
-static void calc_packet_crc(LoRa_Packet_Payload* payload, uint8_t payload_length){
-    payload->payload_crc = crc16_be(0, payload->payload, payload_length);
+uint16_t lora_calc_packet_crc(LoRa_Packet_Payload* payload, uint8_t payload_length){
+    return crc16_be(0, payload->payload, payload_length);
 }
 
 void IRAM_ATTR lora_handle_interrupt_fromisr(void *arg)
@@ -211,7 +211,7 @@ uint8_t lora_send_packet(sx127x *lora_dev, LoRa_Packet* packet){
     memcpy(&data[7], packet->payload.payload, packet->header.payload_size);
     memset(&data[7 + packet->header.payload_size], packet->payload.payload_crc, sizeof(uint16_t));
     printf("preparing data for tx\n");
-    uint8_t res = sx127x_set_for_transmission(data, packet->header.payload_size + LORA_HEADER_SIZE, lora_dev);
+    uint8_t res = sx127x_set_for_transmission(data, packet->header.payload_size + sizeof(LoRa_Packet_Header), lora_dev);
     //uint8_t res = sx127x_set_for_transmission(data, 255, lora_dev);
     printf("just sent data for tx\n");
     return res;
@@ -249,8 +249,8 @@ uint8_t lora_send_message(uint8_t src_addr, uint8_t dest_addr, uint8_t* message,
         packet.header.dest_device_addr = dest_addr;
         packet.header.num_of_packets = num_of_packets;
         packet.header.packet_num = i;
-        calc_packet_crc(&(packet.payload), packet.header.payload_size);
-        calc_header_crc(&(packet.header));
+        lora_calc_packet_crc(&(packet.payload), packet.header.payload_size);
+        lora_calc_header_crc(&(packet.header));
         message_len -= LORA_PAYLOAD_MAX_SIZE;
 
         // Do not send immediately, needed to cache the whole message for the networking
