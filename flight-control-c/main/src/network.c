@@ -4,14 +4,107 @@
 #include "network.h"
 
 Network_Device_Container device_container;
+
 TaskHandle_t network_rx_packet_handler;
 QueueHandle_t packet_rx_queue;
+TaskHandle_t network_device_processor_handler;
+QueueHandle_t network_device_processor_queue;
+
+static bool network_is_device_in_arp(Network_Device_Container* dev_container, uint8_t dev_addr) {
+    for (uint8_t i = 0; i < dev_container->num_of_devices; i++) {
+        if (dev_container->device_contexts[i].address == dev_addr) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+static Network_Device_Context* get_device_from_arp(Network_Device_Container* dev_container, uint8_t dev_addr) {
+    for (uint8_t i = 0; i < dev_container->num_of_devices; i++) {
+        if (dev_container->device_contexts[i].address == dev_addr) {
+            return &dev_container->device_contexts[i];
+        }
+    }
+
+    return NULL;
+}
+
+void network_device_processor_task(void* pvParameters){
+    Network_Device_Container* dev_ctnr = (Network_Device_Container*) pvParameters;
+    uint8_t dev_addr;
+    Network_Device_Context* device_ctx;
+    while (1) {
+        if( xQueueReceive(packet_rx_queue, &dev_addr, portMAX_DELAY) == pdPASS ) {
+            device_ctx = get_device_from_arp(dev_ctnr, dev_addr);
+            if (device_ctx == NULL) {
+                continue;
+            }
+
+            if (device_ctx->packet_rx_buff == NULL) {
+                continue;
+            }
+
+            construct_message_from_packets(device_ctx);
+
+
+        }
+    }
+}
 
 void network_packet_rx_handler_task(void* pvParameters){
+    Network_Device_Container* dev_cntr = (Network_Device_Container*) pvParameters;
     LoRa_Packet received_packet;
+    Network_Device_Context* packet_device_ctx;
+
     while (1) {
         if( xQueueReceive(packet_rx_queue, &received_packet, portMAX_DELAY) == pdPASS ) {
-            //process packet
+            // check if the packet was addressed to this device
+            if (received_packet.header.dest_device_addr != LORA_BASE_STATION_ADDR) {
+                continue;
+            }
+
+            // check if device is in ARP, if not add a new device with status OFFLINE, start copy packet to its rx buff
+            // only if this is the first packet of the device, else throw out packet
+            if (!network_is_device_in_arp(dev_cntr, received_packet.header.src_device_addr) &&
+                received_packet.header.packet_num == 0)
+            {
+                network_add_device(dev_cntr, received_packet.header.src_device_addr);
+            } else if (!network_is_device_in_arp(dev_cntr, received_packet.header.src_device_addr) &&
+                       received_packet.header.packet_num != 0)
+            {
+                continue;
+                // TODO: send back some type of error message
+            }
+
+            packet_device_ctx = get_device_from_arp(dev_cntr, received_packet.header.src_device_addr);
+
+            // checking the packet indexing
+            if (received_packet.header.packet_num > received_packet.header.num_of_packets - 1) {
+                continue;
+                // TODO: send back error
+            }
+
+            // the procedure is different when the station is waiting for corrected devices
+            if (packet_device_ctx->connection_status == WAITING_FOR_PACKET_CORRECTION) {
+                packet_device_ctx->packet_rx_buff[received_packet.header.packet_num] = received_packet;
+
+                // last corrected packet
+                if (received_packet.header.packet_num == packet_device_ctx->packet_num_of_faulty_packets[packet_device_ctx->num_of_faulty_packets - 1]) {
+                    // TODO: pass device to the device processor
+                }
+            } else {
+                if (received_packet.header.packet_num == 0) {
+                    network_free_device_network_rx_buff(packet_device_ctx);
+                    packet_device_ctx->packet_rx_buff = (LoRa_Packet*) malloc(received_packet.header.num_of_packets * sizeof(LoRa_Packet));
+                }
+
+                packet_device_ctx->packet_rx_buff[received_packet.header.packet_num] = received_packet;
+
+                if (received_packet.header.packet_num == received_packet.header.num_of_packets - 1){
+                    // TODO: pass device to device processor
+                }
+            }
         }
     }
 }
@@ -22,6 +115,11 @@ void network_init(Network_Device_Container* device_cont)
     device_cont->device_contexts = NULL;
     device_cont->num_of_devices = 0;
     packet_rx_queue = xQueueCreate(15, sizeof(LoRa_Packet*));
+    xTaskCreate(network_packet_rx_handler_task, "PacketReceiveTask", 4096, &device_container, 200, &network_rx_packet_handler);
+    network_device_processor_queue = xQueueCreate(20, sizeof(uint8_t));
+    xTaskCreate(network_packet_rx_handler_task, "DeviceProcessorTask", 4096, &device_container, 1, &network_device_processor_handler);
+
+
 
 }
 
@@ -42,6 +140,8 @@ network_operation_t network_add_device(Network_Device_Container* device_cont, ui
     new_device.rx_message_size = 0;
     new_device.packet_rx_buff = NULL;
     new_device.packet_tx_buff = NULL;
+    new_device.packet_num_of_faulty_packets = NULL;
+    new_device.num_of_faulty_packets = 0;
 
     if (device_cont->num_of_devices == 0) {
         device_cont->num_of_devices++;
@@ -74,7 +174,9 @@ uint8_t check_packet_crc(LoRa_Packet* packet){
     return 0;
 }
 
+
 uint8_t construct_message_from_packets(Network_Device_Context* device_ctx){
+    // TODO: construct package only into rx_message, same when deconstructing
     if (device_ctx->packet_rx_buff == NULL) {
         return NETWORK_BUFFER_EMPTY_ERROR;
     }
@@ -278,4 +380,106 @@ void network_parse_packet_into_byte_array(LoRa_Packet* packet, uint8_t* byte_arr
     memcpy(&byte_arr[sizeof(LoRa_Packet_Header)], &packet->payload.payload, packet->header.payload_size);
     // copy payload crc
     memcpy(&byte_arr[sizeof(LoRa_Packet_Header) + packet->header.payload_size], &packet->payload.payload_crc, sizeof(uint16_t));
+}
+
+
+void network_free_device_ctx(Network_Device_Context* device_ctx) {
+    if (device_ctx->cipher_text != NULL) {
+        free(device_ctx->cipher_text);
+        device_ctx->cipher_text = NULL;
+    }
+
+    if (device_ctx->tx_secret_message != NULL) {
+        free(device_ctx->tx_secret_message);
+        device_ctx->tx_secret_message = NULL;
+        device_ctx->tx_secret_message_size = 0;
+    }
+
+    if (device_ctx->rx_secret_message != NULL) {
+        free(device_ctx->rx_secret_message);
+        device_ctx->rx_secret_message = NULL;
+        device_ctx->rx_secret_message_size = 0;
+    }
+
+    if (device_ctx->tx_message != NULL) {
+        free(device_ctx->tx_message);
+        device_ctx->tx_message = NULL;
+        device_ctx->tx_message_size = 0;
+    }
+
+    if (device_ctx->rx_message != NULL) {
+        free(device_ctx->rx_message);
+        device_ctx->rx_message = NULL;
+        device_ctx->rx_message_size = 0;
+    }
+
+    if (device_ctx->packet_tx_buff != NULL) {
+        free(device_ctx->packet_tx_buff);
+        device_ctx->packet_tx_buff = NULL;
+    }
+
+    if (device_ctx->packet_rx_buff != NULL) {
+        free(device_ctx->packet_rx_buff);
+        device_ctx->packet_rx_buff = NULL;
+    }
+
+
+
+}
+
+void network_free_device_cipher_txt(Network_Device_Context* device_ctx){
+    if (device_ctx->cipher_text != NULL) {
+        free(device_ctx->cipher_text);
+        device_ctx->cipher_text = NULL;
+    }
+}
+
+
+void network_free_device_tx_secret_message(Network_Device_Context* device_ctx) {
+    if (device_ctx->tx_secret_message != NULL) {
+        free(device_ctx->tx_secret_message);
+        device_ctx->tx_secret_message = NULL;
+        device_ctx->tx_secret_message_size = 0;
+    }
+}
+
+
+void network_free_device_rx_secret_message(Network_Device_Context* device_ctx) {
+    if (device_ctx->rx_secret_message != NULL) {
+        free(device_ctx->rx_secret_message);
+        device_ctx->rx_secret_message = NULL;
+        device_ctx->rx_secret_message_size = 0;
+    }
+}
+
+
+void network_free_device_tx_message(Network_Device_Context* device_ctx) {
+    if (device_ctx->tx_message != NULL) {
+        free(device_ctx->tx_message);
+        device_ctx->tx_message = NULL;
+        device_ctx->tx_message_size = 0;
+    }
+}
+
+void network_free_device_rx_message(Network_Device_Context* device_ctx) {
+    if (device_ctx->rx_message != NULL) {
+        free(device_ctx->rx_message);
+        device_ctx->rx_message = NULL;
+        device_ctx->rx_message_size = 0;
+    }
+}
+
+
+void network_free_device_network_rx_buff(Network_Device_Context* device_ctx) {
+    if (device_ctx->packet_rx_buff != NULL) {
+        free(device_ctx->packet_rx_buff);
+        device_ctx->packet_rx_buff = NULL;
+    }
+}
+
+void network_free_device_network_tx_buff(Network_Device_Context* device_ctx) {
+    if (device_ctx->packet_tx_buff != NULL) {
+        free(device_ctx->packet_tx_buff);
+        device_ctx->packet_tx_buff = NULL;
+    }
 }

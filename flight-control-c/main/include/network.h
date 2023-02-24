@@ -70,8 +70,10 @@ typedef struct {
     uint8_t* rx_message;
     uint16_t rx_message_size;
     LoRa_Packet* packet_tx_buff; // assembled packets to be sent to device
-    uint8_t received_packets; // for security measurements when requesting resend of corrupted packets
     LoRa_Packet* packet_rx_buff; // stores last received packets from device
+    uint8_t received_packets; // for security measurements when requesting resend of corrupted packets
+    uint8_t* packet_num_of_faulty_packets; // for packet correction
+    uint8_t num_of_faulty_packets;
 } Network_Device_Context;
 
 typedef struct {
@@ -79,7 +81,8 @@ typedef struct {
     uint8_t num_of_devices;
 } Network_Device_Container;
 
-void network_packet_handler_task(void* pvParameters);
+void network_device_processor_task(void* pvParameters);
+void network_packet_rx_handler_task(void* pvParameters);
 uint8_t network_parse_byte_array_into_packet(LoRa_Packet* packet, uint8_t* byte_arr, uint16_t arr_size);
 void network_parse_packet_into_byte_array(LoRa_Packet* packet, uint8_t* byte_arr);
 void network_init(Network_Device_Container* device_cont);
@@ -103,6 +106,8 @@ void network_free_device_ctx(Network_Device_Context* device_ctx);
 void network_free_device_cipher_txt(Network_Device_Context* device_ctx);
 void network_free_device_tx_secret_message(Network_Device_Context* device_ctx);
 void network_free_device_rx_secret_message(Network_Device_Context* device_ctx);
+void network_free_device_tx_message(Network_Device_Context* device_ctx);
+void network_free_device_rx_message(Network_Device_Context* device_ctx);
 void network_free_device_network_rx_buff(Network_Device_Context* device_ctx);
 void network_free_device_network_tx_buff(Network_Device_Context* device_ctx);
 
