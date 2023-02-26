@@ -6,13 +6,16 @@
 #define FLIGHT_COMPUTER_NETWORK_H
 
 #include <stdint-gcc.h>
+#include "lora.h"
 #include "stdio.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
-#include "esp_random.h" 
+#include "esp_log.h"
+#include "esp_random.h"
 #include "security.h"
-#include "lora.h"
 #include "math.h"
+#include "joystick.h"
+
 
 typedef enum {
     NETWORK_OK = 0x00,
@@ -61,6 +64,7 @@ typedef struct {
     uint8_t aad[SECURITY_ADDITIONAL_AUTH_DATA_SIZE];
     uint8_t auth_tag[SECURITY_AUTH_TAG_SIZE];
     uint8_t* cipher_text;
+    uint16_t cipher_text_size;
     uint8_t* tx_secret_message;
     uint16_t tx_secret_message_size;
     uint8_t* rx_secret_message; // to be decrypted into rx_message
@@ -70,7 +74,9 @@ typedef struct {
     uint8_t* rx_message;
     uint16_t rx_message_size;
     LoRa_Packet* packet_tx_buff; // assembled packets to be sent to device
+    bool is_packet_tx_buff_empty;
     LoRa_Packet* packet_rx_buff; // stores last received packets from device
+    bool is_packet_rx_buff_empty;
     uint8_t received_packets; // for security measurements when requesting resend of corrupted packets
     uint8_t* packet_num_of_faulty_packets; // for packet correction
     uint8_t num_of_faulty_packets;
@@ -93,7 +99,7 @@ uint8_t deconstruct_message_into_packets(Network_Device_Context *device_ctx);
 void network_generate_security_credentials_for_device(Network_Device_Context* device_ctx);
 void network_encrypt_device_message(Network_Device_Context* device_ctx);
 network_operation_t network_decrypt_device_message(Network_Device_Context* device_ctx);
-void set_packets_for_tx(Network_Device_Context* device_ctx);
+void set_packets_for_tx(Network_Device_Context* device_ctx, QueueHandle_t* lora_tx_queue);
 /// Extracts auth tag from rx_secret_message, put the tag into rx_auth_tag
 /// \param device_ctx
 void network_get_auth_tag_from_secret_message(Network_Device_Context* device_ctx);

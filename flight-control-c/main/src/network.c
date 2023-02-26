@@ -10,6 +10,14 @@ QueueHandle_t packet_rx_queue;
 TaskHandle_t network_device_processor_handler;
 QueueHandle_t network_device_processor_queue;
 
+extern SemaphoreHandle_t joystick_semaphore_handle;
+extern Joystick_Direction joysctick_state;
+
+extern QueueHandle_t lora_tx_queue;
+
+
+
+
 static bool network_is_device_in_arp(Network_Device_Container* dev_container, uint8_t dev_addr) {
     for (uint8_t i = 0; i < dev_container->num_of_devices; i++) {
         if (dev_container->device_contexts[i].address == dev_addr) {
@@ -30,6 +38,36 @@ static Network_Device_Context* get_device_from_arp(Network_Device_Container* dev
     return NULL;
 }
 
+void network_uav_temporary_controller_task(void* pvParameters) {
+    Network_Device_Context* device_to_send = get_device_from_arp(&device_container, 0x01);
+    if (device_to_send == NULL) {
+        ESP_LOGI("network", "Device in arp.");
+    } else {
+        ESP_LOGI("network", "Device not in arp.");
+    }
+    device_to_send->tx_secret_message = (uint8_t*) malloc(3 * sizeof(uint8_t));
+    if (device_to_send->tx_secret_message == NULL) {
+        ESP_LOGI("network", "Out of memory temp.");
+    }
+    device_to_send->tx_message_size = 3 * sizeof(uint8_t);
+    while (1) {
+        if (xSemaphoreTake(joystick_semaphore_handle, portMAX_DELAY) == pdTRUE) {
+            memset(&device_to_send->tx_secret_message[0], joysctick_state, sizeof(uint8_t));
+            xSemaphoreGive(joystick_semaphore_handle);
+        }
+
+        uint16_t raw_val;
+        adc2_get_raw(ADC_CHANNEL, ADC_WIDTH, &raw_val);
+        memset(&device_to_send->tx_secret_message[1], raw_val, sizeof(uint16_t));
+
+        construct_message_from_packets(device_to_send);
+        set_packets_for_tx(device_to_send, &lora_tx_queue);
+
+        vTaskDelay(100 / portTICK_PERIOD_MS);
+
+    }
+}
+
 void network_device_processor_task(void* pvParameters){
     Network_Device_Container* dev_ctnr = (Network_Device_Container*) pvParameters;
     uint8_t dev_addr;
@@ -41,13 +79,13 @@ void network_device_processor_task(void* pvParameters){
                 continue;
             }
 
-            if (device_ctx->packet_rx_buff == NULL) {
+            if (device_ctx->is_packet_rx_buff_empty == true) {
                 continue;
             }
 
             construct_message_from_packets(device_ctx);
 
-
+            // custom impl
         }
     }
 }
@@ -112,14 +150,13 @@ void network_packet_rx_handler_task(void* pvParameters){
 
 void network_init(Network_Device_Container* device_cont)
 {
-    device_cont->device_contexts = NULL;
-    device_cont->num_of_devices = 0;
+    network_add_device(device_cont, 0x01);
+    device_cont->device_contexts[0].status = ONLINE;
     packet_rx_queue = xQueueCreate(15, sizeof(LoRa_Packet*));
     xTaskCreate(network_packet_rx_handler_task, "PacketReceiveTask", 4096, &device_container, 200, &network_rx_packet_handler);
     network_device_processor_queue = xQueueCreate(20, sizeof(uint8_t));
     xTaskCreate(network_packet_rx_handler_task, "DeviceProcessorTask", 4096, &device_container, 1, &network_device_processor_handler);
-
-
+    xTaskCreate(network_uav_temporary_controller_task, "UAVControllerTask", 4096, NULL, 1, NULL);
 
 }
 
@@ -129,19 +166,13 @@ network_operation_t network_add_device(Network_Device_Container* device_cont, ui
     new_device.address = dev_addr;
     new_device.status = ADDING_DEVICE_TO_NETWORK;
     new_device.connection_status = CONNECTION_ESTABLISHED;
-    new_device.cipher_text = NULL;
-    new_device.tx_secret_message = NULL;
     new_device.tx_secret_message_size = 0;
-    new_device.rx_secret_message = NULL;
     new_device.rx_secret_message_size = 0;
-    new_device.tx_message = NULL;
     new_device.tx_message_size = 0;
-    new_device.rx_message = NULL;
     new_device.rx_message_size = 0;
-    new_device.packet_rx_buff = NULL;
-    new_device.packet_tx_buff = NULL;
-    new_device.packet_num_of_faulty_packets = NULL;
     new_device.num_of_faulty_packets = 0;
+    new_device.is_packet_rx_buff_empty = true;
+    new_device.is_packet_tx_buff_empty = true;
 
     if (device_cont->num_of_devices == 0) {
         device_cont->num_of_devices++;
@@ -177,20 +208,18 @@ uint8_t check_packet_crc(LoRa_Packet* packet){
 
 uint8_t construct_message_from_packets(Network_Device_Context* device_ctx){
     // TODO: construct package only into rx_message, same when deconstructing
-    if (device_ctx->packet_rx_buff == NULL) {
+    if (device_ctx->is_packet_rx_buff_empty == true) {
         return NETWORK_BUFFER_EMPTY_ERROR;
     }
 
     // free both message rx buffers
-    if (device_ctx->rx_secret_message != NULL) {
+    if (device_ctx->rx_secret_message_size != 0) {
         free(device_ctx->rx_secret_message);
-        device_ctx->rx_secret_message = NULL; // for safety
         device_ctx->rx_secret_message_size = 0;
     }
 
-    if (device_ctx->rx_message != NULL) {
+    if (device_ctx->rx_message_size != 0) {
         free(device_ctx->rx_message);
-        device_ctx->rx_message = NULL; // for safety
         device_ctx->rx_message_size = 0;
     }
 
@@ -233,16 +262,16 @@ uint8_t construct_message_from_packets(Network_Device_Context* device_ctx){
     }
 
     free(device_ctx->packet_rx_buff);
-    device_ctx->packet_rx_buff = NULL;
+    device_ctx->is_packet_rx_buff_empty = true;
 
     return NETWORK_OK;
 }
 
 
 uint8_t deconstruct_message_into_packets(Network_Device_Context *device_ctx) {
-    if (device_ctx->packet_tx_buff != NULL) {
+    if (device_ctx->is_packet_tx_buff_empty != true) {
         free(device_ctx->packet_tx_buff);
-        device_ctx->packet_tx_buff = NULL;
+        device_ctx->is_packet_tx_buff_empty = true;
     }
 
     if (device_ctx->status == ONLINE) { // device is authenticated, only encrypted message is accepted
@@ -254,6 +283,8 @@ uint8_t deconstruct_message_into_packets(Network_Device_Context *device_ctx) {
         if (device_ctx->packet_tx_buff == NULL) {
             return NETWORK_OUT_OF_MEMORY;
         }
+
+        device_ctx->is_packet_tx_buff_empty = false;
 
         // test thoroughly!!
         for (uint8_t i = 0; i < num_of_packets; i++) {
@@ -282,6 +313,8 @@ uint8_t deconstruct_message_into_packets(Network_Device_Context *device_ctx) {
             return NETWORK_OUT_OF_MEMORY;
         }
 
+        device_ctx->is_packet_tx_buff_empty = false;
+
         for (uint8_t i = 0; i < num_of_packets; i++) {
             device_ctx->packet_tx_buff[i].header.num_of_packets = num_of_packets;
             device_ctx->packet_tx_buff[i].header.payload_size = i == num_of_packets - 1 ? last_packet_payload_size : LORA_PAYLOAD_MAX_SIZE;
@@ -304,7 +337,7 @@ uint8_t deconstruct_message_into_packets(Network_Device_Context *device_ctx) {
 
 
 void network_encrypt_device_message(Network_Device_Context* device_ctx){
-    if (device_ctx->tx_secret_message != NULL) {
+    if (device_ctx->tx_secret_message_size != 0) {
         free(device_ctx->tx_secret_message);
         device_ctx->tx_secret_message_size = 0;
     }
@@ -327,7 +360,7 @@ void network_encrypt_device_message(Network_Device_Context* device_ctx){
 network_operation_t network_decrypt_device_message(Network_Device_Context* device_ctx){
     uint8_t message_auth_tag[SECURITY_AUTH_TAG_SIZE];
 
-    if (device_ctx->rx_message != NULL) {
+    if (device_ctx->rx_message_size != 0) {
         free(device_ctx->rx_message);
         device_ctx->rx_message_size = 0;
     }
@@ -382,45 +415,52 @@ void network_parse_packet_into_byte_array(LoRa_Packet* packet, uint8_t* byte_arr
     memcpy(&byte_arr[sizeof(LoRa_Packet_Header) + packet->header.payload_size], &packet->payload.payload_crc, sizeof(uint16_t));
 }
 
-
-void network_free_device_ctx(Network_Device_Context* device_ctx) {
-    if (device_ctx->cipher_text != NULL) {
-        free(device_ctx->cipher_text);
-        device_ctx->cipher_text = NULL;
+void set_packets_for_tx(Network_Device_Context* device_ctx, QueueHandle_t* lora_tx_queue_ptr) {
+    if (device_ctx->is_packet_tx_buff_empty == true) {
+        return;
     }
 
-    if (device_ctx->tx_secret_message != NULL) {
+    for (uint8_t i = 0; i < device_ctx->packet_tx_buff->header.num_of_packets; i++) {
+        xQueueSend(*lora_tx_queue_ptr, &device_ctx->packet_tx_buff[i], portMAX_DELAY);
+    }
+
+}
+
+
+void network_free_device_ctx(Network_Device_Context* device_ctx) {
+    if (device_ctx->cipher_text_size != 0) {
+        free(device_ctx->cipher_text);
+        device_ctx->cipher_text_size = 0;
+    }
+
+    if (device_ctx->tx_secret_message_size != 0) {
         free(device_ctx->tx_secret_message);
-        device_ctx->tx_secret_message = NULL;
         device_ctx->tx_secret_message_size = 0;
     }
 
-    if (device_ctx->rx_secret_message != NULL) {
+    if (device_ctx->rx_secret_message_size != 0) {
         free(device_ctx->rx_secret_message);
-        device_ctx->rx_secret_message = NULL;
         device_ctx->rx_secret_message_size = 0;
     }
 
-    if (device_ctx->tx_message != NULL) {
+    if (device_ctx->tx_message_size != 0) {
         free(device_ctx->tx_message);
-        device_ctx->tx_message = NULL;
         device_ctx->tx_message_size = 0;
     }
 
-    if (device_ctx->rx_message != NULL) {
+    if (device_ctx->rx_message_size != 0) {
         free(device_ctx->rx_message);
-        device_ctx->rx_message = NULL;
         device_ctx->rx_message_size = 0;
     }
 
-    if (device_ctx->packet_tx_buff != NULL) {
+    if (device_ctx->is_packet_tx_buff_empty != true) {
         free(device_ctx->packet_tx_buff);
-        device_ctx->packet_tx_buff = NULL;
+        device_ctx->is_packet_tx_buff_empty = true;
     }
 
-    if (device_ctx->packet_rx_buff != NULL) {
+    if (device_ctx->is_packet_rx_buff_empty != true) {
         free(device_ctx->packet_rx_buff);
-        device_ctx->packet_rx_buff = NULL;
+        device_ctx->is_packet_rx_buff_empty = true;
     }
 
 
@@ -428,58 +468,54 @@ void network_free_device_ctx(Network_Device_Context* device_ctx) {
 }
 
 void network_free_device_cipher_txt(Network_Device_Context* device_ctx){
-    if (device_ctx->cipher_text != NULL) {
+    if (device_ctx->cipher_text_size != 0) {
         free(device_ctx->cipher_text);
-        device_ctx->cipher_text = NULL;
+        device_ctx->cipher_text_size = 0;
     }
 }
 
 
 void network_free_device_tx_secret_message(Network_Device_Context* device_ctx) {
-    if (device_ctx->tx_secret_message != NULL) {
+    if (device_ctx->tx_secret_message_size != 0) {
         free(device_ctx->tx_secret_message);
-        device_ctx->tx_secret_message = NULL;
         device_ctx->tx_secret_message_size = 0;
     }
 }
 
 
 void network_free_device_rx_secret_message(Network_Device_Context* device_ctx) {
-    if (device_ctx->rx_secret_message != NULL) {
+    if (device_ctx->rx_secret_message_size != 0) {
         free(device_ctx->rx_secret_message);
-        device_ctx->rx_secret_message = NULL;
         device_ctx->rx_secret_message_size = 0;
     }
 }
 
 
 void network_free_device_tx_message(Network_Device_Context* device_ctx) {
-    if (device_ctx->tx_message != NULL) {
+    if (device_ctx->tx_message_size != 0) {
         free(device_ctx->tx_message);
-        device_ctx->tx_message = NULL;
         device_ctx->tx_message_size = 0;
     }
 }
 
 void network_free_device_rx_message(Network_Device_Context* device_ctx) {
-    if (device_ctx->rx_message != NULL) {
+    if (device_ctx->rx_message_size != 0) {
         free(device_ctx->rx_message);
-        device_ctx->rx_message = NULL;
         device_ctx->rx_message_size = 0;
     }
 }
 
 
 void network_free_device_network_rx_buff(Network_Device_Context* device_ctx) {
-    if (device_ctx->packet_rx_buff != NULL) {
+    if (device_ctx->is_packet_rx_buff_empty != true) {
         free(device_ctx->packet_rx_buff);
-        device_ctx->packet_rx_buff = NULL;
+        device_ctx->is_packet_rx_buff_empty = true;
     }
 }
 
 void network_free_device_network_tx_buff(Network_Device_Context* device_ctx) {
-    if (device_ctx->packet_tx_buff != NULL) {
+    if (device_ctx->is_packet_tx_buff_empty != true) {
         free(device_ctx->packet_tx_buff);
-        device_ctx->packet_tx_buff = NULL;
+        device_ctx->is_packet_tx_buff_empty = true;
     }
 }

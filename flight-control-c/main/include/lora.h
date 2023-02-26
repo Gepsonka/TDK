@@ -1,10 +1,11 @@
 #ifndef LORA_H
 #define LORA_H
+
 #include <stdio.h>
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "freertos/semphr.h"
-#include "sx127x.h"
+#include "esp_log.h"
 #include <sx127x.h>
 #include <stdlib.h>
 #include <driver/spi_common.h>
@@ -14,7 +15,6 @@
 #include "esp_crc.h"
 #include <rom/crc.h>
 #include "memory.h"
-#include "network.h"
 
 #define LORA_SPI_HOST VSPI_HOST
 
@@ -52,7 +52,6 @@ typedef struct {
 typedef struct  {
     LoRa_Packet_Header header;
     LoRa_Packet_Payload payload;
-
 } LoRa_Packet;
 
 uint16_t lora_calc_header_crc(LoRa_Packet_Header* header);

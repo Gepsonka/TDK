@@ -17,6 +17,7 @@
 #include "joystick.h"
 #include "throttle.h"
 #include "security.h"
+#include "network.h"
 #include <sx127x.h>
 
 
@@ -47,6 +48,7 @@ extern TaskHandle_t xJoystickInteruptTask;
 extern sx127x *lora_device;
 extern TaskHandle_t lora_interrupt_handler;
 
+extern Network_Device_Container device_container;
 
 
 void app_main()
@@ -103,6 +105,7 @@ void app_main()
 
     init_throttle();
 
+    network_init(&device_container);
 
     while (1)
     {
