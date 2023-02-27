@@ -42,7 +42,7 @@ void aes_gcm_encrypt(uint8_t* key,
     esp_aes_gcm_setkey(&aes_ctx, MBEDTLS_CIPHER_ID_AES , (const unsigned char*)key, SECURITY_AES_KEY_SIZE_BIT);
     printf("Setting AES key\n");
     esp_aes_gcm_crypt_and_tag(&aes_ctx, ESP_AES_ENCRYPT, plain_data_len, init_vec, SECURITY_INIT_VECTOR_SIZE,
-                              aad_data, SECURITY_ADDITIONAL_AUTH_DATA_SIZE, plain_data,
+                              add_data, SECURITY_ADDITIONAL_AUTH_DATA_SIZE, plain_data,
                               ciphertext, SECURITY_AUTH_TAG_SIZE, tag);
     printf("Encrypting Data\n");
     esp_aes_gcm_free(&aes_ctx);

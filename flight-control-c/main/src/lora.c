@@ -153,7 +153,7 @@ void lora_packet_sender_task(void* pvParameters) {
     uint8_t mode = SX127x_MODE_RX_CONT;
     uint8_t lora_mutex_is_held_by_task = 0;
     while (1) {
-        if( xQueueReceive(lora_tx_queue, &packet_to_send, 1) == pdPASS )
+        if( xQueueReceive(lora_tx_queue, &packet_to_send, 500) == pdPASS )
         {
             if (xSemaphoreTake(xLoraMutex, portMAX_DELAY) == pdTRUE) {
                 lora_mutex_is_held_by_task = 1;
@@ -165,7 +165,7 @@ void lora_packet_sender_task(void* pvParameters) {
                 }
 
                 // TODO: Put a while (spi_device_is_polling_transaction(spi)) here to
-                // check when the spi bus is available
+                // check when the spi bs is available
                 // otherwise the lora_send_packet will throw spi error
 
                 ESP_ERROR_CHECK(lora_send_packet(lora_dev, &packet_to_send));
