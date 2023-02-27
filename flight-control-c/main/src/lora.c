@@ -8,7 +8,7 @@ SemaphoreHandle_t xLoraMutex;
 // Rx buff mutex is not needed because the rx_callback dispatches the tasks
 // TX buffer is not needed because the task will send data when it receives a packet from queue
 QueueHandle_t lora_tx_queue;
-sx127x *lora_device = NULL;
+sx127x *lora_device;
 spi_device_handle_t lora_spi_device;
 TaskHandle_t lora_interrupt_handler;
 // When a packet needs to be sent, only put in the rx buffer
@@ -33,7 +33,7 @@ void IRAM_ATTR lora_handle_interrupt_fromisr(void *arg)
     xTaskResumeFromISR(lora_interrupt_handler);
 }
 
-void init_lora() {
+void init_lora(spi_device_handle_t* spi_device, sx127x* lora_dev) {
     spi_device_interface_config_t dev_cfg = {
             .clock_speed_hz = 100000,
             .spics_io_num = LORA_SS_PIN,
@@ -41,9 +41,12 @@ void init_lora() {
             .command_bits = 0,
             .address_bits = 8,
             .dummy_bits = 0,
-            .mode = 0};
-    ESP_ERROR_CHECK(spi_bus_add_device(LORA_SPI_HOST, &dev_cfg, &lora_spi_device));
-    ESP_ERROR_CHECK(sx127x_create(lora_spi_device, &lora_device));
+            .mode = 0
+    };
+    ESP_ERROR_CHECK(spi_bus_add_device(LORA_SPI_HOST, &dev_cfg, spi_device));
+    ESP_LOGI("Lora Init", "Initialising spi...");
+    ESP_ERROR_CHECK(sx127x_create(spi_device, &lora_dev));
+    ESP_LOGI("Lora Init", "end of initialising spi...");
     ESP_ERROR_CHECK(sx127x_set_opmod(SX127x_MODE_SLEEP, lora_device));
     ESP_ERROR_CHECK(sx127x_set_frequency(437200012, lora_device));
     ESP_ERROR_CHECK(sx127x_reset_fifo(lora_device));
@@ -155,7 +158,7 @@ void lora_packet_sender_task(void* pvParameters) {
             if (xSemaphoreTake(xLoraMutex, portMAX_DELAY) == pdTRUE) {
                 lora_mutex_is_held_by_task = 1;
                 if (mode != SX127x_MODE_TX) {
-                    spi_device_polling_end(((struct sx127x_t*)lora_device)->spi_device, portMAX_DELAY);
+                    spi_device_polling_end(lora_spi_device, portMAX_DELAY);
                     ESP_ERROR_CHECK(sx127x_set_opmod(SX127x_MODE_TX, lora_dev));
                     mode = SX127x_MODE_TX;
                     printf("took lora...\n");

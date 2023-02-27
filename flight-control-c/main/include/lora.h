@@ -59,7 +59,7 @@ uint16_t lora_calc_packet_crc(LoRa_Packet_Payload* payload, uint8_t payload_leng
 
 void IRAM_ATTR lora_handle_interrupt_fromisr(void *arg);
 
-void init_lora();
+void init_lora(spi_device_handle_t* spi_device, sx127x* lora_dev);
 
 void handle_interrupt_task(void *arg);
 void tx_callback(sx127x *device);

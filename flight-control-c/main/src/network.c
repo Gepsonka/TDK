@@ -519,3 +519,4 @@ void network_free_device_network_tx_buff(Network_Device_Context* device_ctx) {
         device_ctx->is_packet_tx_buff_empty = true;
     }
 }
+

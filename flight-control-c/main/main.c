@@ -46,6 +46,7 @@ extern Joystick_Direction joysctick_state;
 extern TaskHandle_t xJoystickInteruptTask;
 
 extern sx127x *lora_device;
+extern spi_device_handle_t lora_spi_device;
 extern TaskHandle_t lora_interrupt_handler;
 
 extern Network_Device_Container device_container;
@@ -91,7 +92,10 @@ void app_main()
     };
     ESP_ERROR_CHECK(spi_bus_initialize(VSPI_HOST, &config, SPI_DMA_CH_AUTO));
 
-    init_lora();
+    uint8_t* asd = NULL;
+    asd = (uint8_t*) malloc(10);
+
+    init_lora(&lora_spi_device, lora_device);
 
     init_lcd();
 
@@ -106,6 +110,8 @@ void app_main()
     init_throttle();
 
     network_init(&device_container);
+
+
 
     while (1)
     {
