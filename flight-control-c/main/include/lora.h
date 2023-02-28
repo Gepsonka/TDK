@@ -14,7 +14,6 @@
 #include "esp_crc.h"
 #include <rom/crc.h>
 #include "memory.h"
-#include "network.h"
 
 #define LORA_SPI_HOST VSPI_HOST
 

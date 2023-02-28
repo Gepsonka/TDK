@@ -13,6 +13,7 @@
 #include "security.h"
 #include "lora.h"
 #include "math.h"
+#include "joystick.h"
 
 typedef enum {
     NETWORK_OK = 0x00,
@@ -93,7 +94,7 @@ uint8_t deconstruct_message_into_packets(Network_Device_Context *device_ctx);
 void network_generate_security_credentials_for_device(Network_Device_Context* device_ctx);
 void network_encrypt_device_message(Network_Device_Context* device_ctx);
 network_operation_t network_decrypt_device_message(Network_Device_Context* device_ctx);
-void set_packets_for_tx(Network_Device_Context* device_ctx);
+void set_packets_for_tx(Network_Device_Context* device_ctx, QueueHandle_t* lora_queue);
 /// Extracts auth tag from rx_secret_message, put the tag into rx_auth_tag
 /// \param device_ctx
 void network_get_auth_tag_from_secret_message(Network_Device_Context* device_ctx);

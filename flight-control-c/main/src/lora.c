@@ -43,30 +43,29 @@ void init_lora(spi_device_handle_t* spi_device, sx127x* lora_dev) {
             .dummy_bits = 0,
             .mode = 0
     };
+
     ESP_ERROR_CHECK(spi_bus_add_device(LORA_SPI_HOST, &dev_cfg, spi_device));
-    ESP_LOGI("Lora Init", "Initialising spi...");
-    ESP_ERROR_CHECK(sx127x_create(spi_device, &lora_dev));
-    ESP_LOGI("Lora Init", "end of initialising spi...");
-    ESP_ERROR_CHECK(sx127x_set_opmod(SX127x_MODE_SLEEP, lora_device));
-    ESP_ERROR_CHECK(sx127x_set_frequency(437200012, lora_device));
-    ESP_ERROR_CHECK(sx127x_reset_fifo(lora_device));
-    ESP_ERROR_CHECK(sx127x_set_opmod(SX127x_MODE_STANDBY, lora_device));
-    ESP_ERROR_CHECK(sx127x_set_bandwidth(SX127x_BW_125000, lora_device));
-    ESP_ERROR_CHECK(sx127x_set_implicit_header(NULL, lora_device));
-    ESP_ERROR_CHECK(sx127x_set_modem_config_2(SX127x_SF_7, lora_device));
-    ESP_ERROR_CHECK(sx127x_set_syncword(18, lora_device));
-    ESP_ERROR_CHECK(sx127x_set_preamble_length(8, lora_device));
-    sx127x_set_tx_callback(tx_callback, lora_device);
-    sx127x_set_rx_callback(rx_callback, lora_device);
+    ESP_ERROR_CHECK(sx127x_create(*spi_device, &lora_dev));
+    ESP_ERROR_CHECK(sx127x_set_opmod(SX127x_MODE_SLEEP, lora_dev));
+    ESP_ERROR_CHECK(sx127x_set_frequency(437200012, lora_dev));
+    ESP_ERROR_CHECK(sx127x_reset_fifo(lora_dev));
+    ESP_ERROR_CHECK(sx127x_set_opmod(SX127x_MODE_STANDBY, lora_dev));
+    ESP_ERROR_CHECK(sx127x_set_bandwidth(SX127x_BW_125000, lora_dev));
+    ESP_ERROR_CHECK(sx127x_set_implicit_header(NULL, lora_dev));
+    ESP_ERROR_CHECK(sx127x_set_modem_config_2(SX127x_SF_7, lora_dev));
+    ESP_ERROR_CHECK(sx127x_set_syncword(18, lora_dev));
+    ESP_ERROR_CHECK(sx127x_set_preamble_length(8, lora_dev));
+    sx127x_set_tx_callback(tx_callback, lora_dev);
+    sx127x_set_rx_callback(rx_callback, lora_dev);
 
-    ESP_ERROR_CHECK(sx127x_set_opmod(SX127x_MODE_RX_CONT, lora_device));
-    ESP_ERROR_CHECK(sx127x_set_pa_config(SX127x_PA_PIN_BOOST, 4, lora_device));
+    ESP_ERROR_CHECK(sx127x_set_opmod(SX127x_MODE_RX_CONT, lora_dev));
+    ESP_ERROR_CHECK(sx127x_set_pa_config(SX127x_PA_PIN_BOOST, 4, lora_dev));
 
-    BaseType_t task_code = xTaskCreatePinnedToCore(handle_interrupt_task, "handle interrupt", 8196, lora_device, 100, &lora_interrupt_handler, xPortGetCoreID());
+    BaseType_t task_code = xTaskCreatePinnedToCore(handle_interrupt_task, "handle interrupt", 8196, lora_dev, 100, &lora_interrupt_handler, xPortGetCoreID());
     if (task_code != pdPASS)
     {
         ESP_LOGE(TAG, "can't create task %d", task_code);
-        sx127x_destroy(lora_device);
+        sx127x_destroy(lora_dev);
         return;
     }
 
@@ -76,15 +75,15 @@ void init_lora(spi_device_handle_t* spi_device, sx127x* lora_dev) {
     ESP_ERROR_CHECK(gpio_set_intr_type((gpio_num_t)LORA_DIO0_PIN, GPIO_INTR_POSEDGE));
     ESP_ERROR_CHECK(gpio_install_isr_service(0));
     ESP_ERROR_CHECK(
-            gpio_isr_handler_add((gpio_num_t) LORA_DIO0_PIN, lora_handle_interrupt_fromisr, (void *) lora_device));
+            gpio_isr_handler_add((gpio_num_t) LORA_DIO0_PIN, lora_handle_interrupt_fromisr, (void *) lora_dev));
 
     xLoraMutex = xSemaphoreCreateMutex();
     lora_tx_queue = xQueueCreate(15, sizeof(LoRa_Packet*));
-    BaseType_t sender_task_code = xTaskCreatePinnedToCore(lora_packet_sender_task, "PacketSenderTask", 5120, lora_device, 100, &lora_packet_sender_handler, 1);
+    BaseType_t sender_task_code = xTaskCreatePinnedToCore(lora_packet_sender_task, "PacketSenderTask", 5120, lora_dev, 100, &lora_packet_sender_handler, 1);
     if (sender_task_code != pdPASS)
     {
         ESP_LOGE(TAG, "can't create sender task %d", task_code);
-        sx127x_destroy(lora_device);
+        sx127x_destroy(lora_dev);
         return;
     }
 
@@ -92,7 +91,7 @@ void init_lora(spi_device_handle_t* spi_device, sx127x* lora_dev) {
     if (pinging_task_code != pdPASS)
     {
         ESP_LOGE(TAG, "can't create pinging task %d", task_code);
-        sx127x_destroy(lora_device);
+        sx127x_destroy(lora_dev);
         return;
     }
 }
@@ -102,6 +101,7 @@ void handle_interrupt_task(void *arg)
     while (1)
     {
         vTaskSuspend(NULL);
+        ESP_LOGI("LoRa", "Interrupt task");
         sx127x_handle_interrupt((sx127x *)arg);
     }
 }
@@ -155,11 +155,13 @@ void lora_packet_sender_task(void* pvParameters) {
     while (1) {
         if( xQueueReceive(lora_tx_queue, &packet_to_send, 500) == pdPASS )
         {
+            printf("packet dest addr: %d\n", packet_to_send.header.dest_device_addr);
             if (xSemaphoreTake(xLoraMutex, portMAX_DELAY) == pdTRUE) {
                 lora_mutex_is_held_by_task = 1;
                 if (mode != SX127x_MODE_TX) {
-                    spi_device_polling_end(lora_spi_device, portMAX_DELAY);
+                    //spi_device_polling_end(lora_spi_device, portMAX_DELAY);
                     ESP_ERROR_CHECK(sx127x_set_opmod(SX127x_MODE_TX, lora_dev));
+                    vTaskDelay(1 / portTICK_PERIOD_MS);
                     mode = SX127x_MODE_TX;
                     printf("took lora...\n");
                 }
@@ -181,6 +183,8 @@ void lora_packet_sender_task(void* pvParameters) {
                     messages_unfinished++;
                 }
 
+
+
                 // Indicating all messages has been sent
                 if (messages_unfinished == 0) {
                     ESP_ERROR_CHECK(sx127x_set_opmod(SX127x_MODE_RX_CONT, lora_dev));
@@ -188,6 +192,9 @@ void lora_packet_sender_task(void* pvParameters) {
                     xSemaphoreGive(xLoraMutex);
                     lora_mutex_is_held_by_task = 0;
                 }
+
+                ESP_LOGI("LORA", "Packet tx finished...");
+
             }
         } else { // if packet are not received for a long period of time, reset state
             if (mode != SX127x_MODE_RX_CONT) {
@@ -206,7 +213,7 @@ void lora_packet_sender_task(void* pvParameters) {
 
 // Calculates CRC and sends packet
 uint8_t lora_send_packet(sx127x *lora_dev, LoRa_Packet* packet){
-    uint8_t data[256];
+    uint8_t data[255];
     memset(&data[0], packet->header.src_device_addr, sizeof(uint8_t));
     memset(&data[1], packet->header.dest_device_addr, sizeof(uint8_t));
     memset(&data[2], packet->header.num_of_packets, sizeof(uint8_t));
@@ -215,11 +222,10 @@ uint8_t lora_send_packet(sx127x *lora_dev, LoRa_Packet* packet){
     memcpy(&data[7], packet->payload.payload, packet->header.payload_size);
     memset(&data[7 + packet->header.payload_size], packet->payload.payload_crc, sizeof(uint16_t));
     printf("preparing data for tx\n");
-    uint8_t res = sx127x_set_for_transmission(data, packet->header.payload_size + sizeof(LoRa_Packet_Header), lora_dev);
-    //uint8_t res = sx127x_set_for_transmission(data, 255, lora_dev);
+    //uint8_t res = sx127x_set_for_transmission(data, packet->header.payload_size + sizeof(LoRa_Packet_Header) + sizeof(uint16_t), lora_dev);
+    uint8_t res = sx127x_set_for_transmission((uint8_t*) "asdasd", 6, lora_dev);
     printf("just sent data for tx\n");
     return res;
-
 }
 
 uint8_t lora_send_message(uint8_t src_addr, uint8_t dest_addr, uint8_t* message, uint8_t message_len) {
