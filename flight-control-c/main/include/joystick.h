@@ -7,30 +7,16 @@
 #include "lcd.h"
 #include <driver/gpio.h>
 #include <esp_log.h>
+#include "driver/adc.h"
+#include "esp_adc_cal.h"
+#include "esp_adc/adc_oneshot.h"
+#include "esp_adc/adc_cali.h"
+#include "esp_adc/adc_cali_scheme.h"
+
+#define JOYSTICK_X_AXIS_ADC_CHANNEL (ADC2_CHANNEL_5)
+#define JOYSTICK_Y_AXIS_ADC_CHANNEL (ADC2_CHANNEL_4)
 
 
-#define SOUTH_PIN 33
-#define NORTH_PIN 32
-#define EAST_PIN 25
-#define WEST_PIN 26
-
-
-
-typedef enum {
-    NA,
-    NORTH,
-    NORTH_EAST,
-    EAST,
-    SOUTH_EAST,
-    SOUTH,
-    SOUTH_WEST,
-    WEST,
-    NORTH_WEST,
-} Joystick_Direction;
-
-void IRAM_ATTR joystick_handle_interrupt_from_isr(void *arg);
-
-void vTaskJoystick(void* pvParameters);
 
 // start tasks, install interrupts
 void joystick_init();
