@@ -10,8 +10,8 @@ QueueHandle_t packet_rx_queue;
 TaskHandle_t network_device_processor_handler;
 QueueHandle_t network_device_processor_queue;
 
+extern SemaphoreHandle_t xLoraTXQueueMutex;
 extern SemaphoreHandle_t joystick_semaphore_handle;
-extern Joystick_Direction joysctick_state;
 
 extern QueueHandle_t lora_tx_queue;
 
@@ -36,6 +36,26 @@ static Network_Device_Context* get_device_from_arp(Network_Device_Container* dev
     return NULL;
 }
 
+static void display_packet(LoRa_Packet* packet_to_display){
+    printf("Printing packet...\n");
+    printf("\tHeader:\n");
+    printf("\t\tSource device address: %d\n", packet_to_display->header.src_device_addr);
+    printf("\t\tDestination device address: %d\n", packet_to_display->header.dest_device_addr);
+    printf("\t\tNumber of packets: %d\n", packet_to_display->header.num_of_packets);
+    printf("\t\tPacket number: %d\n", packet_to_display->header.packet_num);
+    printf("\t\tPayload size: %d\n", packet_to_display->header.payload_size);
+    printf("\t\tHeader CRC: %d\n", packet_to_display->header.payload_size);
+    printf("\tPayload:\n");
+    printf("\t\t");
+    for (uint8_t i = 0; i < packet_to_display->header.payload_size; i++) {
+        printf("%#X ", packet_to_display->payload.payload[i]);
+    }
+
+    printf("\tPayload CRC:\n");
+    printf("\t\t%d\n", packet_to_display->payload.payload_crc);
+}
+
+
 void network_uav_temporary_controller_task(void* pvParameters) {
     Network_Device_Context* device_to_send = get_device_from_arp(&device_container, 0x01);
     if (device_to_send == NULL) {
@@ -49,27 +69,39 @@ void network_uav_temporary_controller_task(void* pvParameters) {
         ESP_LOGI("network", "Out of memory temp.");
     }
 
-    device_to_send->tx_secret_message_size = 3 * sizeof(uint8_t);
+    device_to_send->tx_secret_message_size = 3 * sizeof(uint16_t);
+    uint16_t thr_raw_val;
+    uint16_t joystick_x_raw_val;
+    uint16_t joystick_y_raw_val;
+
     while (1) {
-        ESP_LOGI("UAV control", "sending data to uav...");
+        printf("UAV control task loop starts...\n");
         if (xSemaphoreTake(joystick_semaphore_handle, portMAX_DELAY) == pdTRUE) {
-            ESP_LOGI("UAV control", "joystick taken...");
-            memset(&device_to_send->tx_secret_message[0], joysctick_state, sizeof(uint8_t));
+            adc2_get_raw(JOYSTICK_X_AXIS_ADC_CHANNEL, ADC_WIDTH, &joystick_x_raw_val);
+            adc2_get_raw(JOYSTICK_Y_AXIS_ADC_CHANNEL, ADC_WIDTH, &joystick_y_raw_val);
+            memset(&device_to_send->tx_secret_message[0], joystick_x_raw_val, sizeof(uint16_t));
+            memset(&device_to_send->tx_secret_message[2], joystick_y_raw_val, sizeof(uint16_t));
             xSemaphoreGive(joystick_semaphore_handle);
         }
 
-        uint16_t raw_val;
-        adc2_get_raw(ADC_CHANNEL, ADC_WIDTH, &raw_val);
-        memset(&device_to_send->tx_secret_message[1], raw_val, sizeof(uint16_t));
-        ESP_LOGI("UAV control", "creating packets from message...");
+
+        adc2_get_raw(ADC_CHANNEL, ADC_WIDTH, &thr_raw_val);
+
+        memset(&device_to_send->tx_secret_message[4], thr_raw_val, sizeof(uint16_t));
         deconstruct_message_into_packets(device_to_send);
-        ESP_LOGI("UAV control", "message created...");
-        ESP_LOGI("UAV control", "joystick state: %d", device_to_send->tx_secret_message[0]);
+
         // problem with deconstruct fn
-        ESP_LOGI("UAV control", "packet joystick state: %d", device_to_send->packet_tx_buff[0].payload.payload[0]);
+        //display_packet(&device_to_send->packet_tx_buff[0]);
+
+
         set_packets_for_tx(device_to_send, &lora_tx_queue);
 
-        vTaskDelay(100 / portTICK_PERIOD_MS);
+
+
+        printf("Deadlock test...\n");
+        ESP_LOGI("UAV control", "Message sent for tx");
+        printf("UAV control task loop ends...\n");
+        vTaskDelay(50 / portTICK_PERIOD_MS);
 
     }
 }
@@ -162,7 +194,7 @@ void network_init(Network_Device_Container* device_cont)
     network_add_device(device_cont, 0x01);
     device_cont->device_contexts[0].status = ONLINE;
     packet_rx_queue = xQueueCreate(15, sizeof(LoRa_Packet*));
-    xTaskCreate(network_packet_rx_handler_task, "PacketReceiveTask", 4096, &device_container, 200, &network_rx_packet_handler);
+    xTaskCreate(network_packet_rx_handler_task, "PacketReceiveTask", 4096, &device_container, 1, &network_rx_packet_handler);
     network_device_processor_queue = xQueueCreate(20, sizeof(uint8_t));
     xTaskCreate(network_packet_rx_handler_task, "DeviceProcessorTask", 4096, &device_container, 1, &network_device_processor_handler);
     xTaskCreate(network_uav_temporary_controller_task, "UAVControllerTask", 4096, NULL, 1, NULL);
@@ -204,7 +236,6 @@ network_operation_t network_add_device(Network_Device_Container* device_cont, ui
     }
 
     device_cont->device_contexts[device_cont->num_of_devices - 1] = new_device;
-    ESP_LOGI("Network", "device addr when added: %d", device_cont->device_contexts[0].address);
     return NETWORK_OK;
 }
 
@@ -294,11 +325,9 @@ uint8_t deconstruct_message_into_packets(Network_Device_Context *device_ctx) {
     }
 
     if (device_ctx->status == ONLINE) { // device is authenticated, only encrypted message is accepted
-        ESP_LOGI("Network", "Device is online when deconstructing message...");
         uint8_t num_of_packets = device_ctx->tx_secret_message_size / LORA_PAYLOAD_MAX_SIZE +
                 ((device_ctx->tx_secret_message_size % LORA_PAYLOAD_MAX_SIZE) != 0);
-        ESP_LOGI("Network", "NUm of Packets: %d", num_of_packets);
-        ESP_LOGI("Network", "message size: %d", device_ctx->tx_secret_message_size);
+
         uint8_t last_packet_payload_size = device_ctx->tx_secret_message_size % LORA_PAYLOAD_MAX_SIZE;
         device_ctx->packet_tx_buff = (LoRa_Packet*) malloc(num_of_packets * sizeof(LoRa_Packet));
         if (device_ctx->packet_tx_buff == NULL) {
@@ -349,7 +378,6 @@ uint8_t deconstruct_message_into_packets(Network_Device_Context *device_ctx) {
             device_ctx->packet_tx_buff[i].payload.payload_crc = lora_calc_packet_crc(&device_ctx->packet_tx_buff[i].payload, device_ctx->packet_tx_buff[i].header.payload_size);
         }
     }
-    ESP_LOGI("Network", "Message deconstruction finished.");
     return NETWORK_OK;
 }
 
@@ -363,7 +391,9 @@ void set_packets_for_tx(Network_Device_Context* device_ctx, QueueHandle_t* lora_
     memcpy(copied_packets, device_ctx->packet_tx_buff, device_ctx->packet_tx_buff[0].header.num_of_packets);
 
     for (uint8_t i = 0; i < device_ctx->packet_tx_buff->header.num_of_packets; i++) {
-        xQueueSend(*lora_tx_queue_ptr, &copied_packets[i], portMAX_DELAY);
+        if (xQueueSend(*lora_tx_queue_ptr, &copied_packets[i], 1000) != pdPASS) {
+            ESP_LOGE("packet setup", "Could not send packet to queue");
+        }
     }
 
     free(copied_packets);

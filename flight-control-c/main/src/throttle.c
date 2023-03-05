@@ -31,6 +31,6 @@ void init_throttle() {
 
 }
 
-uint16_t throttle_convert_to_percentage(uint16_t raw_value){
+    uint16_t throttle_convert_to_percentage(uint16_t raw_value){
     return (uint16_t)(((float)raw_value / (float)THROTTLE_RAW_MAX ) * 100);
 }

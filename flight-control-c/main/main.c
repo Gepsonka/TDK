@@ -42,7 +42,6 @@
 static const char *TAG = "UAVsecurity";
 
 
-extern Joystick_Direction joysctick_state;
 extern TaskHandle_t xJoystickInteruptTask;
 
 extern sx127x *lora_device;
@@ -107,9 +106,16 @@ void app_main()
 
     network_init(&device_container);
 
+    uint16_t x_val;
+    uint16_t y_val;
 
     while (1)
     {
-        vTaskDelay(1000 / portTICK_PERIOD_MS);
+        vTaskDelay(500 / portTICK_PERIOD_MS);
+//        adc2_get_raw(ADC2_CHANNEL_5, ADC_WIDTH, &x_val);
+//        adc2_get_raw(ADC2_CHANNEL_4, ADC_WIDTH, &y_val);
+//        printf("X potmeter value: %d\n", x_val);
+//        printf("Y potmeter value: %d\n", y_val);
+
     }
 }

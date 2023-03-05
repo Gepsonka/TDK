@@ -2,7 +2,6 @@
 
 
 
-extern Joystick_Direction joysctick_state;
 extern SemaphoreHandle_t joystick_semaphore_handle;
 
 static void send_cmd(uint8_t cmd) {
@@ -124,7 +123,7 @@ void lcd_print_current_throttle_percentage() {
     } else if (percentage_val < 100) {
         memset(&percentage_str_format[3], ' ', 1);
     }
-    ESP_LOGI("Thr percent", "%s", percentage_str_format);
+    // ESP_LOGI("Thr percent", "%s", percentage_str_format);
     lcd_set_cursor(FirstLine, 4);
     lcd_send_string(percentage_str_format);
 }
@@ -143,35 +142,8 @@ void lcd_print_throttle_percentage(uint16_t raw_val){
 void lcd_print_joystick_direction(){
     lcd_set_cursor(SecondLine, 4);
     if (xSemaphoreTake(joystick_semaphore_handle, portMAX_DELAY) == pdTRUE) {
-        switch (joysctick_state) {
-            case NA:
-                lcd_send_string("NA");
-                break;
-            case NORTH:
-                lcd_send_string("N ");
-                break;
-            case SOUTH:
-                lcd_send_string("S ");
-                break;
-            case NORTH_EAST:
-                lcd_send_string("NE");
-                break;
-            case NORTH_WEST:
-                lcd_send_string("NW");
-                break;
-            case SOUTH_EAST:
-                lcd_send_string("SE");
-                break;
-            case SOUTH_WEST:
-                lcd_send_string("SW");
-                break;
-            case EAST:
-                lcd_send_string("E ");
-                break;
-            case WEST:
-                lcd_send_string("W ");
-                break;
-        }
+            lcd_send_string("NA");
+
         xSemaphoreGive(joystick_semaphore_handle);
     }
     
@@ -179,33 +151,6 @@ void lcd_print_joystick_direction(){
 
 void lcd_print_current_joystick_direction(uint8_t joystick_direction){
     lcd_set_cursor(SecondLine, 4);
-    switch (joystick_direction) {
-        case NA:
-            lcd_send_string("NA");
-            break;
-        case NORTH:
-            lcd_send_string("N ");
-            break;
-        case SOUTH:
-            lcd_send_string("S ");
-            break;
-        case NORTH_EAST:
-            lcd_send_string("NE");
-            break;
-        case NORTH_WEST:
-            lcd_send_string("NW");
-            break;
-        case SOUTH_EAST:
-            lcd_send_string("SE");
-            break;
-        case SOUTH_WEST:
-            lcd_send_string("SW");
-            break;
-        case EAST:
-            lcd_send_string("E ");
-            break;
-        case WEST:
-            lcd_send_string("W ");
-            break;
-    }
+    lcd_send_string("NA");
+
 }

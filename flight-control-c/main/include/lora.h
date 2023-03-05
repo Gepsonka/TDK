@@ -57,6 +57,9 @@ typedef struct  {
 uint16_t lora_calc_header_crc(LoRa_Packet_Header* header);
 uint16_t lora_calc_packet_crc(LoRa_Packet_Payload* payload, uint8_t payload_length);
 
+void lora_display_packet(LoRa_Packet* packet_to_display);
+
+
 void IRAM_ATTR lora_handle_interrupt_fromisr(void *arg);
 
 void init_lora(spi_device_handle_t* spi_device, sx127x* lora_dev);
@@ -92,11 +95,6 @@ uint8_t lora_calc_packet_num_for_message_size(uint16_t message_size);
 /// \return
 uint8_t lora_fragment_message(uint8_t* message, uint16_t message_size);
 
-/// The network is pinged by the base station at every 2 seconds,
-/// so other devices get alerted and with the correct
-/// password can join to the network.
-/// \param pvParameters Task parameter
-void lora_pinging_task(void* pvParameters);
 
 
 #endif

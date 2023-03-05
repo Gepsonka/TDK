@@ -18,10 +18,10 @@
 
 
 
+
 // start tasks, install interrupts
 void joystick_init();
 
-void joystick_int_handler();
 
 
 #endif
