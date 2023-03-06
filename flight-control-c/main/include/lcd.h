@@ -30,7 +30,8 @@ void lcd_set_cursor(LCD_LineNumber line_num, uint8_t index);
 void lcd_print_display_base();
 void lcd_print_current_throttle_percentage();
 void lcd_print_throttle_percentage(uint16_t raw_val);
-void lcd_print_joystick_direction();
-void lcd_print_current_joystick_direction(uint8_t joystick_direction);
+void lcd_print_joystick_data();
+void lcd_print_current_num_of_devices(uint8_t device_count);
 
+void vLCDGeneralDataDisplay(void* pvParameters);
 #endif

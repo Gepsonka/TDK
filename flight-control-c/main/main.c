@@ -90,13 +90,13 @@ void app_main()
     };
     ESP_ERROR_CHECK(spi_bus_initialize(VSPI_HOST, &config, SPI_DMA_CH_AUTO));
 
-    init_lora(&lora_spi_device, lora_device);
-
     init_lcd();
 
-    lcd_clear_screen();
+    init_lora(&lora_spi_device, lora_device);
 
-    lcd_print_display_base();
+//    lcd_clear_screen();
+//
+//    lcd_print_display_base();
 
     joystick_init();
 

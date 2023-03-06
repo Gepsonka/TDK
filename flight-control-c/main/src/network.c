@@ -14,6 +14,7 @@ extern SemaphoreHandle_t xLoraTXQueueMutex;
 extern SemaphoreHandle_t joystick_semaphore_handle;
 
 extern QueueHandle_t lora_tx_queue;
+extern SemaphoreHandle_t lcd_mutex;
 
 static bool network_is_device_in_arp(Network_Device_Container* dev_container, uint8_t dev_addr) {
     for (uint8_t i = 0; i < dev_container->num_of_devices; i++) {
@@ -75,7 +76,7 @@ void network_uav_temporary_controller_task(void* pvParameters) {
     uint16_t joystick_y_raw_val;
 
     while (1) {
-        printf("UAV control task loop starts...\n");
+        vTaskDelay(50 / portTICK_PERIOD_MS);
         if (xSemaphoreTake(joystick_semaphore_handle, portMAX_DELAY) == pdTRUE) {
             adc2_get_raw(JOYSTICK_X_AXIS_ADC_CHANNEL, ADC_WIDTH, &joystick_x_raw_val);
             adc2_get_raw(JOYSTICK_Y_AXIS_ADC_CHANNEL, ADC_WIDTH, &joystick_y_raw_val);
@@ -93,18 +94,12 @@ void network_uav_temporary_controller_task(void* pvParameters) {
         // problem with deconstruct fn
         //display_packet(&device_to_send->packet_tx_buff[0]);
 
-
         set_packets_for_tx(device_to_send, &lora_tx_queue);
-
-
-
-        printf("Deadlock test...\n");
-        ESP_LOGI("UAV control", "Message sent for tx");
-        printf("UAV control task loop ends...\n");
-        vTaskDelay(50 / portTICK_PERIOD_MS);
 
     }
 }
+
+
 
 
 void network_device_processor_task(void* pvParameters){
@@ -192,12 +187,18 @@ void network_init(Network_Device_Container* device_cont)
     device_cont->device_contexts = NULL;
     device_cont->num_of_devices = 0;
     network_add_device(device_cont, 0x01);
+
     device_cont->device_contexts[0].status = ONLINE;
     packet_rx_queue = xQueueCreate(15, sizeof(LoRa_Packet*));
     xTaskCreate(network_packet_rx_handler_task, "PacketReceiveTask", 4096, &device_container, 1, &network_rx_packet_handler);
     network_device_processor_queue = xQueueCreate(20, sizeof(uint8_t));
     xTaskCreate(network_packet_rx_handler_task, "DeviceProcessorTask", 4096, &device_container, 1, &network_device_processor_handler);
-    xTaskCreate(network_uav_temporary_controller_task, "UAVControllerTask", 4096, NULL, 1, NULL);
+    BaseType_t uav_control_task_code = xTaskCreatePinnedToCore(network_uav_temporary_controller_task, "UAVControllerTask", 4096, NULL, 1, NULL, 0);
+    if (uav_control_task_code != pdPASS)
+    {
+        ESP_LOGE("network init", "can't create uav control task %d", uav_control_task_code);
+        return;
+    }
     ESP_LOGI("Network", "Network init finished.");
 
 }
@@ -236,6 +237,13 @@ network_operation_t network_add_device(Network_Device_Container* device_cont, ui
     }
 
     device_cont->device_contexts[device_cont->num_of_devices - 1] = new_device;
+
+    // refresh device number on lcd
+    if (xSemaphoreTake(lcd_mutex, portMAX_DELAY) == pdPASS) {
+        lcd_print_current_num_of_devices(device_cont->num_of_devices);
+        xSemaphoreGive(lcd_mutex);
+    }
+
     return NETWORK_OK;
 }
 
@@ -386,18 +394,12 @@ void set_packets_for_tx(Network_Device_Context* device_ctx, QueueHandle_t* lora_
         return;
     }
 
-    // copy packets to avoid use after free and race conditions
-    LoRa_Packet* copied_packets = (LoRa_Packet*) malloc(device_ctx->packet_tx_buff[0].header.num_of_packets * sizeof(LoRa_Packet));
-    memcpy(copied_packets, device_ctx->packet_tx_buff, device_ctx->packet_tx_buff[0].header.num_of_packets);
-
     for (uint8_t i = 0; i < device_ctx->packet_tx_buff->header.num_of_packets; i++) {
-        if (xQueueSend(*lora_tx_queue_ptr, &copied_packets[i], 1000) != pdPASS) {
+        //display_packet(&device_ctx->packet_tx_buff[i]);
+        if (xQueueSend(*lora_tx_queue_ptr, &device_ctx->packet_tx_buff[i], portMAX_DELAY) != pdPASS) {
             ESP_LOGE("packet setup", "Could not send packet to queue");
         }
     }
-
-    free(copied_packets);
-
 }
 
 void network_encrypt_device_message(Network_Device_Context* device_ctx){

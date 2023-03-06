@@ -98,8 +98,8 @@ void init_lora(spi_device_handle_t* spi_device, sx127x* lora_dev) {
 
     xLoraMutex = xSemaphoreCreateMutex();
     xLoraTXQueueMutex = xSemaphoreCreateMutex();
-    lora_tx_queue = xQueueCreate(15, sizeof(LoRa_Packet*));
-    BaseType_t sender_task_code = xTaskCreate(lora_packet_sender_task, "PacketSenderTask", 5120, lora_dev, 20, &lora_packet_sender_handler);
+    lora_tx_queue = xQueueCreate(50, sizeof(LoRa_Packet*));
+    BaseType_t sender_task_code = xTaskCreatePinnedToCore(lora_packet_sender_task, "PacketSenderTask", 5120, lora_dev, 2, &lora_packet_sender_handler, 1);
     if (sender_task_code != pdPASS)
     {
         ESP_LOGE(TAG, "can't create sender task %d", task_code);
@@ -119,7 +119,7 @@ void handle_interrupt_task(void *arg)
 
 void tx_callback(sx127x *device)
 {
-    ESP_LOGI(TAG, "transmitted");
+    ESP_LOGI(TAG, "Transmitted");
 }
 
 
@@ -164,10 +164,9 @@ void lora_packet_sender_task(void* pvParameters) {
     uint8_t mode = SX127x_MODE_RX_CONT;
     uint8_t lora_mutex_is_held_by_task = 0;
     while (1) {
-        if( xQueueReceive(lora_tx_queue, &packet_to_send, 0) == pdPASS )
+        if( xQueueReceive(lora_tx_queue, &packet_to_send, 1000) == pdPASS )
         {
-            ESP_LOGI("LoRa packet sender", "took queue...");
-            if (xSemaphoreTake(xLoraMutex, portMAX_DELAY) == pdTRUE) {
+            if ( lora_mutex_is_held_by_task || xSemaphoreTake(xLoraMutex, portMAX_DELAY) == pdTRUE) {
                 lora_mutex_is_held_by_task = 1;
                 if (mode != SX127x_MODE_TX) {
                     //spi_device_polling_end(lora_spi_device, portMAX_DELAY);
@@ -182,10 +181,9 @@ void lora_packet_sender_task(void* pvParameters) {
                 // TODO: Put a while (spi_device_is_polling_transaction(spi)) here to
                 // check when the spi bs is available
                 // otherwise the lora_send_packet will throw spi error
-                lora_display_packet(&packet_to_send);
+                //lora_display_packet(&packet_to_send);
 
                 ESP_ERROR_CHECK(lora_send_packet(lora_dev, &packet_to_send));
-
                 // Indicating the last packet of the message
                 if (packet_to_send.header.packet_num == packet_to_send.header.num_of_packets - 1 &&
                     packet_to_send.header.num_of_packets != 1) {
@@ -204,11 +202,8 @@ void lora_packet_sender_task(void* pvParameters) {
 //                    xSemaphoreGive(xLoraMutex);
 //                    lora_mutex_is_held_by_task = 0;
 //                }
-
-
             }
         } else { // if packet are not received for a long period of time, reset state
-            ESP_LOGI("Sender task", "else branch");
             if (mode != SX127x_MODE_RX_CONT) {
                 ESP_ERROR_CHECK(sx127x_set_opmod(SX127x_MODE_RX_CONT, lora_dev));
                 ESP_LOGI("LoRa", "LoRa set back to rx");
@@ -220,8 +215,6 @@ void lora_packet_sender_task(void* pvParameters) {
                 lora_mutex_is_held_by_task = 0;
             }
         }
-
-        ESP_LOGI("LoRa packet sender task", "released queue");
     }
 }
 

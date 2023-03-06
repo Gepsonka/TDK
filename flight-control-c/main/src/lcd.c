@@ -1,8 +1,11 @@
 #include "lcd.h"
 
+static char* TAG = "LCD";
 
+SemaphoreHandle_t lcd_mutex;
 
-extern SemaphoreHandle_t joystick_semaphore_handle;
+TaskHandle_t xLCDThrottleDisplayTaskHandler;
+
 
 static void send_cmd(uint8_t cmd) {
     uint8_t data_u;
@@ -73,6 +76,17 @@ void init_lcd() {
     vTaskDelay(10 / portTICK_PERIOD_MS);
     send_cmd(0x0c);
     vTaskDelay(10 / portTICK_PERIOD_MS);
+
+    lcd_print_display_base();
+
+    lcd_mutex = xSemaphoreCreateMutex();
+    if (lcd_mutex == NULL) {
+        ESP_LOGE(TAG, "Could not create LCD mutex");
+    }
+
+    xTaskCreate(vLCDGeneralDataDisplay, "ThrottleDisplayTask", 2048, NULL, 1, &xLCDThrottleDisplayTaskHandler);
+
+
 }
 
 void lcd_clear_screen() {
@@ -110,6 +124,8 @@ void lcd_print_display_base() {
     lcd_send_string("THR:");
     lcd_set_cursor(SecondLine, 0);
     lcd_send_string("Dir:");
+    lcd_set_cursor(ThirdLine, 0);
+    lcd_send_string("Devices:");
 }
 
 void lcd_print_current_throttle_percentage() {
@@ -128,29 +144,71 @@ void lcd_print_current_throttle_percentage() {
     lcd_send_string(percentage_str_format);
 }
 
-void lcd_print_throttle_percentage(uint16_t raw_val){
-    fflush(stdout);
-    uint8_t percentage_val = throttle_convert_to_percentage(raw_val);
-    char percentage_str_format[5] = "    ";
-    snprintf(percentage_str_format, 5, "%d%%", percentage_val);
-    // percentage_str_format[3] = '%';
-    printf(percentage_str_format, "\n");
-    lcd_set_cursor(FirstLine, 3);
-    lcd_send_string(percentage_str_format);
-}
+void lcd_print_joystick_data(){
+    char x_data[] = "X:-100%";
+    char y_data[] = "Y:-100%";
 
-void lcd_print_joystick_direction(){
-    lcd_set_cursor(SecondLine, 4);
-    if (xSemaphoreTake(joystick_semaphore_handle, portMAX_DELAY) == pdTRUE) {
-            lcd_send_string("NA");
+    int8_t x_percentage = joystick_convert_current_joystick_x_direction_to_percentage();
+    int8_t y_percentage = joystick_convert_current_joystick_y_direction_to_percentage();
 
-        xSemaphoreGive(joystick_semaphore_handle);
+    memset(x_data, ' ', sizeof(x_data));
+    memset(y_data, ' ', sizeof(y_data));
+
+    sprintf(x_data, "X:%d%%", x_percentage);
+    sprintf(y_data, "Y:%d%%", y_percentage);
+
+    if (x_percentage > -100 && x_percentage < -9) {
+        memset(&x_data[6], ' ', 1);
+    } else if (x_percentage > -10 && x_percentage < 0) {
+        memset(&x_data[5], ' ', 2);
+    } else if (x_percentage > -1 && x_percentage < 10) {
+        memset(&x_data[4], ' ', 3);
+    } else if (x_percentage > 9 && x_percentage < 100) {
+        memset(&x_data[5], ' ', 2);
+    } else if ( x_percentage == 100 ) {
+        memset(&x_data[6], ' ', 1);
     }
-    
+
+    if (y_percentage > -100 && y_percentage < -9) {
+        memset(&y_data[6], ' ', 1);
+    } else if (y_percentage > -10 && y_percentage < 0) {
+        memset(&y_data[5], ' ', 2);
+    } else if (y_percentage > -1 && y_percentage < 10) {
+        memset(&y_data[4], ' ', 3);
+    } else if (y_percentage > 9 && y_percentage < 100) {
+        memset(&y_data[5], ' ', 2);
+    } else if ( y_percentage == 100 ) {
+        memset(&y_data[6], ' ', 1);
+    }
+
+//    memset(&y_data[6], '%', 1);
+//    memset(&x_data[6], '%', 1);
+
+    lcd_set_cursor(SecondLine, 4);
+    lcd_send_string(x_data);
+    lcd_set_cursor(SecondLine, 12);
+    lcd_send_string(y_data);
 }
 
-void lcd_print_current_joystick_direction(uint8_t joystick_direction){
-    lcd_set_cursor(SecondLine, 4);
-    lcd_send_string("NA");
+void lcd_print_current_num_of_devices(uint8_t device_count) {
+    char device_count_str[] = "1000";
+    memset(device_count_str, ' ', sizeof(device_count));
 
+    sprintf(device_count_str, "%d", device_count);
+    lcd_set_cursor(ThirdLine, 8);
+    lcd_send_string(device_count_str);
+}
+
+
+void vLCDGeneralDataDisplay(void* pvParameters) {
+    while(1) {
+        //ESP_LOGI("THR", "displayed throttle percentage...");
+        if (xSemaphoreTake(lcd_mutex, portMAX_DELAY) == pdPASS){
+            lcd_print_current_throttle_percentage();
+            lcd_print_joystick_data();
+            xSemaphoreGive(lcd_mutex);
+        }
+
+        vTaskDelay(100 / portTICK_PERIOD_MS);
+    }
 }

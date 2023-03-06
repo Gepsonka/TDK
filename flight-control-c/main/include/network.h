@@ -12,8 +12,10 @@
 #include "esp_random.h" 
 #include "security.h"
 #include "lora.h"
+#include "sx127x.h"
 #include "math.h"
 #include "joystick.h"
+#include "lcd.h"
 
 typedef enum {
     NETWORK_OK = 0x00,

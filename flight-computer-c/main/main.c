@@ -99,17 +99,17 @@ void app_main() {
     ledc_update_duty(LEDC_HIGH_SPEED_MODE, ESC_CHANNEL); // update duty cycle for LEDC channel
     vTaskDelay(pdMS_TO_TICKS(3000));
 
-    // Send a signal to the ESC to set the speed to 50%
-    // ledc_set_duty_and_update(LEDC_HIGH_SPEED_MODE, ESC_CHANNEL, 3072, 0);
-    ledc_set_duty(LEDC_HIGH_SPEED_MODE, ESC_CHANNEL, 3072); // set duty cycle for LEDC channel
-    ledc_update_duty(LEDC_HIGH_SPEED_MODE, ESC_CHANNEL); // update duty cycle for LEDC channel
-    vTaskDelay(pdMS_TO_TICKS(3000));
-
-    // Send a signal to the ESC to set the speed to 0%
-    // ledc_set_duty_and_update(LEDC_HIGH_SPEED_MODE, ESC_CHANNEL, 2048, 0);
-    ledc_set_duty(LEDC_HIGH_SPEED_MODE, ESC_CHANNEL, 2048); // set duty cycle for LEDC channel
-    ledc_update_duty(LEDC_HIGH_SPEED_MODE, ESC_CHANNEL); // update duty cycle for LEDC channel
-    vTaskDelay(pdMS_TO_TICKS(3000));
+//    // Send a signal to the ESC to set the speed to 50%
+//    // ledc_set_duty_and_update(LEDC_HIGH_SPEED_MODE, ESC_CHANNEL, 3072, 0);
+//    ledc_set_duty(LEDC_HIGH_SPEED_MODE, ESC_CHANNEL, 3072); // set duty cycle for LEDC channel
+//    ledc_update_duty(LEDC_HIGH_SPEED_MODE, ESC_CHANNEL); // update duty cycle for LEDC channel
+//    vTaskDelay(pdMS_TO_TICKS(3000));
+//
+//    // Send a signal to the ESC to set the speed to 0%
+//    // ledc_set_duty_and_update(LEDC_HIGH_SPEED_MODE, ESC_CHANNEL, 2048, 0);
+//    ledc_set_duty(LEDC_HIGH_SPEED_MODE, ESC_CHANNEL, 2048); // set duty cycle for LEDC channel
+//    ledc_update_duty(LEDC_HIGH_SPEED_MODE, ESC_CHANNEL); // update duty cycle for LEDC channel
+//    vTaskDelay(pdMS_TO_TICKS(3000));
 
 
     //set_servo_angle(90);
@@ -120,7 +120,7 @@ void app_main() {
 //        set_servo_angle(90);
 //        vTaskDelay(1000 / portTICK_PERIOD_MS);
 //        set_servo_angle(180);
-        ledc_set_duty(LEDC_HIGH_SPEED_MODE, ESC_CHANNEL, 2000); // set duty cycle for LEDC channel
+        ledc_set_duty(LEDC_HIGH_SPEED_MODE, ESC_CHANNEL, 1024); // set duty cycle for LEDC channel
         ledc_update_duty(LEDC_HIGH_SPEED_MODE, ESC_CHANNEL); // update duty cycle for LEDC channel
         vTaskDelay(2000 / portTICK_PERIOD_MS);
         ledc_set_duty(LEDC_HIGH_SPEED_MODE, ESC_CHANNEL, 2048); // set duty cycle for LEDC channel
