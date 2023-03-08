@@ -4,7 +4,6 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "freertos/semphr.h"
-#include "sx127x.h"
 #include <sx127x.h>
 #include <stdlib.h>
 #include <driver/spi_common.h>

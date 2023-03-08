@@ -6,8 +6,6 @@
 #include <esp_intr_alloc.h>
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
-#include "aes/esp_aes_gcm.h"
-#include "esp_system.h"
 #include "esp_spi_flash.h"
 #include "esp_adc/adc_cali.h"
 #include "i2c.h"
@@ -88,7 +86,7 @@ void app_main()
         .quadhd_io_num = -1,
         .max_transfer_sz = 0,
     };
-    ESP_ERROR_CHECK(spi_bus_initialize(VSPI_HOST, &config, SPI_DMA_CH_AUTO));
+    ESP_ERROR_CHECK(spi_bus_initialize(VSPI_HOST, &config, 1));
 
     init_lcd();
 
@@ -109,13 +107,14 @@ void app_main()
     uint16_t x_val;
     uint16_t y_val;
 
+    uint8_t data[255];
+    memset(data, 12, 255);
+
+
+
     while (1)
     {
-        vTaskDelay(500 / portTICK_PERIOD_MS);
-//        adc2_get_raw(ADC2_CHANNEL_5, ADC_WIDTH, &x_val);
-//        adc2_get_raw(ADC2_CHANNEL_4, ADC_WIDTH, &y_val);
-//        printf("X potmeter value: %d\n", x_val);
-//        printf("Y potmeter value: %d\n", y_val);
+        vTaskDelay(pdTICKS_TO_MS(200));
 
     }
 }

@@ -16,9 +16,6 @@ extern SemaphoreHandle_t joystick_semaphore_handle;
 extern QueueHandle_t lora_tx_queue;
 extern SemaphoreHandle_t lcd_mutex;
 
-extern sx127x *lora_device;
-
-
 static bool network_is_device_in_arp(Network_Device_Container* dev_container, uint8_t dev_addr) {
     for (uint8_t i = 0; i < dev_container->num_of_devices; i++) {
         if (dev_container->device_contexts[i].address == dev_addr) {
@@ -57,51 +54,6 @@ static void display_packet(LoRa_Packet* packet_to_display){
 
     printf("\tPayload CRC:\n");
     printf("\t\t%d\n", packet_to_display->payload.payload_crc);
-}
-
-
-void network_uav_temporary_controller_task(void* pvParameters) {
-    Network_Device_Context* device_to_send = get_device_from_arp(&device_container, 0x01);
-    if (device_to_send == NULL) {
-        ESP_LOGI("network", "Device not in arp.");
-    } else {
-        ESP_LOGI("network", "Device in arp.");
-    }
-
-    device_to_send->tx_secret_message = (uint8_t*) malloc(3 * sizeof(uint8_t));
-    if (device_to_send->tx_secret_message == NULL) {
-        ESP_LOGI("network", "Out of memory temp.");
-    }
-
-    device_to_send->tx_secret_message_size = 3 * sizeof(uint16_t);
-    uint16_t thr_raw_val;
-    uint16_t joystick_x_raw_val;
-    uint16_t joystick_y_raw_val;
-
-    while (1) {
-        vTaskDelay(50/ portTICK_PERIOD_MS);
-        if (xSemaphoreTake(joystick_semaphore_handle, portMAX_DELAY) == pdTRUE) {
-            adc2_get_raw(JOYSTICK_X_AXIS_ADC_CHANNEL, ADC_WIDTH, &joystick_x_raw_val);
-            adc2_get_raw(JOYSTICK_Y_AXIS_ADC_CHANNEL, ADC_WIDTH, &joystick_y_raw_val);
-            memset(&device_to_send->tx_secret_message[0], joystick_x_raw_val, sizeof(uint16_t));
-            memset(&device_to_send->tx_secret_message[2], joystick_y_raw_val, sizeof(uint16_t));
-            xSemaphoreGive(joystick_semaphore_handle);
-        }
-
-
-        adc2_get_raw(ADC_CHANNEL, ADC_WIDTH, &thr_raw_val);
-
-        memset(&device_to_send->tx_secret_message[4], thr_raw_val, sizeof(uint16_t));
-        deconstruct_message_into_packets(device_to_send);
-
-        // problem with deconstruct fn
-        //display_packet(&device_to_send->packet_tx_buff[0]);
-
-        set_packets_for_tx(device_to_send, &lora_tx_queue);
-        //ESP_ERROR_CHECK(sx127x_set_for_transmission(device_to_send->packet_tx_buff[0].payload.payload, 6, lora_device));
-        //ESP_ERROR_CHECK(sx127x_set_opmod(SX127x_MODE_TX, lora_device));
-
-    }
 }
 
 
@@ -198,12 +150,6 @@ void network_init(Network_Device_Container* device_cont)
     xTaskCreate(network_packet_rx_handler_task, "PacketReceiveTask", 4096, &device_container, 1, &network_rx_packet_handler);
     network_device_processor_queue = xQueueCreate(20, sizeof(uint8_t));
     xTaskCreate(network_packet_rx_handler_task, "DeviceProcessorTask", 4096, &device_container, 1, &network_device_processor_handler);
-    BaseType_t uav_control_task_code = xTaskCreatePinnedToCore(network_uav_temporary_controller_task, "UAVControllerTask", 4096, NULL, 1, NULL, 0);
-    if (uav_control_task_code != pdPASS)
-    {
-        ESP_LOGE("network init", "can't create uav control task %d", uav_control_task_code);
-        return;
-    }
     ESP_LOGI("Network", "Network init finished.");
 
 }
@@ -242,12 +188,6 @@ network_operation_t network_add_device(Network_Device_Container* device_cont, ui
     }
 
     device_cont->device_contexts[device_cont->num_of_devices - 1] = new_device;
-
-    // refresh device number on lcd
-    if (xSemaphoreTake(lcd_mutex, portMAX_DELAY) == pdPASS) {
-        lcd_print_current_num_of_devices(device_cont->num_of_devices);
-        xSemaphoreGive(lcd_mutex);
-    }
 
     return NETWORK_OK;
 }
@@ -339,7 +279,7 @@ uint8_t deconstruct_message_into_packets(Network_Device_Context *device_ctx) {
 
     if (device_ctx->status == ONLINE) { // device is authenticated, only encrypted message is accepted
         uint8_t num_of_packets = device_ctx->tx_secret_message_size / LORA_PAYLOAD_MAX_SIZE +
-                ((device_ctx->tx_secret_message_size % LORA_PAYLOAD_MAX_SIZE) != 0);
+                                 ((device_ctx->tx_secret_message_size % LORA_PAYLOAD_MAX_SIZE) != 0);
 
         uint8_t last_packet_payload_size = device_ctx->tx_secret_message_size % LORA_PAYLOAD_MAX_SIZE;
         device_ctx->packet_tx_buff = (LoRa_Packet*) malloc(num_of_packets * sizeof(LoRa_Packet));
@@ -400,7 +340,7 @@ void set_packets_for_tx(Network_Device_Context* device_ctx, QueueHandle_t* lora_
     }
 
     for (uint8_t i = 0; i < device_ctx->packet_tx_buff->header.num_of_packets; i++) {
-        display_packet(&device_ctx->packet_tx_buff[i]);
+        //display_packet(&device_ctx->packet_tx_buff[i]);
         if (xQueueSend(*lora_tx_queue_ptr, &device_ctx->packet_tx_buff[i], portMAX_DELAY) != pdPASS) {
             ESP_LOGE("packet setup", "Could not send packet to queue");
         }
@@ -417,14 +357,14 @@ void network_encrypt_device_message(Network_Device_Context* device_ctx){
     device_ctx->tx_secret_message_size = device_ctx->tx_message_size;
 
     aes_gcm_encrypt(
-                device_ctx->aes_key,
-                device_ctx->init_vector,
-                device_ctx->tx_message,
-                device_ctx->tx_message_size,
-                device_ctx->aad,
-                device_ctx->tx_secret_message,
-                device_ctx->auth_tag
-            );
+            device_ctx->aes_key,
+            device_ctx->init_vector,
+            device_ctx->tx_message,
+            device_ctx->tx_message_size,
+            device_ctx->aad,
+            device_ctx->tx_secret_message,
+            device_ctx->auth_tag
+    );
 }
 
 
