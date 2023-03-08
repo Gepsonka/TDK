@@ -77,16 +77,14 @@ void init_lcd() {
     send_cmd(0x0c);
     vTaskDelay(10 / portTICK_PERIOD_MS);
 
-    lcd_print_display_base();
-
     lcd_mutex = xSemaphoreCreateMutex();
     if (lcd_mutex == NULL) {
         ESP_LOGE(TAG, "Could not create LCD mutex");
     }
 
+    lcd_print_display_base();
+
     xTaskCreate(vLCDGeneralDataDisplay, "ThrottleDisplayTask", 2048, NULL, 1, &xLCDThrottleDisplayTaskHandler);
-
-
 }
 
 void lcd_clear_screen() {

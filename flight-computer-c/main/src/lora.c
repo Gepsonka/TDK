@@ -66,12 +66,13 @@ void init_lora(spi_device_handle_t* spi_device, sx127x* lora_dev) {
     };
 
     ESP_ERROR_CHECK(spi_bus_add_device(LORA_SPI_HOST, &dev_cfg, spi_device));
+    //spi_device_acquire_bus(lora_spi_device, portMAX_DELAY);
     ESP_ERROR_CHECK(sx127x_create(*spi_device, &lora_dev));
     ESP_ERROR_CHECK(sx127x_set_opmod(SX127x_MODE_SLEEP, lora_dev));
     ESP_ERROR_CHECK(sx127x_set_frequency(437200012, lora_dev));
     ESP_ERROR_CHECK(sx127x_reset_fifo(lora_dev));
     ESP_ERROR_CHECK(sx127x_set_opmod(SX127x_MODE_STANDBY, lora_dev));
-    ESP_ERROR_CHECK(sx127x_set_bandwidth(SX127x_BW_125000, lora_dev));
+    ESP_ERROR_CHECK(sx127x_set_bandwidth(SX127x_BW_500000, lora_dev));
     ESP_ERROR_CHECK(sx127x_set_implicit_header(NULL, lora_dev));
     ESP_ERROR_CHECK(sx127x_set_modem_config_2(SX127x_SF_7, lora_dev));
     ESP_ERROR_CHECK(sx127x_set_syncword(18, lora_dev));
@@ -81,7 +82,7 @@ void init_lora(spi_device_handle_t* spi_device, sx127x* lora_dev) {
 
     ESP_ERROR_CHECK(sx127x_set_opmod(SX127x_MODE_RX_CONT, lora_dev));
     ESP_ERROR_CHECK(sx127x_set_pa_config(SX127x_PA_PIN_BOOST, 4, lora_dev));
-
+    //spi_device_release_bus(lora_spi_device);
     BaseType_t task_code = xTaskCreatePinnedToCore(handle_interrupt_task, "handle interrupt", 8196, lora_dev, 100, &lora_interrupt_handler, xPortGetCoreID());
     if (task_code != pdPASS)
     {
@@ -100,7 +101,7 @@ void init_lora(spi_device_handle_t* spi_device, sx127x* lora_dev) {
 
     xLoraMutex = xSemaphoreCreateMutex();
     xLoraTXQueueMutex = xSemaphoreCreateMutex();
-    lora_tx_queue = xQueueCreate(50, sizeof(LoRa_Packet*));
+    lora_tx_queue = xQueueCreate(50, sizeof(LoRa_Packet));
     BaseType_t sender_task_code = xTaskCreatePinnedToCore(lora_packet_sender_task, "PacketSenderTask", 5120, lora_dev, 2, &lora_packet_sender_handler, 1);
     if (sender_task_code != pdPASS)
     {
@@ -153,7 +154,7 @@ void rx_callback(sx127x *device) {
     int32_t frequency_error;
     ESP_ERROR_CHECK(sx127x_get_frequency_error(device, &frequency_error));
 
-    ESP_LOGI(TAG, "received: %d %s rssi: %d snr: %f freq_error: %ld", data_length, payload, rssi, snr, frequency_error);
+    //ESP_LOGI(TAG, "received: %d %s rssi: %d snr: %f freq_error: %ld", data_length, payload, rssi, snr, frequency_error);
 }
 
 void lora_packet_sender_task(void* pvParameters) {

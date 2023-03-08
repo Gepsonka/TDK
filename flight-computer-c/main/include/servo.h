@@ -15,8 +15,10 @@
 #include "esp_rom_gpio.h"
 
 #define RIGHT_SERVO_LEDC_CHANNEL LEDC_CHANNEL_0
-#define LEFT_SERVO_LEDC_CHANNEL LEDC_CHANNEL_1
+#define LEFT_SERVO_LEDC_CHANNEL LEDC_CHANNEL_2
 void init_servo();
 void set_servo_angle(float angle, uint8_t ledc_channel);
+
+void set_servos_by_joystick_percentage(int8_t x_percentage, int8_t y_percentage);
 
 #endif //FLIGHT_COMPUTER_C_SERVO_H

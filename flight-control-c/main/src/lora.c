@@ -34,6 +34,7 @@ void lora_display_packet(LoRa_Packet* packet_to_display){
     printf("\tHeader:\n");
     printf("\t\tSource device address: %d\n", packet_to_display->header.src_device_addr);
     printf("\t\tDestination device address: %d\n", packet_to_display->header.dest_device_addr);
+    printf("\t\tNumber of Packets: %d\n", packet_to_display->header.num_of_packets);
     printf("\t\tPacket number: %d\n", packet_to_display->header.packet_num);
     printf("\t\tPayload size: %d\n", packet_to_display->header.payload_size);
     printf("\t\tHeader CRC: %d\n", packet_to_display->header.payload_size);
@@ -191,7 +192,7 @@ void lora_packet_sender_task(void* pvParameters) {
 //                    lora_mutex_is_held_by_task = 0;
 //                }
 
-                //lora_display_packet(&packet_to_send);
+                lora_display_packet(&packet_to_send);
 
                 xSemaphoreGive(xLoraMutex);
                 lora_mutex_is_held_by_task = 0;
@@ -223,12 +224,23 @@ uint8_t lora_send_packet(sx127x *lora_dev, LoRa_Packet* packet){
     memset(&data[2], packet->header.num_of_packets, sizeof(uint8_t));
     memset(&data[3], packet->header.packet_num, sizeof(uint8_t));
     memset(&data[4], packet->header.payload_size, sizeof(uint8_t));
-    memcpy(&data[7], packet->payload.payload, packet->header.payload_size);
-    memset(&data[7 + packet->header.payload_size], packet->payload.payload_crc, sizeof(uint16_t));
+    memset(&data[5], packet->header.header_crc >> 8, sizeof(uint8_t));
+    memset(&data[6], packet->header.header_crc & 0xFF, sizeof(uint8_t));
+    memset(&data[7], packet->payload.payload_crc >> 8, sizeof(uint8_t));
+    memset(&data[8], packet->payload.payload_crc & 0xFF, sizeof(uint8_t));
+    memcpy(&data[9], packet->payload.payload, packet->header.payload_size);
     spi_device_acquire_bus(lora_spi_device, portMAX_DELAY);
-    ESP_ERROR_CHECK(sx127x_set_for_transmission(data, packet->header.payload_size + sizeof(LoRa_Packet_Header) + sizeof(uint16_t), lora_dev));
+    ESP_ERROR_CHECK(sx127x_set_for_transmission(data, packet->header.payload_size + sizeof(LoRa_Packet_Header) - 1 + sizeof(uint16_t), lora_dev));
     ESP_ERROR_CHECK(sx127x_set_opmod(SX127x_MODE_TX, lora_dev));
     spi_device_release_bus(lora_spi_device);
+//    printf("Payload size: %d\n", packet->header.payload_size);
+//    printf("Header size: %d\n", sizeof(LoRa_Packet_Header));
+//    printf("Packet size: %d\n", packet->header.payload_size + sizeof(LoRa_Packet_Header) + sizeof(uint16_t));
+//    printf("Packet raw data:\n");
+//    for (uint8_t i = 0; i < packet->header.payload_size + sizeof(LoRa_Packet_Header) - 1 + sizeof(uint16_t); i++) {
+//        printf("%#X ", data[i]);
+//    }
+//    printf("\n");
     //uint8_t res = sx127x_set_for_transmission((uint8_t*) "asdasd", 6, lora_dev);
     ESP_LOGI(TAG, "Sent packet...");
     return 0;

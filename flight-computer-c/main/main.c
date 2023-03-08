@@ -35,7 +35,11 @@ void app_main() {
     network_init(&device_container);
 
     while (1) {
-        ESP_LOGI("main", "main loop");
-        vTaskDelay(2000 / portTICK_PERIOD_MS);
+        set_servo_angle(0, RIGHT_SERVO_LEDC_CHANNEL);
+        set_servo_angle(180, LEFT_SERVO_LEDC_CHANNEL);
+        vTaskDelay(1000 / portTICK_PERIOD_MS);
+        set_servo_angle(180, RIGHT_SERVO_LEDC_CHANNEL);
+        set_servo_angle(0, LEFT_SERVO_LEDC_CHANNEL);
+        vTaskDelay(1000 / portTICK_PERIOD_MS);
     }
 }

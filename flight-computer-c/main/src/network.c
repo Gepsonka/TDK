@@ -143,7 +143,7 @@ void network_init(Network_Device_Container* device_cont)
 {
     device_cont->device_contexts = NULL;
     device_cont->num_of_devices = 0;
-    network_add_device(device_cont, 0x01);
+    network_add_device(device_cont, 0x00);
 
     device_cont->device_contexts[0].status = ONLINE;
     packet_rx_queue = xQueueCreate(15, sizeof(LoRa_Packet*));

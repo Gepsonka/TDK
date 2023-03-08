@@ -55,7 +55,7 @@ static void display_packet(LoRa_Packet* packet_to_display){
         printf("%#X ", packet_to_display->payload.payload[i]);
     }
 
-    printf("\tPayload CRC:\n");
+    printf("\n\tPayload CRC:\n");
     printf("\t\t%d\n", packet_to_display->payload.payload_crc);
 }
 
@@ -68,30 +68,32 @@ void network_uav_temporary_controller_task(void* pvParameters) {
         ESP_LOGI("network", "Device in arp.");
     }
 
-    device_to_send->tx_secret_message = (uint8_t*) malloc(3 * sizeof(uint8_t));
+    device_to_send->tx_secret_message = (uint8_t*) malloc(4 * sizeof(uint8_t));
     if (device_to_send->tx_secret_message == NULL) {
         ESP_LOGI("network", "Out of memory temp.");
     }
 
-    device_to_send->tx_secret_message_size = 3 * sizeof(uint16_t);
+    device_to_send->tx_secret_message_size = 4 * sizeof(uint8_t);
     uint16_t thr_raw_val;
-    uint16_t joystick_x_raw_val;
-    uint16_t joystick_y_raw_val;
+    int8_t joystick_x_percentage;
+    int8_t joystick_y_percentage;
 
     while (1) {
         vTaskDelay(50/ portTICK_PERIOD_MS);
         if (xSemaphoreTake(joystick_semaphore_handle, portMAX_DELAY) == pdTRUE) {
-            adc2_get_raw(JOYSTICK_X_AXIS_ADC_CHANNEL, ADC_WIDTH, &joystick_x_raw_val);
-            adc2_get_raw(JOYSTICK_Y_AXIS_ADC_CHANNEL, ADC_WIDTH, &joystick_y_raw_val);
-            memset(&device_to_send->tx_secret_message[0], joystick_x_raw_val, sizeof(uint16_t));
-            memset(&device_to_send->tx_secret_message[2], joystick_y_raw_val, sizeof(uint16_t));
+            joystick_x_percentage = joystick_convert_current_joystick_x_direction_to_percentage();
+            joystick_y_percentage = joystick_convert_current_joystick_y_direction_to_percentage();
+            memset(&device_to_send->tx_secret_message[0], joystick_x_percentage, sizeof(int8_t));
+            memset(&device_to_send->tx_secret_message[1], joystick_y_percentage, sizeof(int8_t));
             xSemaphoreGive(joystick_semaphore_handle);
         }
 
 
         adc2_get_raw(ADC_CHANNEL, ADC_WIDTH, &thr_raw_val);
 
-        memset(&device_to_send->tx_secret_message[4], thr_raw_val, sizeof(uint16_t));
+        printf("thr adc raw: %#X\n", thr_raw_val);
+        memset(&device_to_send->tx_secret_message[2], thr_raw_val >> 8, sizeof(uint8_t));
+        memset(&device_to_send->tx_secret_message[3], thr_raw_val & 0xFF, sizeof(uint8_t));
         deconstruct_message_into_packets(device_to_send);
 
         // problem with deconstruct fn
@@ -400,7 +402,7 @@ void set_packets_for_tx(Network_Device_Context* device_ctx, QueueHandle_t* lora_
     }
 
     for (uint8_t i = 0; i < device_ctx->packet_tx_buff->header.num_of_packets; i++) {
-        display_packet(&device_ctx->packet_tx_buff[i]);
+        //display_packet(&device_ctx->packet_tx_buff[i]);
         if (xQueueSend(*lora_tx_queue_ptr, &device_ctx->packet_tx_buff[i], portMAX_DELAY) != pdPASS) {
             ESP_LOGE("packet setup", "Could not send packet to queue");
         }

@@ -23,7 +23,7 @@ void init_motor() {
             .duty_resolution = LEDC_TIMER_12_BIT,
             .freq_hz = ESC_FREQUENCY,
             .speed_mode = LEDC_HIGH_SPEED_MODE,
-            .timer_num = LEDC_TIMER_1
+            .timer_num = LEDC_TIMER_2
     };
     ledc_timer_config(&timer_config);
 
@@ -32,7 +32,7 @@ void init_motor() {
             .duty = 0,
             .gpio_num = ESC_GPIO_PIN,
             .speed_mode = LEDC_HIGH_SPEED_MODE,
-            .timer_sel = LEDC_TIMER_1
+            .timer_sel = LEDC_TIMER_2
     };
     ledc_channel_config(&channel_config);
 
