@@ -4,7 +4,6 @@
 #include <freertos/task.h>
 #include "motor.h"
 #include "servo.h"
-#include "lora.h"
 #include "network.h"
 
 extern sx127x *lora_device;
@@ -35,11 +34,38 @@ void app_main() {
     network_init(&device_container);
 
     while (1) {
-        set_servo_angle(0, RIGHT_SERVO_LEDC_CHANNEL);
-        set_servo_angle(180, LEFT_SERVO_LEDC_CHANNEL);
-        vTaskDelay(1000 / portTICK_PERIOD_MS);
-        set_servo_angle(180, RIGHT_SERVO_LEDC_CHANNEL);
-        set_servo_angle(0, LEFT_SERVO_LEDC_CHANNEL);
-        vTaskDelay(1000 / portTICK_PERIOD_MS);
+//        set_servo_angle(105, RIGHT_SERVO_LEDC_CHANNEL);
+//        set_servo_angle(75, LEFT_SERVO_LEDC_CHANNEL);
+//        vTaskDelay(1000 / portTICK_PERIOD_MS);
+//        set_servo_angle(75, RIGHT_SERVO_LEDC_CHANNEL);
+//        set_servo_angle(105, LEFT_SERVO_LEDC_CHANNEL);
+//        set_servos_by_joystick_percentage(100, 0);
+//        printf("y: 0%%\n");
+//        vTaskDelay(3000 / portTICK_PERIOD_MS);
+//        set_servos_by_joystick_percentage(100, 50);
+//        printf("y: 50%%\n");
+//        vTaskDelay(3000 / portTICK_PERIOD_MS);
+//        set_servos_by_joystick_percentage(100, 100);
+//        printf("y: 100%%\n");
+//        vTaskDelay(3000 / portTICK_PERIOD_MS);
+//        set_servos_by_joystick_percentage(-100, 0);
+//        printf("-y: 0%%\n");
+//        vTaskDelay(3000 / portTICK_PERIOD_MS);
+//        set_servos_by_joystick_percentage(-100, 50);
+//        printf("-y: 50%%\n");
+//        vTaskDelay(3000 / portTICK_PERIOD_MS);
+//        set_servos_by_joystick_percentage(-100, 100);
+//        printf("-y: 100%%\n");
+//        vTaskDelay(3000 / portTICK_PERIOD_MS);
+
+//        set_servos_by_joystick_percentage(0, -100);
+//        printf("y: -100%%\n");
+//        vTaskDelay(3000 / portTICK_PERIOD_MS);
+//        set_servos_by_joystick_percentage(0, 0);
+//        printf("y: 0%%\n");
+//        vTaskDelay(3000 / portTICK_PERIOD_MS);
+//        set_servos_by_joystick_percentage(0, 100);
+//        printf("y: 100%%\n");
+//        vTaskDelay(3000 / portTICK_PERIOD_MS);
     }
 }

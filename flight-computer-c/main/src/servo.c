@@ -35,7 +35,7 @@ void init_servo() {
     ledc_timer_config(&ledc_timer_l);
 
     ledc_channel_config_t ledc_channel_l = {
-            .gpio_num = 15,            // GPIO number
+            .gpio_num = 33,            // GPIO number
             .speed_mode = LEDC_HIGH_SPEED_MODE,   // timer mode
             .channel = LEFT_SERVO_LEDC_CHANNEL,            // LEDC channel (0-7)
             .intr_type = LEDC_INTR_DISABLE,       // no interrupt
@@ -59,5 +59,53 @@ void set_servo_angle(float angle, uint8_t ledc_channel)
 }
 
 void set_servos_by_joystick_percentage(int8_t x_percentage, int8_t y_percentage) {
+    uint16_t difference = NEUTRAL_DUTY - LEFT_SERVO_MIN_DUTY;
+    float one_percent_duty = ((float) difference / (float) 100);
 
+    if (x_percentage > 0) {
+       if (y_percentage > 0) { // y has effect on the right servo
+           ledc_set_duty(LEDC_HIGH_SPEED_MODE, RIGHT_SERVO_LEDC_CHANNEL, NEUTRAL_DUTY - (int16_t) (one_percent_duty * (float) y_percentage));
+           ledc_update_duty(LEDC_HIGH_SPEED_MODE, RIGHT_SERVO_LEDC_CHANNEL);
+           //printf("x duty: %d\n", NEUTRAL_DUTY + (uint16_t) (one_percent_duty * (float) x_percentage));
+           ledc_set_duty(LEDC_HIGH_SPEED_MODE, LEFT_SERVO_LEDC_CHANNEL, NEUTRAL_DUTY + (int16_t) (one_percent_duty * (float) x_percentage));
+           ledc_update_duty(LEDC_HIGH_SPEED_MODE, LEFT_SERVO_LEDC_CHANNEL);
+       } else if ( y_percentage < 0) { // y has effect on the left servo
+           ledc_set_duty(LEDC_HIGH_SPEED_MODE, LEFT_SERVO_LEDC_CHANNEL, NEUTRAL_DUTY + (int16_t) (one_percent_duty * (float) y_percentage));
+           ledc_update_duty(LEDC_HIGH_SPEED_MODE, LEFT_SERVO_LEDC_CHANNEL);
+           //printf("x duty: %d\n", NEUTRAL_DUTY + (uint16_t) (one_percent_duty * (float) x_percentage));
+           ledc_set_duty(LEDC_HIGH_SPEED_MODE, RIGHT_SERVO_LEDC_CHANNEL, NEUTRAL_DUTY - (int16_t) (one_percent_duty * (float) x_percentage));
+           ledc_update_duty(LEDC_HIGH_SPEED_MODE, RIGHT_SERVO_LEDC_CHANNEL);
+       } else if (y_percentage == 0) { // y has no effect
+           ledc_set_duty(LEDC_HIGH_SPEED_MODE, LEFT_SERVO_LEDC_CHANNEL, NEUTRAL_DUTY + (int16_t) (one_percent_duty * (float) x_percentage));
+           ledc_update_duty(LEDC_HIGH_SPEED_MODE, LEFT_SERVO_LEDC_CHANNEL);
+           //printf("x duty: %d\n", NEUTRAL_DUTY + (uint16_t) (one_percent_duty * (float) x_percentage));
+           ledc_set_duty(LEDC_HIGH_SPEED_MODE, RIGHT_SERVO_LEDC_CHANNEL, NEUTRAL_DUTY + (int16_t) (one_percent_duty * (float) x_percentage));
+           ledc_update_duty(LEDC_HIGH_SPEED_MODE, RIGHT_SERVO_LEDC_CHANNEL);
+       }
+    } else if (x_percentage < 0) {
+        if (y_percentage > 0) { // y has effect on the left servo
+            ledc_set_duty(LEDC_HIGH_SPEED_MODE, LEFT_SERVO_LEDC_CHANNEL, NEUTRAL_DUTY - (int16_t) (one_percent_duty * (float) y_percentage));
+            ledc_update_duty(LEDC_HIGH_SPEED_MODE, LEFT_SERVO_LEDC_CHANNEL);
+            //printf("x duty: %d\n", NEUTRAL_DUTY + (uint16_t) (one_percent_duty * (float) x_percentage));
+            ledc_set_duty(LEDC_HIGH_SPEED_MODE, RIGHT_SERVO_LEDC_CHANNEL, NEUTRAL_DUTY + (int16_t) (one_percent_duty * (float) x_percentage));
+            ledc_update_duty(LEDC_HIGH_SPEED_MODE, RIGHT_SERVO_LEDC_CHANNEL);
+        } else if ( y_percentage < 0) { // y has effect on the right servo
+            ledc_set_duty(LEDC_HIGH_SPEED_MODE, RIGHT_SERVO_LEDC_CHANNEL, NEUTRAL_DUTY + (int16_t) (one_percent_duty * (float) y_percentage));
+            ledc_update_duty(LEDC_HIGH_SPEED_MODE, RIGHT_SERVO_LEDC_CHANNEL);
+            //printf("x duty: %d\n", NEUTRAL_DUTY + (uint16_t) (one_percent_duty * (float) x_percentage));
+            ledc_set_duty(LEDC_HIGH_SPEED_MODE, LEFT_SERVO_LEDC_CHANNEL, NEUTRAL_DUTY - (int16_t) (one_percent_duty * (float) x_percentage));
+            ledc_update_duty(LEDC_HIGH_SPEED_MODE, LEFT_SERVO_LEDC_CHANNEL);
+        } else if (y_percentage == 0) { // y has no effect
+            ledc_set_duty(LEDC_HIGH_SPEED_MODE, LEFT_SERVO_LEDC_CHANNEL, NEUTRAL_DUTY + (int16_t) (one_percent_duty * (float) x_percentage));
+            ledc_update_duty(LEDC_HIGH_SPEED_MODE, LEFT_SERVO_LEDC_CHANNEL);
+            //printf("x duty: %d\n", NEUTRAL_DUTY + (uint16_t) (one_percent_duty * (float) x_percentage));
+            ledc_set_duty(LEDC_HIGH_SPEED_MODE, RIGHT_SERVO_LEDC_CHANNEL, NEUTRAL_DUTY + (int16_t) (one_percent_duty * (float) x_percentage));
+            ledc_update_duty(LEDC_HIGH_SPEED_MODE, RIGHT_SERVO_LEDC_CHANNEL);
+        }
+    } else if (x_percentage == 0) { // only y has effect
+        ledc_set_duty(LEDC_HIGH_SPEED_MODE, LEFT_SERVO_LEDC_CHANNEL, NEUTRAL_DUTY - (int16_t) (one_percent_duty * (float) y_percentage));
+        ledc_update_duty(LEDC_HIGH_SPEED_MODE, LEFT_SERVO_LEDC_CHANNEL);
+        ledc_set_duty(LEDC_HIGH_SPEED_MODE, RIGHT_SERVO_LEDC_CHANNEL, NEUTRAL_DUTY + (int16_t) (one_percent_duty * (float) y_percentage));
+        ledc_update_duty(LEDC_HIGH_SPEED_MODE, RIGHT_SERVO_LEDC_CHANNEL);
+    }
 }

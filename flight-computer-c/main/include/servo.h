@@ -16,6 +16,13 @@
 
 #define RIGHT_SERVO_LEDC_CHANNEL LEDC_CHANNEL_0
 #define LEFT_SERVO_LEDC_CHANNEL LEDC_CHANNEL_2
+
+#define LEFT_SERVO_MIN_DUTY 545
+#define LEFT_SERVO_MAX_DUTY 682
+#define RIGHT_SERVO_MIN_DUTY 682
+#define RIGHT_SERVO_MAX_DUTY 545
+#define NEUTRAL_DUTY 614
+
 void init_servo();
 void set_servo_angle(float angle, uint8_t ledc_channel);
 

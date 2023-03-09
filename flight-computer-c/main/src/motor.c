@@ -57,6 +57,6 @@ void motor_set_motor_speed(uint16_t pwm_duty) {
 uint16_t motor_get_duty_value_from_percentage(uint8_t percentage) {
     float one_percent_duty = (float) ESC_MIN_DUTY / 100.0;
 
-    return (uint16_t) ((float)percentage * one_percent_duty);
+    return (uint16_t) ((float)percentage * one_percent_duty) + ESC_MIN_DUTY;
 }
 
