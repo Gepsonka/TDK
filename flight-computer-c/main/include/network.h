@@ -35,12 +35,9 @@
 #define LORA_PAYLOAD_MAX_SIZE 246
 
 #define LORA_BASE_STATION_ADDR 0x00
+#define LORA_SELF_ADDRESS 0x01
 #define LORA_NETWORK_BROADCAST_ADDR 0xFF
 
-// 1 byte addr space allows 255 device in the network
-// currently it does the job, and perfect for the use case
-#define BASE_STATION_ADDR 0X00 // TODO later: DHCP server impl
-#define BROADCAST_ADDR 0XFF
 
 typedef struct {
     uint8_t src_device_addr;
@@ -172,7 +169,7 @@ uint8_t lora_calc_packet_num_for_message_size(uint16_t message_size);
 uint8_t lora_fragment_message(uint8_t* message, uint16_t message_size);
 
 
-
+void network_packet_processor_task(void* pvParameters);
 void network_device_processor_task(void* pvParameters);
 void network_packet_rx_handler_task(void* pvParameters);
 uint8_t network_parse_byte_array_into_packet(LoRa_Packet* packet, uint8_t* byte_arr, uint16_t arr_size);

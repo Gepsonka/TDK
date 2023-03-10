@@ -28,6 +28,8 @@ QueueHandle_t packet_rx_queue;
 TaskHandle_t network_device_processor_handler;
 QueueHandle_t network_device_processor_queue;
 
+QueueHandle_t device_queue;
+
 extern SemaphoreHandle_t joystick_semaphore_handle;
 
 extern SemaphoreHandle_t lcd_mutex;
@@ -38,6 +40,7 @@ static bool network_is_device_in_arp(Network_Device_Container* dev_container, ui
             return true;
         }
     }
+
 
     return false;
 }
@@ -51,6 +54,23 @@ static Network_Device_Context* get_device_from_arp(Network_Device_Container* dev
     }
 
     return NULL;
+}
+
+static uint8_t build_packet_from_bytes(LoRa_Packet* packet, uint8_t* raw_data, uint8_t raw_data_size){
+    if (raw_data_size <= 9 ) {
+        return 1; // Error, packet cannot be empty, or have missing header parameters
+    }
+
+    packet->header.src_device_addr = raw_data[0];
+    packet->header.dest_device_addr = raw_data[1];
+    packet->header.num_of_packets = raw_data[2];
+    packet->header.packet_num = raw_data[3];
+    packet->header.payload_size = raw_data[4];
+    packet->header.header_crc = ((uint16_t)raw_data[5] << 8) | raw_data[6];
+    packet->payload.payload_crc = ((uint16_t)raw_data[7] << 8) | raw_data[8];
+    memcpy(packet->payload.payload, &raw_data[9], raw_data_size - 9);
+
+    return 0;
 }
 
 static void display_packet(LoRa_Packet* packet_to_display){
@@ -162,6 +182,26 @@ void init_lora(spi_device_handle_t* spi_device, sx127x* lora_dev) {
         sx127x_destroy(lora_dev);
         return;
     }
+
+}
+
+void network_init(Network_Device_Container* device_cont)
+{
+    device_cont->device_contexts = NULL;
+    device_cont->num_of_devices = 0;
+    network_add_device(device_cont, 0x00);
+
+    device_cont->device_contexts[0].status = ONLINE;
+    packet_rx_queue = xQueueCreate(15, sizeof(LoRa_Packet*));
+    // TODO: Check tasks for safety purposes and create task handles for them
+    xTaskCreate(network_packet_rx_handler_task, "PacketReceiveTask", 4096, &device_container, 1, &network_rx_packet_handler);
+    network_device_processor_queue = xQueueCreate(20, sizeof(uint8_t));
+    xTaskCreate(network_packet_rx_handler_task, "DeviceProcessorTask", 4096, &device_container, 1, &network_device_processor_handler);
+    xTaskCreate(network_packet_processor_task, "PacketProcessorTask", 5120, &device_container, 1, NULL);
+    xTaskCreate(network_device_processor_task, "PacketProcessorTask", 5120, &device_container, 1, NULL);
+
+    ESP_LOGI("Network", "Network init finished.");
+
 }
 
 void handle_interrupt_task(void *arg)
@@ -206,6 +246,11 @@ void rx_callback(sx127x *device) {
     ESP_ERROR_CHECK(sx127x_get_packet_snr(device, &snr));
     int32_t frequency_error;
     ESP_ERROR_CHECK(sx127x_get_frequency_error(device, &frequency_error));
+
+    LoRa_Packet packet_received;
+    build_packet_from_bytes(&packet_received, payload, data_length);
+
+    xQueueSend(packet_rx_queue, &packet_received, portMAX_DELAY);
 
     //ESP_LOGI(TAG, "received: %d %s rssi: %d snr: %f freq_error: %ld", data_length, payload, rssi, snr, frequency_error);
 }
@@ -275,7 +320,7 @@ void lora_packet_sender_task(void* pvParameters) {
 }
 
 
-// Calculates CRC and sends packet
+// Sends packet
 uint8_t lora_send_packet(sx127x *lora_dev, LoRa_Packet* packet){
     uint8_t data[255];
     memset(&data[0], packet->header.src_device_addr, sizeof(uint8_t));
@@ -283,13 +328,39 @@ uint8_t lora_send_packet(sx127x *lora_dev, LoRa_Packet* packet){
     memset(&data[2], packet->header.num_of_packets, sizeof(uint8_t));
     memset(&data[3], packet->header.packet_num, sizeof(uint8_t));
     memset(&data[4], packet->header.payload_size, sizeof(uint8_t));
-    memcpy(&data[7], packet->payload.payload, packet->header.payload_size);
-    memset(&data[7 + packet->header.payload_size], packet->payload.payload_crc, sizeof(uint16_t));
-    uint8_t res = sx127x_set_for_transmission(data, packet->header.payload_size + sizeof(LoRa_Packet_Header) + sizeof(uint16_t), lora_dev);
-    //uint8_t res = sx127x_set_for_transmission((uint8_t*) "asdasd", 6, lora_dev);
-    return res;
+    memset(&data[5], packet->header.header_crc >> 8, sizeof(uint8_t));
+    memset(&data[6], packet->header.header_crc & 0xFF, sizeof(uint8_t));
+    memset(&data[7], packet->payload.payload_crc >> 8, sizeof(uint8_t));
+    memset(&data[8], packet->payload.payload_crc & 0xFF, sizeof(uint8_t));
+    memcpy(&data[9], packet->payload.payload, packet->header.payload_size);
+    spi_device_acquire_bus(lora_spi_device, portMAX_DELAY);
+    ESP_ERROR_CHECK(sx127x_set_for_transmission(data, packet->header.payload_size + sizeof(LoRa_Packet_Header) - 1 + sizeof(uint16_t), lora_dev));
+    ESP_ERROR_CHECK(sx127x_set_opmod(SX127x_MODE_TX, lora_dev));
+    spi_device_release_bus(lora_spi_device);
+    ESP_LOGI(TAG, "Sent packet...");
+    return 0;
 }
 
+void network_packet_processor_task(void* pvParameters){
+    Network_Device_Container* dev_ctnr = (Network_Device_Container*) pvParameters;
+    LoRa_Packet packet;
+    Network_Device_Context* device_ctx;
+    while (1) {
+        if( xQueueReceive(packet_rx_queue, &packet, portMAX_DELAY) == pdPASS ) {
+            device_ctx = get_device_from_arp(dev_ctnr, packet.header.src_device_addr);
+            if (device_ctx == NULL) {
+                continue;
+            }
+
+            if (device_ctx->packet_rx_buff == NULL) {
+                continue;
+            }
+
+            construct_message_from_packets(device_ctx);
+
+        }
+    }
+}
 
 
 void network_device_processor_task(void* pvParameters){
@@ -297,7 +368,7 @@ void network_device_processor_task(void* pvParameters){
     uint8_t dev_addr;
     Network_Device_Context* device_ctx;
     while (1) {
-        if( xQueueReceive(packet_rx_queue, &dev_addr, portMAX_DELAY) == pdPASS ) {
+        if( xQueueReceive(device_queue, &dev_addr, portMAX_DELAY) == pdPASS ) {
             device_ctx = get_device_from_arp(dev_ctnr, dev_addr);
             if (device_ctx == NULL) {
                 continue;
@@ -372,20 +443,7 @@ void network_packet_rx_handler_task(void* pvParameters){
 }
 
 
-void network_init(Network_Device_Container* device_cont)
-{
-    device_cont->device_contexts = NULL;
-    device_cont->num_of_devices = 0;
-    network_add_device(device_cont, 0x00);
 
-    device_cont->device_contexts[0].status = ONLINE;
-    packet_rx_queue = xQueueCreate(15, sizeof(LoRa_Packet*));
-    xTaskCreate(network_packet_rx_handler_task, "PacketReceiveTask", 4096, &device_container, 1, &network_rx_packet_handler);
-    network_device_processor_queue = xQueueCreate(20, sizeof(uint8_t));
-    xTaskCreate(network_packet_rx_handler_task, "DeviceProcessorTask", 4096, &device_container, 1, &network_device_processor_handler);
-    ESP_LOGI("Network", "Network init finished.");
-
-}
 
 network_operation_t network_add_device(Network_Device_Container* device_cont, uint8_t dev_addr)
 {
