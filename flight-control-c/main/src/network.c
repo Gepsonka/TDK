@@ -73,7 +73,7 @@ void network_uav_temporary_controller_task(void* pvParameters) {
         ESP_LOGI("network", "Out of memory temp.");
     }
 
-    device_to_send->tx_secret_message_size = 4 * sizeof(uint8_t);
+    device_to_send->tx_secret_message_size = 3 * sizeof(uint8_t);
     uint16_t thr_raw_val;
     int8_t joystick_x_percentage;
     int8_t joystick_y_percentage;
@@ -92,8 +92,7 @@ void network_uav_temporary_controller_task(void* pvParameters) {
         adc2_get_raw(ADC_CHANNEL, ADC_WIDTH, &thr_raw_val);
 
         printf("thr adc raw: %#X\n", thr_raw_val);
-        memset(&device_to_send->tx_secret_message[2], thr_raw_val >> 8, sizeof(uint8_t));
-        memset(&device_to_send->tx_secret_message[3], thr_raw_val & 0xFF, sizeof(uint8_t));
+        memset(&device_to_send->tx_secret_message[2], throttle_convert_to_percentage(thr_raw_val), sizeof(uint8_t));
         deconstruct_message_into_packets(device_to_send);
 
         // problem with deconstruct fn

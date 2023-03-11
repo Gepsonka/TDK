@@ -48,7 +48,6 @@ static bool network_is_device_in_arp(Network_Device_Container* dev_container, ui
 static Network_Device_Context* get_device_from_arp(Network_Device_Container* dev_container, uint8_t dev_addr) {
     for (uint8_t i = 0; i < dev_container->num_of_devices; i++) {
         if (dev_container->device_contexts[i].address == dev_addr) {
-            ESP_LOGI("Network", "device found in arp");
             return &dev_container->device_contexts[i];
         }
     }
@@ -191,15 +190,17 @@ void network_init(Network_Device_Container* device_cont)
     device_cont->num_of_devices = 0;
     network_add_device(device_cont, 0x00);
 
-    device_cont->device_contexts[0].status = ONLINE;
-    packet_rx_queue = xQueueCreate(15, sizeof(LoRa_Packet*));
+    Network_Device_Context* device_ctx = get_device_from_arp(device_cont, 0x00);
+    device_ctx->status = ONLINE;
+    packet_rx_queue = xQueueCreate(50, sizeof(LoRa_Packet));
+    device_queue = xQueueCreate(15, sizeof(uint8_t));
+
     // TODO: Check tasks for safety purposes and create task handles for them
     xTaskCreate(network_packet_rx_handler_task, "PacketReceiveTask", 4096, &device_container, 1, &network_rx_packet_handler);
     network_device_processor_queue = xQueueCreate(20, sizeof(uint8_t));
     xTaskCreate(network_packet_rx_handler_task, "DeviceProcessorTask", 4096, &device_container, 1, &network_device_processor_handler);
     xTaskCreate(network_packet_processor_task, "PacketProcessorTask", 5120, &device_container, 1, NULL);
     xTaskCreate(network_device_processor_task, "PacketProcessorTask", 5120, &device_container, 1, NULL);
-
     ESP_LOGI("Network", "Network init finished.");
 
 }
@@ -232,27 +233,11 @@ void rx_callback(sx127x *device) {
         return;
     }
     uint8_t payload[514];
-    const char SYMBOLS[] = "0123456789ABCDEF";
-    for (size_t i = 0; i < data_length; i++) {
-        uint8_t cur = data[i];
-        payload[2 * i] = SYMBOLS[cur >> 4];
-        payload[2 * i + 1] = SYMBOLS[cur & 0x0F];
-    }
-    payload[data_length * 2] = '\0';
-
-    int16_t rssi;
-    ESP_ERROR_CHECK(sx127x_get_packet_rssi(device, &rssi));
-    float snr;
-    ESP_ERROR_CHECK(sx127x_get_packet_snr(device, &snr));
-    int32_t frequency_error;
-    ESP_ERROR_CHECK(sx127x_get_frequency_error(device, &frequency_error));
 
     LoRa_Packet packet_received;
-    build_packet_from_bytes(&packet_received, payload, data_length);
-
+    build_packet_from_bytes(&packet_received, data, data_length);
     xQueueSend(packet_rx_queue, &packet_received, portMAX_DELAY);
 
-    //ESP_LOGI(TAG, "received: %d %s rssi: %d snr: %f freq_error: %ld", data_length, payload, rssi, snr, frequency_error);
 }
 
 void lora_packet_sender_task(void* pvParameters) {
@@ -345,6 +330,7 @@ void network_packet_processor_task(void* pvParameters){
     Network_Device_Container* dev_ctnr = (Network_Device_Container*) pvParameters;
     LoRa_Packet packet;
     Network_Device_Context* device_ctx;
+    // TODO: implement required security features later...
     while (1) {
         if( xQueueReceive(packet_rx_queue, &packet, portMAX_DELAY) == pdPASS ) {
             device_ctx = get_device_from_arp(dev_ctnr, packet.header.src_device_addr);
@@ -352,12 +338,21 @@ void network_packet_processor_task(void* pvParameters){
                 continue;
             }
 
-            if (device_ctx->packet_rx_buff == NULL) {
-                continue;
+            // not safe yet!
+            if (packet.header.packet_num == 0) {
+                if (device_ctx->packet_rx_buff != NULL) {
+                    free(device_ctx->packet_rx_buff);
+                }
+
+                device_ctx->packet_rx_buff = (LoRa_Packet*) malloc(packet.header.num_of_packets * sizeof(LoRa_Packet));
+                device_ctx->packet_rx_buff[0] = packet;
+            } else {
+                device_ctx->packet_rx_buff[packet.header.packet_num] = packet;
             }
 
-            construct_message_from_packets(device_ctx);
-
+            if (packet.header.packet_num == packet.header.num_of_packets - 1) {
+                xQueueSend(device_queue, &packet.header.src_device_addr, portMAX_DELAY);
+            }
         }
     }
 }
@@ -371,16 +366,18 @@ void network_device_processor_task(void* pvParameters){
         if( xQueueReceive(device_queue, &dev_addr, portMAX_DELAY) == pdPASS ) {
             device_ctx = get_device_from_arp(dev_ctnr, dev_addr);
             if (device_ctx == NULL) {
-                continue;
-            }
-
-            if (device_ctx->packet_rx_buff == NULL) {
+                ESP_LOGE(TAG, "device with address %#X does not exist in ARP.", dev_addr);
                 continue;
             }
 
             construct_message_from_packets(device_ctx);
 
 
+            vTaskDelay(100 / portTICK_PERIOD_MS);
+
+            set_servos_by_joystick_percentage((int8_t) device_ctx->rx_secret_message[0], (int8_t) device_ctx->rx_secret_message[1]);
+
+            motor_set_motor_speed(motor_get_duty_value_from_percentage(device_ctx->rx_secret_message[2]));
         }
     }
 }
@@ -501,6 +498,7 @@ uint8_t check_packet_crc(LoRa_Packet* packet){
 uint8_t construct_message_from_packets(Network_Device_Context* device_ctx){
     // TODO: construct package only into rx_message, same when deconstructing
     if (device_ctx->packet_rx_buff == NULL) {
+        ESP_LOGE(TAG, "Network rx buffer empty");
         return NETWORK_BUFFER_EMPTY_ERROR;
     }
 
@@ -525,6 +523,8 @@ uint8_t construct_message_from_packets(Network_Device_Context* device_ctx){
             device_ctx->rx_secret_message_size += device_ctx->packet_rx_buff->header.payload_size;
         }
 
+
+
         device_ctx->rx_secret_message = (uint8_t*) malloc(device_ctx->rx_secret_message_size * sizeof(uint8_t));
 
         // test it thoroughly!
@@ -536,6 +536,8 @@ uint8_t construct_message_from_packets(Network_Device_Context* device_ctx){
 
             rx_secret_message_buff_index += (LORA_PAYLOAD_MAX_SIZE + 1);
         }
+
+
 
     } else { // message gets copied into rx_message buffer
         for (uint8_t i = 0; i < device_ctx->packet_rx_buff[0].header.num_of_packets; i++) {
@@ -555,8 +557,13 @@ uint8_t construct_message_from_packets(Network_Device_Context* device_ctx){
         }
     }
 
-    free(device_ctx->packet_rx_buff);
-    device_ctx->packet_rx_buff = NULL;
+
+    if (device_ctx->packet_rx_buff != NULL) {
+        free(device_ctx->packet_rx_buff);
+        device_ctx->packet_rx_buff = NULL;
+    }
+
+    ESP_LOGI(TAG, "Secret message size: %d", device_ctx->rx_secret_message_size);
 
     return NETWORK_OK;
 }

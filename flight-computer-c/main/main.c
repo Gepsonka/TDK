@@ -14,9 +14,9 @@ extern Network_Device_Container device_container;
 
 void app_main() {
 
-    init_servo();
-
     init_motor();
+
+    init_servo();
 
     spi_bus_config_t config = {
             .mosi_io_num = LORA_MOSI_PIN,
@@ -33,39 +33,16 @@ void app_main() {
 
     network_init(&device_container);
 
-    while (1) {
-//        set_servo_angle(105, RIGHT_SERVO_LEDC_CHANNEL);
-//        set_servo_angle(75, LEFT_SERVO_LEDC_CHANNEL);
-//        vTaskDelay(1000 / portTICK_PERIOD_MS);
-//        set_servo_angle(75, RIGHT_SERVO_LEDC_CHANNEL);
-//        set_servo_angle(105, LEFT_SERVO_LEDC_CHANNEL);
-//        set_servos_by_joystick_percentage(100, 0);
-//        printf("y: 0%%\n");
-//        vTaskDelay(3000 / portTICK_PERIOD_MS);
-//        set_servos_by_joystick_percentage(100, 50);
-//        printf("y: 50%%\n");
-//        vTaskDelay(3000 / portTICK_PERIOD_MS);
-//        set_servos_by_joystick_percentage(100, 100);
-//        printf("y: 100%%\n");
-//        vTaskDelay(3000 / portTICK_PERIOD_MS);
-//        set_servos_by_joystick_percentage(-100, 0);
-//        printf("-y: 0%%\n");
-//        vTaskDelay(3000 / portTICK_PERIOD_MS);
-//        set_servos_by_joystick_percentage(-100, 50);
-//        printf("-y: 50%%\n");
-//        vTaskDelay(3000 / portTICK_PERIOD_MS);
-//        set_servos_by_joystick_percentage(-100, 100);
-//        printf("-y: 100%%\n");
-//        vTaskDelay(3000 / portTICK_PERIOD_MS);
 
-//        set_servos_by_joystick_percentage(0, -100);
-//        printf("y: -100%%\n");
-//        vTaskDelay(3000 / portTICK_PERIOD_MS);
-//        set_servos_by_joystick_percentage(0, 0);
-//        printf("y: 0%%\n");
-//        vTaskDelay(3000 / portTICK_PERIOD_MS);
-//        set_servos_by_joystick_percentage(0, 100);
-//        printf("y: 100%%\n");
-//        vTaskDelay(3000 / portTICK_PERIOD_MS);
+    motor_set_motor_speed(1024);
+    vTaskDelay(2000 / portTICK_PERIOD_MS);
+
+    while (1) {
+//        motor_set_motor_speed(2048);
+//        vTaskDelay(2000 / portTICK_PERIOD_MS);
+//        motor_set_motor_speed((1 << 12) / 2);
+//        vTaskDelay(2000 / portTICK_PERIOD_MS);
+//        motor_set_motor_speed(1024);
+        vTaskDelay(2000 / portTICK_PERIOD_MS);
     }
 }

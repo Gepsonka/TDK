@@ -19,6 +19,6 @@
 
 
 void init_throttle();
-uint16_t throttle_convert_to_percentage(uint16_t raw_value);
+uint8_t throttle_convert_to_percentage(uint16_t raw_value);
 
 #endif

@@ -9,6 +9,7 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "driver/ledc.h"
+#include "driver/mcpwm_prelude.h"
 #include "esp_timer.h"
 #include "driver/gpio.h"
 #include "esp_rom_gpio.h"
@@ -18,8 +19,8 @@
 #define ESC_CHANNEL LEDC_CHANNEL_1
 #define ESC_LEDC_TIMER_BIT_NUM     LEDC_TIMER_16_BIT
 
-#define ESC_MAX_DUTY 4096
-#define ESC_MIN_DUTY 2048
+#define ESC_MAX_DUTY 1305
+#define ESC_MIN_DUTY 1024
 
 void init_motor();
 void motor_set_motor_speed(uint16_t pwm_duty);

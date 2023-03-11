@@ -5,7 +5,6 @@
 #ifndef FLIGHT_COMPUTER_NETWORK_H
 #define FLIGHT_COMPUTER_NETWORK_H
 
-#include <stdint-gcc.h>
 #include "stdio.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
@@ -22,6 +21,8 @@
 #include "esp_crc.h"
 #include <rom/crc.h>
 #include "memory.h"
+#include "servo.h"
+#include "motor.h"
 
 #define LORA_SPI_HOST VSPI_HOST
 
