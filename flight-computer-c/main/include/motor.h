@@ -19,8 +19,11 @@
 #define ESC_CHANNEL LEDC_CHANNEL_1
 #define ESC_LEDC_TIMER_BIT_NUM     LEDC_TIMER_16_BIT
 
+//#define ESC_MAX_DUTY 1361
+//#define ESC_MIN_DUTY 1080
+
 #define ESC_MAX_DUTY 1305
-#define ESC_MIN_DUTY 1024
+#define ESC_MIN_DUTY 1080
 
 void init_motor();
 void motor_set_motor_speed(uint16_t pwm_duty);

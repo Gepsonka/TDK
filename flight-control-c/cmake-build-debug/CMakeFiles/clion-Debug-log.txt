@@ -13,7 +13,7 @@ Processing 3 dependencies:
 -- Project sdkconfig file /Users/gepsonka/Documents/GitHub/TDK/flight-control-c/sdkconfig
 Compiler supported targets: xtensa-esp32-elf
 
--- App "flight-control" version: 8c8ec3a-dirty
+-- App "flight-control" version: 1270e75-dirty
 -- Adding linker script /Users/gepsonka/Documents/GitHub/TDK/flight-control-c/cmake-build-debug/esp-idf/esp_system/ld/memory.ld
 -- Adding linker script /Users/gepsonka/esp/esp-idf/components/esp_system/ld/esp32/sections.ld.in
 -- Adding linker script /Users/gepsonka/esp/esp-idf/components/esp_rom/esp32/ld/esp32.rom.ld

@@ -38,7 +38,7 @@ void init_motor() {
 
     // Send a signal to the ESC to arm it
     // ledc_set_duty_and_update(LEDC_HIGH_SPEED_MODE, ESC_CHANNEL, 2048, 0);
-    ledc_set_duty(LEDC_HIGH_SPEED_MODE, ESC_CHANNEL, 1024); // set duty cycle for LEDC channel
+    ledc_set_duty(LEDC_HIGH_SPEED_MODE, ESC_CHANNEL, ESC_MIN_DUTY); // set duty cycle for LEDC channel
     ledc_update_duty(LEDC_HIGH_SPEED_MODE, ESC_CHANNEL); // update duty cycle for LEDC channel
     vTaskDelay(3000 / portTICK_PERIOD_MS);
 }
@@ -58,7 +58,7 @@ void motor_set_motor_speed(uint16_t pwm_duty) {
 uint16_t motor_get_duty_value_from_percentage(uint8_t percentage) {
     float one_percent_duty = (float) (ESC_MAX_DUTY - ESC_MIN_DUTY) / 100.0;
 
-
+    printf("Duty at %d%%: %d",percentage, (uint16_t) ((float)percentage * one_percent_duty) + ESC_MIN_DUTY);
     return (uint16_t) ((float)percentage * one_percent_duty) + ESC_MIN_DUTY;
 }
 
