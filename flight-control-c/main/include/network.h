@@ -17,6 +17,7 @@
 #include "math.h"
 #include "joystick.h"
 #include "lcd.h"
+#include "landing_gear.h"
 
 typedef enum {
     NETWORK_OK = 0x00,

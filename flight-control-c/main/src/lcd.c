@@ -2,6 +2,10 @@
 
 static char* TAG = "LCD";
 
+extern SemaphoreHandle_t lg_state_mutex;
+extern LandingGearState lg_state;
+
+
 SemaphoreHandle_t lcd_mutex;
 
 TaskHandle_t xLCDThrottleDisplayTaskHandler;
@@ -118,11 +122,13 @@ void lcd_set_cursor(LCD_LineNumber line_num, uint8_t index) {
 // To be modified later! Adding LoRa status and gps status
 void lcd_print_display_base() {
     lcd_clear_screen();
-    lcd_set_cursor(FirstLine, 0);
+    lcd_set_cursor(FirstLine, 2);
     lcd_send_string("THR:");
     lcd_set_cursor(SecondLine, 0);
     lcd_send_string("Dir:");
-    lcd_set_cursor(ThirdLine, 0);
+    lcd_set_cursor(ThirdLine, 10);
+    lcd_send_string("RTLG:");
+    lcd_set_cursor(FourthLine, 0);
     lcd_send_string("Devices:");
 }
 
@@ -145,15 +151,19 @@ void lcd_print_current_throttle_percentage() {
 void lcd_print_joystick_data(){
     char x_data[] = "X:-100%";
     char y_data[] = "Y:-100%";
+    char z_data[] = "Z:-100%";
 
     int8_t x_percentage = joystick_convert_current_joystick_x_direction_to_percentage();
     int8_t y_percentage = joystick_convert_current_joystick_y_direction_to_percentage();
+    int8_t z_percentage = joystick_convert_current_joystick_rudder_direction_to_percentage();
 
     memset(x_data, ' ', sizeof(x_data));
     memset(y_data, ' ', sizeof(y_data));
+    memset(z_data, ' ', sizeof(z_data));
 
     sprintf(x_data, "X:%d%%", x_percentage);
     sprintf(y_data, "Y:%d%%", y_percentage);
+    sprintf(z_data, "Z:%d%%", z_percentage);
 
     if (x_percentage > -100 && x_percentage < -9) {
         memset(&x_data[6], ' ', 1);
@@ -179,31 +189,56 @@ void lcd_print_joystick_data(){
         memset(&y_data[6], ' ', 1);
     }
 
-//    memset(&y_data[6], '%', 1);
-//    memset(&x_data[6], '%', 1);
+    if (z_percentage > -100 && z_percentage < -9) {
+        memset(&z_data[6], ' ', 1);
+    } else if (z_percentage > -10 && z_percentage < 0) {
+        memset(&z_data[5], ' ', 2);
+    } else if (z_percentage > -1 && z_percentage < 10) {
+        memset(&z_data[4], ' ', 3);
+    } else if (z_percentage > 9 && z_percentage < 100) {
+        memset(&z_data[5], ' ', 2);
+    } else if ( z_percentage == 100 ) {
+        memset(&z_data[6], ' ', 1);
+    }
+
 
     lcd_set_cursor(SecondLine, 4);
     lcd_send_string(x_data);
     lcd_set_cursor(SecondLine, 12);
     lcd_send_string(y_data);
+    lcd_set_cursor(ThirdLine, 0);
+    lcd_send_string(z_data);
 }
 
 void lcd_print_current_num_of_devices(uint8_t device_count) {
-    char device_count_str[] = "1000";
+    char device_count_str[] = "Device:1000";
     memset(device_count_str, ' ', sizeof(device_count));
 
-    sprintf(device_count_str, "%d", device_count);
-    lcd_set_cursor(ThirdLine, 8);
+    sprintf(device_count_str, "Device:%d", device_count);
+    lcd_set_cursor(FourthLine, 0);
     lcd_send_string(device_count_str);
+}
+
+void lcd_print_state_of_RTLG() {
+    lcd_set_cursor(ThirdLine, 15);
+    if (xSemaphoreTake(lg_state_mutex, portMAX_DELAY) == pdPASS) {
+        switch (lg_state) {
+            case RETRACTED:
+                lcd_send_string("RETR");
+            case EXTRACTED:
+                lcd_send_string("EXTR");
+        }
+        xSemaphoreGive(lg_state_mutex);
+    }
 }
 
 
 void vLCDGeneralDataDisplay(void* pvParameters) {
     while(1) {
-        //ESP_LOGI("THR", "displayed throttle percentage...");
         if (xSemaphoreTake(lcd_mutex, portMAX_DELAY) == pdPASS){
             lcd_print_current_throttle_percentage();
             lcd_print_joystick_data();
+            lcd_print_state_of_RTLG();
             xSemaphoreGive(lcd_mutex);
         }
 

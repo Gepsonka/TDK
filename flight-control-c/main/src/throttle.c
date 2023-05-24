@@ -24,6 +24,23 @@ void init_throttle() {
 
 }
 
-uint8_t throttle_convert_to_percentage(uint16_t raw_value){
-    return (uint8_t)(((float)raw_value / (float)THROTTLE_RAW_MAX ) * 100);
+uint16_t throttle_get_thr_raw() {
+    uint16_t raw;
+    adc2_get_raw(ADC_CHANNEL, ADC_WIDTH, &raw);
+    return raw;
 }
+
+uint8_t throttle_convert_to_percentage(uint16_t raw_value){
+    if (raw_value < THROTTLE_RAW_MIN) {
+        return 0;
+    }
+
+    if (raw_value > THROTTLE_RAW_MAX) {
+        return 100;
+    }
+
+    uint16_t true_value = raw_value - THROTTLE_RAW_MIN;
+    uint16_t true_value_max = THROTTLE_RAW_MAX - THROTTLE_RAW_MIN;
+    return (uint8_t)((((float) true_value / (float) true_value_max)) * 100);
+}
+

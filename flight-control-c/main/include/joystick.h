@@ -16,6 +16,8 @@
 #define JOYSTICK_X_AXIS_ADC_CHANNEL (ADC2_CHANNEL_5)
 #define JOYSTICK_Y_AXIS_ADC_CHANNEL (ADC2_CHANNEL_4)
 
+#define RUDDER_AXIS_ADC_CHANNEL (ADC2_CHANNEL_7)
+
 #define JOYSTICK_RAW_MIN 0
 #define JOYSTICK_RAW_MAX 4095
 #define JOYSTICK_REFERENCE_VALUE 1840
@@ -27,5 +29,7 @@ uint16_t joystick_get_current_x_raw_value();
 uint16_t joystick_get_current_y_raw_value();
 int8_t joystick_convert_current_joystick_x_direction_to_percentage();
 int8_t joystick_convert_current_joystick_y_direction_to_percentage();
+int8_t joystick_convert_current_joystick_rudder_direction_to_percentage();
+
 
 #endif

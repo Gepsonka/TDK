@@ -14,11 +14,12 @@
 #define ADC_WIDTH (ADC_WIDTH_BIT_12)
 #define ADC_ATTEN (ADC_ATTEN_DB_11)
 
-#define THROTTLE_RAW_MIN 0
-#define THROTTLE_RAW_MAX 4095
+#define THROTTLE_RAW_MIN 1200
+#define THROTTLE_RAW_MAX 2500
 
 
 void init_throttle();
 uint8_t throttle_convert_to_percentage(uint16_t raw_value);
+uint16_t throttle_get_thr_raw();
 
 #endif

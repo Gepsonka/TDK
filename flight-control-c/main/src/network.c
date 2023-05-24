@@ -15,8 +15,10 @@ extern SemaphoreHandle_t joystick_semaphore_handle;
 
 extern QueueHandle_t lora_tx_queue;
 extern SemaphoreHandle_t lcd_mutex;
+extern SemaphoreHandle_t lg_state_mutex;
 
 extern sx127x *lora_device;
+extern LandingGearState lg_state;
 
 
 static bool network_is_device_in_arp(Network_Device_Container* dev_container, uint8_t dev_addr) {
@@ -77,31 +79,31 @@ void network_uav_temporary_controller_task(void* pvParameters) {
     uint16_t thr_raw_val;
     int8_t joystick_x_percentage;
     int8_t joystick_y_percentage;
+    int8_t joystick_z_percentage;
 
     while (1) {
-        vTaskDelay(50/ portTICK_PERIOD_MS);
+        vTaskDelay(20 / portTICK_PERIOD_MS);
         if (xSemaphoreTake(joystick_semaphore_handle, portMAX_DELAY) == pdTRUE) {
             joystick_x_percentage = joystick_convert_current_joystick_x_direction_to_percentage();
             joystick_y_percentage = joystick_convert_current_joystick_y_direction_to_percentage();
+            joystick_z_percentage = joystick_convert_current_joystick_rudder_direction_to_percentage();
             memset(&device_to_send->tx_secret_message[0], joystick_x_percentage, sizeof(int8_t));
             memset(&device_to_send->tx_secret_message[1], joystick_y_percentage, sizeof(int8_t));
+            memset(&device_to_send->tx_secret_message[2], joystick_z_percentage, sizeof(int8_t));
             xSemaphoreGive(joystick_semaphore_handle);
         }
 
+        //printf("thr raw: %d\n", throttle_get_thr_raw());
+        memset(&device_to_send->tx_secret_message[3], throttle_convert_to_percentage(throttle_get_thr_raw()), sizeof(uint8_t));
+        if (xSemaphoreTake(lg_state_mutex, portMAX_DELAY) == pdPASS){
+            memset(&device_to_send->tx_secret_message[4], lg_state, sizeof(uint8_t));
+            xSemaphoreGive(lg_state_mutex);
+        }
 
-        adc2_get_raw(ADC_CHANNEL, ADC_WIDTH, &thr_raw_val);
-
-        printf("thr adc raw: %#X\n", thr_raw_val);
-        memset(&device_to_send->tx_secret_message[2], throttle_convert_to_percentage(thr_raw_val), sizeof(uint8_t));
         deconstruct_message_into_packets(device_to_send);
 
-        // problem with deconstruct fn
-        //display_packet(&device_to_send->packet_tx_buff[0]);
-
         set_packets_for_tx(device_to_send, &lora_tx_queue);
-        //ESP_ERROR_CHECK(sx127x_set_for_transmission(device_to_send->packet_tx_buff[0].payload.payload, 6, lora_device));
-        //ESP_ERROR_CHECK(sx127x_set_opmod(SX127x_MODE_TX, lora_device));
-
+        //printf("packet has been sent for tx\n");
     }
 }
 

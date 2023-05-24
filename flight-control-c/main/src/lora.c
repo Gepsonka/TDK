@@ -94,7 +94,6 @@ void init_lora(spi_device_handle_t* spi_device, sx127x* lora_dev) {
     ESP_ERROR_CHECK(gpio_pulldown_en((gpio_num_t)LORA_DIO0_PIN));
     ESP_ERROR_CHECK(gpio_pullup_dis((gpio_num_t)LORA_DIO0_PIN));
     ESP_ERROR_CHECK(gpio_set_intr_type((gpio_num_t)LORA_DIO0_PIN, GPIO_INTR_POSEDGE));
-    ESP_ERROR_CHECK(gpio_install_isr_service(0));
     ESP_ERROR_CHECK(
             gpio_isr_handler_add((gpio_num_t) LORA_DIO0_PIN, lora_handle_interrupt_fromisr, (void *) lora_dev));
 
@@ -121,7 +120,7 @@ void handle_interrupt_task(void *arg)
 
 void tx_callback(sx127x *device)
 {
-    ESP_LOGI(TAG, "transmitted");
+    //ESP_LOGI(TAG, "transmitted");
 }
 
 
@@ -192,7 +191,7 @@ void lora_packet_sender_task(void* pvParameters) {
 //                    lora_mutex_is_held_by_task = 0;
 //                }
 
-                lora_display_packet(&packet_to_send);
+                //lora_display_packet(&packet_to_send);
 
                 xSemaphoreGive(xLoraMutex);
                 lora_mutex_is_held_by_task = 0;
@@ -233,16 +232,7 @@ uint8_t lora_send_packet(sx127x *lora_dev, LoRa_Packet* packet){
     ESP_ERROR_CHECK(sx127x_set_for_transmission(data, packet->header.payload_size + sizeof(LoRa_Packet_Header) - 1 + sizeof(uint16_t), lora_dev));
     ESP_ERROR_CHECK(sx127x_set_opmod(SX127x_MODE_TX, lora_dev));
     spi_device_release_bus(lora_spi_device);
-//    printf("Payload size: %d\n", packet->header.payload_size);
-//    printf("Header size: %d\n", sizeof(LoRa_Packet_Header));
-//    printf("Packet size: %d\n", packet->header.payload_size + sizeof(LoRa_Packet_Header) + sizeof(uint16_t));
-//    printf("Packet raw data:\n");
-//    for (uint8_t i = 0; i < packet->header.payload_size + sizeof(LoRa_Packet_Header) - 1 + sizeof(uint16_t); i++) {
-//        printf("%#X ", data[i]);
-//    }
-//    printf("\n");
-    //uint8_t res = sx127x_set_for_transmission((uint8_t*) "asdasd", 6, lora_dev);
-    ESP_LOGI(TAG, "Sent packet...");
+
     return 0;
 }
 

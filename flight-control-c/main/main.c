@@ -17,6 +17,7 @@
 #include "security.h"
 #include "network.h"
 #include <sx127x.h>
+#include "landing_gear.h"
 
 
 
@@ -50,6 +51,8 @@ extern Network_Device_Container device_container;
 
 void app_main()
 {
+
+    ESP_ERROR_CHECK(gpio_install_isr_service(0));
 
     int i2c_master_port = I2C_MASTER_NUM;
 
@@ -88,6 +91,8 @@ void app_main()
     };
     ESP_ERROR_CHECK(spi_bus_initialize(VSPI_HOST, &config, 1));
 
+    init_landing_gear();
+
     init_lcd();
 
     init_lora(&lora_spi_device, lora_device);
@@ -104,11 +109,6 @@ void app_main()
 
     network_init(&device_container);
 
-    uint16_t x_val;
-    uint16_t y_val;
-
-    uint8_t data[255];
-    memset(data, 12, 255);
 
 
 

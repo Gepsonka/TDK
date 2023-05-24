@@ -10,7 +10,7 @@
 #include "esp_adc/adc_cali.h"
 #include "joystick.h"
 #include "freertos/semphr.h"
-
+#include "landing_gear.h"
 
 #define LCD_I2C_DEFAULT_PORT 0
 #define LCD_DRIVER_I2C_ADDR 0x27
@@ -32,6 +32,7 @@ void lcd_print_current_throttle_percentage();
 void lcd_print_throttle_percentage(uint16_t raw_val);
 void lcd_print_joystick_data();
 void lcd_print_current_num_of_devices(uint8_t device_count);
+void lcd_print_state_of_RTLG();
 
 void vLCDGeneralDataDisplay(void* pvParameters);
 #endif

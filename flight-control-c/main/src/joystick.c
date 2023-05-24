@@ -5,6 +5,7 @@
 SemaphoreHandle_t joystick_semaphore_handle = NULL;
 esp_adc_cal_characteristics_t joystick_x_adc_chars;
 esp_adc_cal_characteristics_t joystick_y_adc_chars;
+esp_adc_cal_characteristics_t joystick_rudder_adc_chars;
 
 void joystick_adc_init(){
     joystick_semaphore_handle = xSemaphoreCreateMutex();
@@ -12,6 +13,7 @@ void joystick_adc_init(){
     //adc1_config_width(ADC_WIDTH);
     adc2_config_channel_atten(JOYSTICK_X_AXIS_ADC_CHANNEL, ADC_ATTEN_DB_11);
     adc2_config_channel_atten(JOYSTICK_Y_AXIS_ADC_CHANNEL, ADC_ATTEN_DB_11);
+    adc2_config_channel_atten(RUDDER_AXIS_ADC_CHANNEL, ADC_ATTEN_DB_11);
 }
 
 void joystick_init(){
@@ -34,6 +36,17 @@ void joystick_init(){
     };
     ESP_ERROR_CHECK(adc_cali_create_scheme_line_fitting(&cali_config_y, &calib_handle_y));
     //xTaskCreate(vTaskThrottleDisplay, "ThrottleDisplayTask", 2048, NULL, 1, &xThrottleDisplayTaskHandler);
+
+    esp_adc_cal_characterize(ADC_UNIT_1, ADC_ATTEN_DB_11, ADC_WIDTH_BIT_12, 0, &joystick_rudder_adc_chars);
+    adc_cali_handle_t calib_handle_rudder = NULL;
+    adc_cali_line_fitting_config_t cali_config_rudder = {
+            .unit_id = ADC_UNIT_1,
+            .atten = ADC_ATTEN,
+            .bitwidth = ADC_WIDTH,
+    };
+    ESP_ERROR_CHECK(adc_cali_create_scheme_line_fitting(&cali_config_rudder, &calib_handle_rudder));
+
+
 }
 
 uint16_t joystick_get_current_x_raw_value() {
@@ -69,4 +82,14 @@ int8_t joystick_convert_current_joystick_y_direction_to_percentage() {
         return 100;
     }
     return (int8_t)((((float)y_raw / (float)JOYSTICK_REFERENCE_VALUE ) - 1) * 100) > 100 ? 100 : (int8_t)((((float)y_raw / (float)JOYSTICK_REFERENCE_VALUE ) - 1) * 100);
+}
+
+int8_t joystick_convert_current_joystick_rudder_direction_to_percentage() {
+    uint16_t rudder_raw;
+    adc2_get_raw(ADC2_CHANNEL_7, ADC_WIDTH, &rudder_raw);
+    int16_t corrected_val = rudder_raw - JOYSTICK_REFERENCE_VALUE;
+    if (corrected_val / JOYSTICK_REFERENCE_VALUE > 1) {
+        return 100;
+    }
+    return (int8_t)((((float)rudder_raw / (float)JOYSTICK_REFERENCE_VALUE ) - 1) * 100) > 100 ? 100 : (int8_t)((((float)rudder_raw / (float)JOYSTICK_REFERENCE_VALUE ) - 1) * 100);
 }
