@@ -372,9 +372,6 @@ void network_device_processor_task(void* pvParameters){
 
             construct_message_from_packets(device_ctx);
 
-
-            vTaskDelay(100 / portTICK_PERIOD_MS);
-
             set_wing_servos_by_joystick_percentage((int8_t) device_ctx->rx_secret_message[0]);
 
             set_elevator_servo_by_joystick_percentage((int8_t) device_ctx->rx_secret_message[1]);

@@ -20,7 +20,7 @@ void init_motor() {
 
     // Configure the LEDC module for PWM on the ESC signal wire
     ledc_timer_config_t timer_config = {
-            .duty_resolution = LEDC_TIMER_12_BIT,
+            .duty_resolution = LEDC_TIMER_11_BIT,
             .freq_hz = ESC_FREQUENCY,
             .speed_mode = LEDC_HIGH_SPEED_MODE,
             .timer_num = LEDC_TIMER_2
@@ -29,7 +29,7 @@ void init_motor() {
 
     ledc_channel_config_t channel_config = {
             .channel = ESC_CHANNEL,
-            .duty = 0,
+            .duty = ESC_MIN_DUTY,
             .gpio_num = ESC_GPIO_PIN,
             .speed_mode = LEDC_HIGH_SPEED_MODE,
             .timer_sel = LEDC_TIMER_2

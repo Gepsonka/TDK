@@ -22,8 +22,8 @@
 //#define ESC_MAX_DUTY 1361
 //#define ESC_MIN_DUTY 1080
 
-#define ESC_MAX_DUTY 1305
-#define ESC_MIN_DUTY 1080
+#define ESC_MAX_DUTY 204
+#define ESC_MIN_DUTY 102
 
 void init_motor();
 void motor_set_motor_speed(uint16_t pwm_duty);

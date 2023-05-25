@@ -33,10 +33,6 @@ void app_main() {
 
     network_init(&device_container);
 
-
-    motor_set_motor_speed(1024);
-    vTaskDelay(2000 / portTICK_PERIOD_MS);
-
     while (1) {
 //        motor_set_motor_speed(2048);
 //        vTaskDelay(2000 / portTICK_PERIOD_MS);
