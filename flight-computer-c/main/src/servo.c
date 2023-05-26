@@ -3,7 +3,13 @@
 //
 #include "servo.h"
 
+static const char* TAG = "Servo";
 
+/*
+ * For storing the status of the retractable landing gear globally
+ */
+RTLG_Status RTLG_status;
+SemaphoreHandle_t RTLG_status_mutex;
 
 void init_servo() {
     ledc_timer_config_t ledc_timer_r = {
@@ -133,6 +139,13 @@ void init_servo() {
     servo_set_duty(RIGHT_LANDING_GEAR_SERVO_LEDC_CHANNEL, RIGHT_LANDING_GEAR_EXTRACTED_DUTY);
     servo_set_duty(LEFT_LANDING_GEAR_SERVO_LEDC_CHANNEL, LEFT_LANDING_GEAR_EXTRACTED_DUTY);
     printf("servos in neutral\n");
+
+    RTLG_status = EXTRACTED;
+    RTLG_status_mutex = xSemaphoreCreateMutex();
+    if (RTLG_status_mutex == NULL) {
+        ESP_LOGE(TAG, "RTLG mutex creation failed!");
+    }
+
 }
 
 void servo_set_duty(uint8_t pwm_channel, uint8_t duty) {
@@ -149,7 +162,7 @@ void set_servo_angle(float angle, uint8_t ledc_channel)
     ledc_update_duty(LEDC_HIGH_SPEED_MODE, ledc_channel); // update duty cycle for LEDC channel
 }
 
-void set_wing_servos_by_joystick_percentage(int8_t x_percentage) {
+void servo_set_ailerons_servo_by_joystick_percentage(int8_t x_percentage) {
     uint16_t difference = NEUTRAL_DUTY - LEFT_SERVO_MIN_DUTY;
     float one_percent_duty = ((float) difference / (float) 100);
 
@@ -174,7 +187,7 @@ void set_wing_servos_by_joystick_percentage(int8_t x_percentage) {
     }
 }
 
-void set_elevator_servo_by_joystick_percentage(int8_t y_percentage) {
+void servo_set_elevator_servo_by_joystick_percentage(int8_t y_percentage) {
     uint16_t difference = NEUTRAL_DUTY - ELEVATOR_SERVO_MIN_DUTY;
     float one_percent_duty = ((float) difference / (float) 100);
 
@@ -187,5 +200,43 @@ void set_elevator_servo_by_joystick_percentage(int8_t y_percentage) {
     } else if (y_percentage == 0) {
         ledc_set_duty(LEDC_HIGH_SPEED_MODE, ELEVATOR_SERVO_LEDC_CHANNEL, NEUTRAL_DUTY);
         ledc_update_duty(LEDC_HIGH_SPEED_MODE, ELEVATOR_SERVO_LEDC_CHANNEL);
+    }
+}
+
+void servo_set_rudder_servo_by_joystick_percentage(int8_t z_percentage){
+    uint16_t difference = NEUTRAL_DUTY - ELEVATOR_SERVO_MIN_DUTY;
+    float one_percent_duty = ((float) difference / (float) 100);
+
+    if (z_percentage < 0) {
+        ledc_set_duty(LEDC_HIGH_SPEED_MODE, RUDDER_SERVO_LEDC_CHANNEL, NEUTRAL_DUTY + (int16_t) (one_percent_duty * (float) z_percentage));
+        ledc_update_duty(LEDC_HIGH_SPEED_MODE, RUDDER_SERVO_LEDC_CHANNEL);
+    } else if (z_percentage > 0) {
+        ledc_set_duty(LEDC_HIGH_SPEED_MODE, RUDDER_SERVO_LEDC_CHANNEL, NEUTRAL_DUTY + (int16_t) (one_percent_duty * (float) z_percentage));
+        ledc_update_duty(LEDC_HIGH_SPEED_MODE, RUDDER_SERVO_LEDC_CHANNEL);
+    } else if (z_percentage == 0) {
+        ledc_set_duty(LEDC_HIGH_SPEED_MODE, RUDDER_SERVO_LEDC_CHANNEL, NEUTRAL_DUTY);
+        ledc_update_duty(LEDC_HIGH_SPEED_MODE, RUDDER_SERVO_LEDC_CHANNEL);
+    }
+}
+
+
+void servo_extract_RTLG(){
+    servo_set_duty(RIGHT_LANDING_GEAR_SERVO_LEDC_CHANNEL, RIGHT_LANDING_GEAR_EXTRACTED_DUTY);
+    servo_set_duty(LEFT_LANDING_GEAR_SERVO_LEDC_CHANNEL, LEFT_LANDING_GEAR_EXTRACTED_DUTY);
+}
+
+void servo_retract_RTLG(){
+    servo_set_duty(RIGHT_LANDING_GEAR_SERVO_LEDC_CHANNEL, RIGHT_LANDING_GEAR_RETRACTED_DUTY);
+    servo_set_duty(LEFT_LANDING_GEAR_SERVO_LEDC_CHANNEL, LEFT_LANDING_GEAR_RETRACTED_DUTY);
+}
+
+void servo_set_RTLG_status(RTLG_Status status){
+    switch (status) {
+        case EXTRACTED:
+            servo_extract_RTLG();
+            break;
+        case RETRACTED:
+            servo_retract_RTLG();
+            break;
     }
 }

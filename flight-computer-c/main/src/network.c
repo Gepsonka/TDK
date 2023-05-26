@@ -34,6 +34,9 @@ extern SemaphoreHandle_t joystick_semaphore_handle;
 
 extern SemaphoreHandle_t lcd_mutex;
 
+extern RTLG_Status RTLG_status;
+extern SemaphoreHandle_t RTLG_status_mutex;
+
 static bool network_is_device_in_arp(Network_Device_Container* dev_container, uint8_t dev_addr) {
     for (uint8_t i = 0; i < dev_container->num_of_devices; i++) {
         if (dev_container->device_contexts[i].address == dev_addr) {
@@ -362,6 +365,8 @@ void network_device_processor_task(void* pvParameters){
     Network_Device_Container* dev_ctnr = (Network_Device_Container*) pvParameters;
     uint8_t dev_addr;
     Network_Device_Context* device_ctx;
+    RTLG_Status prev_state_of_RTLG_status = EXTRACTED;
+
     while (1) {
         if( xQueueReceive(device_queue, &dev_addr, portMAX_DELAY) == pdPASS ) {
             device_ctx = get_device_from_arp(dev_ctnr, dev_addr);
@@ -372,10 +377,26 @@ void network_device_processor_task(void* pvParameters){
 
             construct_message_from_packets(device_ctx);
 
-            set_wing_servos_by_joystick_percentage((int8_t) device_ctx->rx_secret_message[0]);
+            printf("\n\nalerion percentage: %d\nelevator precentage: %d\nrudder percentage: %d\nmotor percentage: %d\n\n",
+                   device_ctx->rx_secret_message[0],
+                   device_ctx->rx_secret_message[1],
+                   device_ctx->rx_secret_message[2],
+                   device_ctx->rx_secret_message[3]
+                   );
 
-            set_elevator_servo_by_joystick_percentage((int8_t) device_ctx->rx_secret_message[1]);
-            motor_set_motor_speed(motor_get_duty_value_from_percentage(device_ctx->rx_secret_message[2]));
+            servo_set_ailerons_servo_by_joystick_percentage((int8_t) device_ctx->rx_secret_message[0]);
+            servo_set_elevator_servo_by_joystick_percentage((int8_t) device_ctx->rx_secret_message[1]);
+            servo_set_rudder_servo_by_joystick_percentage((int8_t) device_ctx->rx_secret_message[2]);
+            motor_set_motor_speed(motor_get_duty_value_from_percentage(device_ctx->rx_secret_message[3]));
+            if (xSemaphoreTake(RTLG_status_mutex, portMAX_DELAY) == pdPASS) {
+                if (device_ctx->rx_secret_message[4] != prev_state_of_RTLG_status) {
+                    prev_state_of_RTLG_status = device_ctx->rx_secret_message[4];
+                    RTLG_status = device_ctx->rx_secret_message[4];
+                    servo_set_RTLG_status(device_ctx->rx_secret_message[4]);
+                }
+                xSemaphoreGive(RTLG_status_mutex);
+            }
+
         }
     }
 }

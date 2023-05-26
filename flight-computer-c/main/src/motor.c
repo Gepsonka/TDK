@@ -36,15 +36,13 @@ void init_motor() {
     };
     ledc_channel_config(&channel_config);
 
-    // Send a signal to the ESC to arm it
-    // ledc_set_duty_and_update(LEDC_HIGH_SPEED_MODE, ESC_CHANNEL, 2048, 0);
+
     ledc_set_duty(LEDC_HIGH_SPEED_MODE, ESC_CHANNEL, ESC_MIN_DUTY); // set duty cycle for LEDC channel
     ledc_update_duty(LEDC_HIGH_SPEED_MODE, ESC_CHANNEL); // update duty cycle for LEDC channel
     vTaskDelay(3000 / portTICK_PERIOD_MS);
 }
 
 void motor_set_motor_speed(uint16_t pwm_duty) {
-    ESP_LOGI("MOTOR", "motor duty set to: %d", pwm_duty);
     if (pwm_duty < ESC_MIN_DUTY) {
         pwm_duty = ESC_MIN_DUTY;
     } else if (pwm_duty > ESC_MAX_DUTY) {

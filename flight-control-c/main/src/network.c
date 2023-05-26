@@ -95,6 +95,7 @@ void network_uav_temporary_controller_task(void* pvParameters) {
 
         //printf("thr raw: %d\n", throttle_get_thr_raw());
         memset(&device_to_send->tx_secret_message[3], throttle_convert_to_percentage(throttle_get_thr_raw()), sizeof(uint8_t));
+        printf("thr percentage: %d", throttle_convert_to_percentage(throttle_get_thr_raw()));
         if (xSemaphoreTake(lg_state_mutex, portMAX_DELAY) == pdPASS){
             memset(&device_to_send->tx_secret_message[4], lg_state, sizeof(uint8_t));
             xSemaphoreGive(lg_state_mutex);
