@@ -341,6 +341,7 @@ void network_packet_processor_task(void* pvParameters){
                 continue;
             }
 
+
             // not safe yet!
             if (packet.header.packet_num == 0) {
                 if (device_ctx->packet_rx_buff != NULL) {
@@ -368,7 +369,7 @@ void network_device_processor_task(void* pvParameters){
     RTLG_Status prev_state_of_RTLG_status = EXTRACTED;
 
     while (1) {
-        if( xQueueReceive(device_queue, &dev_addr, portMAX_DELAY) == pdPASS ) {
+        if( xQueueReceive(device_queue, &dev_addr, 200) == pdPASS ) {
             device_ctx = get_device_from_arp(dev_ctnr, dev_addr);
             if (device_ctx == NULL) {
                 ESP_LOGE(TAG, "device with address %#X does not exist in ARP.", dev_addr);
@@ -377,12 +378,13 @@ void network_device_processor_task(void* pvParameters){
 
             construct_message_from_packets(device_ctx);
 
-            printf("\n\nalerion percentage: %d\nelevator precentage: %d\nrudder percentage: %d\nmotor percentage: %d\n\n",
-                   device_ctx->rx_secret_message[0],
-                   device_ctx->rx_secret_message[1],
-                   device_ctx->rx_secret_message[2],
-                   device_ctx->rx_secret_message[3]
-                   );
+//            printf("\n\nalerion percentage: %d\nelevator percentage: %d\nrudder percentage: %d\nmotor percentage: %d\nRTLG staus: %d\n\n",
+//                   (int8_t)device_ctx->rx_secret_message[0],
+//                   (int8_t)device_ctx->rx_secret_message[1],
+//                   (int8_t)device_ctx->rx_secret_message[2],
+//                   device_ctx->rx_secret_message[3],
+//                   device_ctx->rx_secret_message[4]
+//                   );
 
             servo_set_ailerons_servo_by_joystick_percentage((int8_t) device_ctx->rx_secret_message[0]);
             servo_set_elevator_servo_by_joystick_percentage((int8_t) device_ctx->rx_secret_message[1]);
@@ -397,6 +399,10 @@ void network_device_processor_task(void* pvParameters){
                 xSemaphoreGive(RTLG_status_mutex);
             }
 
+        } else {
+            motor_set_motor_speed(motor_get_duty_value_from_percentage(0));
+            servo_set_RTLG_status(EXTRACTED);
+            printf("Lost connection!\n");
         }
     }
 }
@@ -412,6 +418,8 @@ void network_packet_rx_handler_task(void* pvParameters){
             if (received_packet.header.dest_device_addr != LORA_BASE_STATION_ADDR) {
                 continue;
             }
+
+            display_packet(&received_packet);
 
             // check if device is in ARP, if not add a new device with status OFFLINE, start copy packet to its rx buff
             // only if this is the first packet of the device, else throw out packet

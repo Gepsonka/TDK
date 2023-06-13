@@ -82,7 +82,7 @@ void init_servo() {
     ledc_timer_config(&ledc_timer_rudder);
 
     ledc_channel_config_t ledc_channel_rudder = {
-            .gpio_num = 27,            // GPIO number
+            .gpio_num = 13,            // GPIO number
             .speed_mode = LEDC_HIGH_SPEED_MODE,   // timer mode
             .channel = RUDDER_SERVO_LEDC_CHANNEL,            // LEDC channel (0-7)
             .intr_type = LEDC_INTR_DISABLE,       // no interrupt
@@ -96,7 +96,7 @@ void init_servo() {
             .duty_resolution = LEDC_TIMER_11_BIT, // resolution of PWM duty
             .freq_hz = 50,                      // frequency of PWM signal
             .speed_mode = LEDC_HIGH_SPEED_MODE,   // timer mode
-            .timer_num = LEDC_TIMER_0,            // timer index
+            .timer_num = LEDC_TIMER_1,            // timer index
             .clk_cfg = LEDC_AUTO_CLK,             // auto select the source clock
     };
     ledc_timer_config(&ledc_timer_right_lg);
@@ -106,7 +106,7 @@ void init_servo() {
             .speed_mode = LEDC_HIGH_SPEED_MODE,   // timer mode
             .channel = RIGHT_LANDING_GEAR_SERVO_LEDC_CHANNEL,            // LEDC channel (0-7)
             .intr_type = LEDC_INTR_DISABLE,       // no interrupt
-            .timer_sel = LEDC_TIMER_0,            // timer index
+            .timer_sel = LEDC_TIMER_1,            // timer index
             .duty = NEUTRAL_DUTY,                            // initial duty cycle
             .hpoint = 0,                          // duty cycle phase
     };
@@ -116,7 +116,7 @@ void init_servo() {
             .duty_resolution = LEDC_TIMER_11_BIT, // resolution of PWM duty
             .freq_hz = 50,                      // frequency of PWM signal
             .speed_mode = LEDC_HIGH_SPEED_MODE,   // timer mode
-            .timer_num = LEDC_TIMER_0,            // timer index
+            .timer_num = LEDC_TIMER_1,            // timer index
             .clk_cfg = LEDC_AUTO_CLK,             // auto select the source clock
     };
     ledc_timer_config(&ledc_timer_left_lg);
@@ -126,7 +126,7 @@ void init_servo() {
             .speed_mode = LEDC_HIGH_SPEED_MODE,   // timer mode
             .channel = LEFT_LANDING_GEAR_SERVO_LEDC_CHANNEL,            // LEDC channel (0-7)
             .intr_type = LEDC_INTR_DISABLE,       // no interrupt
-            .timer_sel = LEDC_TIMER_0,            // timer index
+            .timer_sel = LEDC_TIMER_1,            // timer index
             .duty = NEUTRAL_DUTY,                            // initial duty cycle
             .hpoint = 0,                          // duty cycle phase
     };
@@ -204,7 +204,7 @@ void servo_set_elevator_servo_by_joystick_percentage(int8_t y_percentage) {
 }
 
 void servo_set_rudder_servo_by_joystick_percentage(int8_t z_percentage){
-    uint16_t difference = NEUTRAL_DUTY - ELEVATOR_SERVO_MIN_DUTY;
+    uint16_t difference = NEUTRAL_DUTY - RUDDER_SERVO_MIN_DUTY;
     float one_percent_duty = ((float) difference / (float) 100);
 
     if (z_percentage < 0) {

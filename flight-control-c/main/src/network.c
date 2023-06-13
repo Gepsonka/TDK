@@ -75,7 +75,7 @@ void network_uav_temporary_controller_task(void* pvParameters) {
         ESP_LOGI("network", "Out of memory temp.");
     }
 
-    device_to_send->tx_secret_message_size = 3 * sizeof(uint8_t);
+    device_to_send->tx_secret_message_size = 5 * sizeof(uint8_t);
     uint16_t thr_raw_val;
     int8_t joystick_x_percentage;
     int8_t joystick_y_percentage;
@@ -93,18 +93,23 @@ void network_uav_temporary_controller_task(void* pvParameters) {
             xSemaphoreGive(joystick_semaphore_handle);
         }
 
-        //printf("thr raw: %d\n", throttle_get_thr_raw());
         memset(&device_to_send->tx_secret_message[3], throttle_convert_to_percentage(throttle_get_thr_raw()), sizeof(uint8_t));
-        printf("thr percentage: %d", throttle_convert_to_percentage(throttle_get_thr_raw()));
         if (xSemaphoreTake(lg_state_mutex, portMAX_DELAY) == pdPASS){
             memset(&device_to_send->tx_secret_message[4], lg_state, sizeof(uint8_t));
             xSemaphoreGive(lg_state_mutex);
         }
+        printf("\n\nalerion percentage: %u\nelevator precentage: %u\nrudder percentage: %u\nmotor percentage: %u\nRTLG staus: %u\n\n",
+               device_to_send->tx_secret_message[0],
+               device_to_send->tx_secret_message[1],
+               device_to_send->tx_secret_message[2],
+               device_to_send->tx_secret_message[3],
+               device_to_send->tx_secret_message[4]
+        );
+
 
         deconstruct_message_into_packets(device_to_send);
 
         set_packets_for_tx(device_to_send, &lora_tx_queue);
-        //printf("packet has been sent for tx\n");
     }
 }
 
