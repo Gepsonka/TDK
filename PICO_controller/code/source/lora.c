@@ -1,48 +1,110 @@
-//
-// Created by gepsonka on 6/15/23.
-//
-
-
 #include "lora.h"
+
+// registers
+#define REG_FIFO                 0x00
+#define REG_OP_MODE              0x01
+#define REG_FRF_MSB              0x06
+#define REG_FRF_MID              0x07
+#define REG_FRF_LSB              0x08
+#define REG_PA_CONFIG            0x09
+#define REG_OCP                  0x0b
+#define REG_LNA                  0x0c
+#define REG_FIFO_ADDR_PTR        0x0d
+#define REG_FIFO_TX_BASE_ADDR    0x0e
+#define REG_FIFO_RX_BASE_ADDR    0x0f
+#define REG_FIFO_RX_CURRENT_ADDR 0x10
+#define REG_IRQ_FLAGS            0x12
+#define REG_RX_NB_BYTES          0x13
+#define REG_PKT_SNR_VALUE        0x19
+#define REG_PKT_RSSI_VALUE       0x1a
+#define REG_RSSI_VALUE           0x1b
+#define REG_MODEM_CONFIG_1       0x1d
+#define REG_MODEM_CONFIG_2       0x1e
+#define REG_PREAMBLE_MSB         0x20
+#define REG_PREAMBLE_LSB         0x21
+#define REG_PAYLOAD_LENGTH       0x22
+#define REG_MODEM_CONFIG_3       0x26
+#define REG_FREQ_ERROR_MSB       0x28
+#define REG_FREQ_ERROR_MID       0x29
+#define REG_FREQ_ERROR_LSB       0x2a
+#define REG_RSSI_WIDEBAND        0x2c
+#define REG_DETECTION_OPTIMIZE   0x31
+#define REG_INVERTIQ             0x33
+#define REG_DETECTION_THRESHOLD  0x37
+#define REG_SYNC_WORD            0x39
+#define REG_INVERTIQ2            0x3b
+#define REG_DIO_MAPPING_1        0x40
+#define REG_VERSION              0x42
+#define REG_PA_DAC               0x4d
+
+// modes
+#define MODE_LONG_RANGE_MODE     0x80
+#define MODE_SLEEP               0x00
+#define MODE_STDBY               0x01
+#define MODE_TX                  0x03
+#define MODE_RX_CONTINUOUS       0x05
+#define MODE_RX_SINGLE           0x06
+
+// PA config
+#define PA_BOOST                 0x80
+
+// IRQ masks
+#define IRQ_TX_DONE_MASK           0x08
+#define IRQ_PAYLOAD_CRC_ERROR_MASK 0x20
+#define IRQ_RX_DONE_MASK           0x40
+
+#define RF_MID_BAND_THRESHOLD    525E6
+#define RSSI_OFFSET_HF_PORT      157
+#define RSSI_OFFSET_LF_PORT      164
+
+#define MAX_PKT_LENGTH           255
+
+#if (ESP8266 || ESP32)
+#define ISR_PREFIX ICACHE_RAM_ATTR
+#else
+#define ISR_PREFIX
+#endif
+
+
 
 
 int begin(long frequency)
 {
 
     // setup pins
-    gpio_init(LORA_NSS_PIN);
-    gpio_set_dir(LORA_NSS_PIN, GPIO_OUT);
+    gpio_init(_ss);
+    gpio_set_dir(_ss, GPIO_OUT);
     // set SS high
-    gpio_put(LORA_NSS_PIN, 1);
+    gpio_put(_ss, 1);
 
-    if (LORA_RESET_PIN != -1) {
-        gpio_init(LORA_RESET_PIN);
-        gpio_set_dir(LORA_RESET_PIN, GPIO_OUT);
+    if (_reset != -1) {
+        gpio_init(_reset);
+        gpio_set_dir(_reset, GPIO_OUT);
 
         // perform reset
-        gpio_put(LORA_RESET_PIN, 0);
+        gpio_put(_reset, 0);
         sleep_ms(10);
-        gpio_put(LORA_RESET_PIN, 1);
+        gpio_put(_reset, 1);
         sleep_ms(10);
     }
 
 
     // start SPI
-    spi_init(LORA_SPI_PORT, 12500);
-    gpio_set_function(LORA_MISO_PIN, GPIO_FUNC_SPI);
-    gpio_set_function(LORA_SCK_PIN, GPIO_FUNC_SPI);
-    gpio_set_function(LORA_MOSI_PIN, GPIO_FUNC_SPI);
+    spi_init(SPI_PORT, 12500);
+    gpio_set_function(PIN_MISO, GPIO_FUNC_SPI);
+    gpio_set_function(PIN_SCK, GPIO_FUNC_SPI);
+    gpio_set_function(PIN_MOSI, GPIO_FUNC_SPI);
 
 
     // Make the SPI pins available to picotool
-    bi_decl(bi_3pins_with_func(LORA_MISO_PIN, LORA_MOSI_PIN, LORA_SCK_PIN, GPIO_FUNC_SPI));
+    bi_decl(bi_3pins_with_func(PIN_MISO, PIN_MOSI, PIN_SCK, GPIO_FUNC_SPI));
 
-    gpio_init(LORA_NSS_PIN);
-    gpio_set_dir(LORA_NSS_PIN, GPIO_OUT);
-    gpio_put(LORA_NSS_PIN, 1);;
+    gpio_init(PIN_CS);
+    gpio_set_dir(PIN_CS, GPIO_OUT);
+    gpio_put(PIN_CS, 1);;
 
     // Make the CS pin available to picotool
-    bi_decl(bi_1pin_with_name(LORA_NSS_PIN, "SPI CS"));
+    bi_decl(bi_1pin_with_name(PIN_CS, "SPI CS"));
 
     // check version
     uint8_t version = readRegister(REG_VERSION);
@@ -82,7 +144,7 @@ void end()
     sleep();
 
     // stop SPI
-    spi_deinit(LORA_SPI_PORT);
+    spi_deinit(SPI_PORT);
 }
 
 int beginPacket(int implicitHeader)
@@ -290,7 +352,7 @@ void onReceive(void(*callback)(int))
     _onReceive = callback;
 
     if (callback) {
-        gpio_set_irq_enabled_with_callback(_dio0, GPIO_IRQ_EDGE_RISE, true, &LoRaClass::onDio0Rise);
+        gpio_set_irq_enabled_with_callback(_dio0, GPIO_IRQ_EDGE_RISE, true, &onDio0Rise);
     } else {
         gpio_set_irq_enabled(_dio0, GPIO_IRQ_EDGE_RISE, false);
     }
@@ -301,7 +363,7 @@ void onTxDone(void(*callback)())
     _onTxDone = callback;
 
     if (callback) {
-        gpio_set_irq_enabled_with_callback(_dio0, GPIO_IRQ_EDGE_RISE, true, &LoRaClass::onDio0Rise);
+        gpio_set_irq_enabled_with_callback(_dio0, GPIO_IRQ_EDGE_RISE, true, &onDio0Rise);
     } else {
         gpio_set_irq_enabled(_dio0, GPIO_IRQ_EDGE_RISE, false);
     }
@@ -561,8 +623,8 @@ uint8_t random()
 
 void setPins(int ss, int reset, int dio0)
 {
-    LORA_NSS_PIN = ss;
-    LORA_RESET_PIN = reset;
+    _ss = ss;
+    _reset = reset;
     _dio0 = dio0;
 }
 
@@ -573,7 +635,7 @@ _spi = &spi;
 
 void setSPIFrequency(uint32_t frequency)
 {
-    spi_set_baudrate(LORA_SPI_PORT, frequency);
+    spi_set_baudrate(SPI_PORT, frequency);
 }
 
 void dumpRegisters()
@@ -643,12 +705,12 @@ uint8_t singleTransfer(uint8_t address, uint8_t value)
 {
     uint8_t response;
 
-    gpio_put(LORA_NSS_PIN, 0);
+    gpio_put(_ss, 0);
 
-    spi_write_blocking(LORA_SPI_PORT, &address, 1);
-    spi_write_read_blocking(LORA_SPI_PORT, &value, &response, 1);
+    spi_write_blocking(SPI_PORT, &address, 1);
+    spi_write_read_blocking(SPI_PORT, &value, &response, 1);
 
-    gpio_put(LORA_NSS_PIN, 1);
+    gpio_put(_ss, 1);
 
     return response;
 }
@@ -658,3 +720,5 @@ void onDio0Rise(uint gpio, uint32_t events)
     gpio_acknowledge_irq(gpio, events);
     LoRa.handleDio0Rise();
 }
+
+LoRaClass LoRa;
