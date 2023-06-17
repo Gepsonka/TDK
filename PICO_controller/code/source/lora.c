@@ -65,46 +65,46 @@
 #define ISR_PREFIX
 #endif
 
-
+LoRa lora_device;
 
 
 int begin(LoRa* lora_dev, long frequency)
 {
 
     // setup pins
-    gpio_init(lora_dev->nss_pin);
-    gpio_set_dir(lora_dev->nss_pin, GPIO_OUT);
+    gpio_init(LORA_NSS_PIN);
+    gpio_set_dir(LORA_NSS_PIN, GPIO_OUT);
     // set SS high
-    gpio_put(lora_dev->nss_pin, 1);
+    gpio_put(LORA_NSS_PIN, 1);
 
-    if (lora_dev->reset_pin != -1) {
-        gpio_init(lora_dev->reset_pin);
-        gpio_set_dir(lora_dev->reset_pin, GPIO_OUT);
+    if (LORA_RESET_PIN != -1) {
+        gpio_init(LORA_RESET_PIN);
+        gpio_set_dir(LORA_RESET_PIN, GPIO_OUT);
 
         // perform reset
-        gpio_put(lora_dev->reset_pin, 0);
+        gpio_put(LORA_RESET_PIN, 0);
         sleep_ms(10);
-        gpio_put(lora_dev->reset_pin, 1);
+        gpio_put(LORA_RESET_PIN, 1);
         sleep_ms(10);
     }
 
 
     // start SPI
-    spi_init(SPI_PORT, 12500);
-    gpio_set_function(PIN_MISO, GPIO_FUNC_SPI);
-    gpio_set_function(PIN_SCK, GPIO_FUNC_SPI);
-    gpio_set_function(PIN_MOSI, GPIO_FUNC_SPI);
+    spi_init(LORA_SPI_PORT, 1000000);
+    gpio_set_function(LORA_MISO_PIN, GPIO_FUNC_SPI);
+    gpio_set_function(LORA_SCK_PIN, GPIO_FUNC_SPI);
+    gpio_set_function(LORA_MOSI_PIN, GPIO_FUNC_SPI);
 
 
     // Make the SPI pins available to picotool
-    bi_decl(bi_3pins_with_func(PIN_MISO, PIN_MOSI, PIN_SCK, GPIO_FUNC_SPI));
+    bi_decl(bi_3pins_with_func(LORA_MISO_PIN, LORA_MOSI_PIN, LORA_SCK_PIN, GPIO_FUNC_SPI));
 
-    gpio_init(PIN_CS);
-    gpio_set_dir(PIN_CS, GPIO_OUT);
-    gpio_put(PIN_CS, 1);;
+    gpio_init(LORA_NSS_PIN);
+    gpio_set_dir(LORA_NSS_PIN, GPIO_OUT);
+    gpio_put(LORA_NSS_PIN, 1);
 
     // Make the CS pin available to picotool
-    bi_decl(bi_1pin_with_name(PIN_CS, "SPI CS"));
+    bi_decl(bi_1pin_with_name(LORA_NSS_PIN, "SPI CS"));
 
     // check version
     uint8_t version = readRegister(REG_VERSION);
@@ -116,7 +116,7 @@ int begin(LoRa* lora_dev, long frequency)
     sleep();
 
     // set frequency
-    setFrequency(frequency);
+    setFrequency(lora_dev, frequency);
 
     // set base addresses
     writeRegister(REG_FIFO_TX_BASE_ADDR, 0);
@@ -129,7 +129,8 @@ int begin(LoRa* lora_dev, long frequency)
     writeRegister(REG_MODEM_CONFIG_3, 0x04);
 
     // set output power to 17 dBm
-    setTxPower(17);
+    // set output power to 17 dBm
+    setTxPower(17, PA_OUTPUT_RFO_PIN);
 
     // put in standby mode
     idle();
@@ -144,10 +145,10 @@ void end()
     sleep();
 
     // stop SPI
-    spi_deinit(SPI_PORT);
+    spi_deinit(LORA_SPI_PORT);
 }
 
-int beginPacket(int implicitHeader)
+int beginPacket(LoRa* lora_dev, int implicitHeader)
 {
     if (isTransmitting()) {
         return 0;
@@ -157,9 +158,9 @@ int beginPacket(int implicitHeader)
     idle();
 
     if (implicitHeader) {
-        implicitHeaderMode();
+        implicitHeaderMode(lora_dev);
     } else {
-        explicitHeaderMode();
+        explicitHeaderMode(lora_dev);
     }
 
     // reset FIFO address and paload length
@@ -211,10 +212,10 @@ int parsePacket(LoRa* lora_dev, int size)
     int irqFlags = readRegister(REG_IRQ_FLAGS);
 
     if (size > 0) {
-        implicitHeaderMode();
+        implicitHeaderMode(lora_dev);
         writeRegister(REG_PAYLOAD_LENGTH, size & 0xff);
     } else {
-        explicitHeaderMode();
+        explicitHeaderMode(lora_dev);
     }
 
     // clear IRQ's
@@ -274,7 +275,7 @@ long packetFrequencyError(LoRa* lora_dev)
     }
 
     const float fXtal = 32E6; // FXOSC: crystal oscillator (XTAL) frequency (2.5. Chip Specification, p. 14)
-    const float fError = (((float)(freqError) * (1L << 24)) / fXtal) * (getSignalBandwidth() / 500000.0f); // p. 37
+    const float fError = (((float)(freqError) * (1L << 24)) / fXtal) * (getSignalBandwidth(lora_dev) / 500000.0f); // p. 37
 
     return (long)(fError);
 }
@@ -352,9 +353,9 @@ void onReceive(LoRa* lora_dev, void(*callback)(LoRa*, int))
     lora_dev->onReceive = callback;
 
     if (callback) {
-        gpio_set_irq_enabled_with_callback(lora_dev->interrupt_pin , GPIO_IRQ_EDGE_RISE, true, &onDio0Rise);
+        gpio_set_irq_enabled_with_callback(LORA_INTERRUPT_PIN , GPIO_IRQ_EDGE_RISE, true, &onDio0Rise);
     } else {
-        gpio_set_irq_enabled(lora_dev->interrupt_pin , GPIO_IRQ_EDGE_RISE, false);
+        gpio_set_irq_enabled(LORA_INTERRUPT_PIN , GPIO_IRQ_EDGE_RISE, false);
     }
 }
 
@@ -363,23 +364,23 @@ void onTxDone(LoRa* lora_dev, void(*callback)(LoRa*))
     lora_dev->onTxDone = callback;
 
     if (callback) {
-        gpio_set_irq_enabled_with_callback(lora_dev->interrupt_pin , GPIO_IRQ_EDGE_RISE, true, &onDio0Rise);
+        gpio_set_irq_enabled_with_callback(LORA_INTERRUPT_PIN , GPIO_IRQ_EDGE_RISE, true, &onDio0Rise);
     } else {
-        gpio_set_irq_enabled(lora_dev->interrupt_pin , GPIO_IRQ_EDGE_RISE, false);
+        gpio_set_irq_enabled(LORA_INTERRUPT_PIN , GPIO_IRQ_EDGE_RISE, false);
     }
 }
 
-void receive(int size)
+void receive(LoRa* lora_dev, int size)
 {
 
     writeRegister(REG_DIO_MAPPING_1, 0x00); // DIO0 => RXDONE
 
     if (size > 0) {
-        implicitHeaderMode();
+        implicitHeaderMode(lora_dev);
 
         writeRegister(REG_PAYLOAD_LENGTH, size & 0xff);
     } else {
-        explicitHeaderMode();
+        explicitHeaderMode(lora_dev);
     }
 
     writeRegister(REG_OP_MODE, MODE_LONG_RANGE_MODE | MODE_RX_CONTINUOUS);
@@ -565,19 +566,19 @@ void disableCrc()
     writeRegister(REG_MODEM_CONFIG_2, readRegister(REG_MODEM_CONFIG_2) & 0xfb);
 }
 
-void enableInvertIQ(LoRa* lora_dev)
+void enableInvertIQ()
 {
-    writeRegister(lora_dev, REG_INVERTIQ,  0x66);
-    writeRegister(lora_dev, REG_INVERTIQ2, 0x19);
+    writeRegister(REG_INVERTIQ,  0x66);
+    writeRegister(REG_INVERTIQ2, 0x19);
 }
 
-void disableInvertIQ(LoRa* lora_dev)
+void disableInvertIQ()
 {
-    writeRegister(lora_dev, REG_INVERTIQ,  0x27);
-    writeRegister(lora_dev, REG_INVERTIQ2, 0x1d);
+    writeRegister(REG_INVERTIQ,  0x27);
+    writeRegister(REG_INVERTIQ2, 0x1d);
 }
 
-void setOCP(LoRa* lora_dev, uint8_t mA)
+void setOCP(uint8_t mA)
 {
     uint8_t ocpTrim = 27;
 
@@ -587,10 +588,10 @@ void setOCP(LoRa* lora_dev, uint8_t mA)
         ocpTrim = (mA + 30) / 10;
     }
 
-    writeRegister(lora_dev, REG_OCP, 0x20 | (0x1F & ocpTrim));
+    writeRegister(REG_OCP, 0x20 | (0x1F & ocpTrim));
 }
 
-void setGain(LoRa* lora_dev, uint8_t gain)
+void setGain(uint8_t gain)
 {
     // check allowed range
     if (gain > 6) {
@@ -603,22 +604,22 @@ void setGain(LoRa* lora_dev, uint8_t gain)
     // set gain
     if (gain == 0) {
         // if gain = 0, enable AGC
-        writeRegister(lora_dev, REG_MODEM_CONFIG_3, 0x04);
+        writeRegister(REG_MODEM_CONFIG_3, 0x04);
     } else {
         // disable AGC
-        writeRegister(lora_dev, REG_MODEM_CONFIG_3, 0x00);
+        writeRegister(REG_MODEM_CONFIG_3, 0x00);
 
         // clear Gain and set LNA boost
-        writeRegister(lora_dev, REG_LNA, 0x03);
+        writeRegister(REG_LNA, 0x03);
 
         // set gain
-        writeRegister(lora_dev, REG_LNA, readRegister(lora_dev, REG_LNA) | (gain << 5));
+        writeRegister(REG_LNA, readRegister(REG_LNA) | (gain << 5));
     }
 }
 
-uint8_t random(LoRa* lora_dev)
+uint8_t random()
 {
-    return readRegister(lora_dev, REG_RSSI_WIDEBAND);
+    return readRegister(REG_RSSI_WIDEBAND);
 }
 
 void setPins(LoRa* lora_dev, int ss, int reset, int dio0)
@@ -630,12 +631,12 @@ void setPins(LoRa* lora_dev, int ss, int reset, int dio0)
 
 void setSPI(LoRa* lora_dev, spi_inst_t* spi)
 {
-    lora_dev->spi = &spi;
+    lora_dev->spi = spi;
 }
 
 void setSPIFrequency(uint32_t frequency)
 {
-    spi_set_baudrate(SPI_PORT, frequency);
+    spi_set_baudrate(LORA_SPI_PORT, frequency);
 }
 
 
@@ -644,23 +645,23 @@ void explicitHeaderMode(LoRa* lora_dev)
 {
     lora_dev->implicit_header = 0;
 
-    writeRegister(lora_dev, REG_MODEM_CONFIG_1, readRegister(lora_dev, REG_MODEM_CONFIG_1) & 0xfe);
+    writeRegister(REG_MODEM_CONFIG_1, readRegister(REG_MODEM_CONFIG_1) & 0xfe);
 }
 
 void implicitHeaderMode(LoRa* lora_dev)
 {
     lora_dev->implicit_header = 1;
 
-    writeRegister(lora_dev, REG_MODEM_CONFIG_1, readRegister(lora_dev, REG_MODEM_CONFIG_1) | 0x01);
+    writeRegister(REG_MODEM_CONFIG_1, readRegister(REG_MODEM_CONFIG_1) | 0x01);
 }
 
 void handleDio0Rise(LoRa* lora_dev)
 {
-    int irqFlags = readRegister(lora_dev, REG_IRQ_FLAGS);
+    int irqFlags = readRegister(REG_IRQ_FLAGS);
 
     // clear IRQ's
-    writeRegister(lora_dev, REG_IRQ_FLAGS, irqFlags);
-    writeRegister(lora_dev, REG_IRQ_FLAGS, irqFlags);
+    writeRegister(REG_IRQ_FLAGS, irqFlags);
+    writeRegister(REG_IRQ_FLAGS, irqFlags);
 
     if ((irqFlags & IRQ_PAYLOAD_CRC_ERROR_MASK) == 0) {
 
@@ -669,10 +670,10 @@ void handleDio0Rise(LoRa* lora_dev)
             lora_dev->packet_index = 0;
 
             // read packet length
-            int packetLength = lora_dev->implicit_header ? readRegister(lora_dev, REG_PAYLOAD_LENGTH) : readRegister(lora_dev, REG_RX_NB_BYTES);
+            int packetLength = lora_dev->implicit_header ? readRegister(REG_PAYLOAD_LENGTH) : readRegister(REG_RX_NB_BYTES);
 
             // set FIFO address to current RX address
-            writeRegister(lora_dev, REG_FIFO_ADDR_PTR, readRegister(lora_dev, REG_FIFO_RX_CURRENT_ADDR));
+            writeRegister(REG_FIFO_ADDR_PTR, readRegister(REG_FIFO_RX_CURRENT_ADDR));
 
             if (lora_dev->onReceive) {
                 lora_dev->onReceive(lora_dev, packetLength);
@@ -686,33 +687,33 @@ void handleDio0Rise(LoRa* lora_dev)
     }
 }
 
-uint8_t readRegister(LoRa* lora_dev, uint8_t address)
+uint8_t readRegister(uint8_t address)
 {
-    return singleTransfer(lora_dev, address & 0x7f, 0x00);
+    return singleTransfer( address & 0x7f, 0x00);
 }
 
-void writeRegister(LoRa* lora_dev, uint8_t address, uint8_t value)
+void writeRegister(uint8_t address, uint8_t value)
 {
-    singleTransfer(lora_dev, address | 0x80, value);
+    singleTransfer(address | 0x80, value);
 }
 
-uint8_t singleTransfer(LoRa* lora_dev, uint8_t address, uint8_t value)
+uint8_t singleTransfer(uint8_t address, uint8_t value)
 {
     uint8_t response;
 
-    gpio_put(lora_dev->nss_pin, 0);
+    gpio_put(LORA_NSS_PIN, 0);
 
-    spi_write_blocking(SPI_PORT, &address, 1);
-    spi_write_read_blocking(SPI_PORT, &value, &response, 1);
+    spi_write_blocking(LORA_SPI_PORT, &address, 1);
+    spi_write_read_blocking(LORA_SPI_PORT, &value, &response, 1);
 
-    gpio_put(lora_dev->nss_pin, 1);
+    gpio_put(LORA_NSS_PIN, 1);
 
     return response;
 }
 
-void onDio0Rise(LoRa* lora_dev, uint gpio, uint32_t events)
+void onDio0Rise(uint gpio, uint32_t events)
 {
     gpio_acknowledge_irq(gpio, events);
-    handleDio0Rise(lora_dev);
+    handleDio0Rise(&lora_device);
 }
 

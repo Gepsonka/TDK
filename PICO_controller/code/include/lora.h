@@ -10,22 +10,9 @@
 #include "hardware/spi.h"
 #include "string.h"
 
-#define PIN_MISO 16
-#define PIN_CS   8
-#define PIN_SCK  18
-#define PIN_MOSI 19
 
-#define SPI_PORT spi0
-#define READ_BIT 0x80
-
-#define LORA_DEFAULT_SPI           spi0
-#define LORA_DEFAULT_SPI_FREQUENCY 8E6
-#define LORA_DEFAULT_SS_PIN        8
-#define LORA_DEFAULT_RESET_PIN     9
-#define LORA_DEFAULT_DIO0_PIN      7
 
 #define LORA_SPI_PORT spi0
-
 #define LORA_MISO_PIN 16
 #define LORA_MOSI_PIN 19
 #define LORA_SCK_PIN 18
@@ -50,16 +37,11 @@ typedef struct LoRa{
     void (*onTxDone)(LoRa*);
 };
 
-uint8_t lora_init(
-
-        uint8_t nss_pin,
-        uint8_t
-        );
 
 int begin(LoRa* lora_dev, long frequency);
 void end();
 
-int beginPacket(int implicitHeader);
+int beginPacket(LoRa* lora_dev, int implicitHeader);
 int endPacket(LoRa* lora_dev, bool async);
 
 int parsePacket(LoRa* lora_dev, int size);
@@ -72,7 +54,7 @@ int rssi(LoRa* lora_dev);
 void onReceive(LoRa* lora_dev, void(*callback)(LoRa*, int));
 void onTxDone(LoRa* lora_dev, void(*callback)(LoRa*));
 
-void receive(int size);
+void receive(LoRa* lora_dev, int size);
 
 void idle();
 void sleep();
@@ -92,18 +74,14 @@ void setPreambleLength(long length);
 void setSyncWord(int sw);
 void enableCrc();
 void disableCrc();
-void enableInvertIQ(LoRa* lora_dev);
-void disableInvertIQ(LoRa* lora_dev);
+void enableInvertIQ();
+void disableInvertIQ();
 
-void setOCP(LoRa* lora_dev, uint8_t mA); // Over Current Protection control
+void setOCP(uint8_t mA); // Over Current Protection control
 
-void setGain(LoRa* lora_dev, uint8_t gain); // Set LNA gain
+void setGain(uint8_t gain); // Set LNA gain
 
-// deprecated
-void crc() { enableCrc(); }
-void noCrc() { disableCrc(); }
-
-uint8_t random(LoRa* lora_dev);
+uint8_t random();
 
 void setPins(LoRa* lora_dev, int ss, int reset, int dio0);
 void setSPI(LoRa* lora_dev, spi_inst_t* spi);
@@ -122,10 +100,10 @@ long getSignalBandwidth();
 
 void setLdoFlag();
 
-uint8_t readRegister(LoRa* lora_dev, uint8_t address);
-void writeRegister(LoRa* lora_dev, uint8_t address, uint8_t value);
-uint8_t singleTransfer(LoRa* lora_dev, uint8_t address, uint8_t value);
+uint8_t readRegister( uint8_t address);
+void writeRegister( uint8_t address, uint8_t value);
+uint8_t singleTransfer( uint8_t address, uint8_t value);
 
-static void onDio0Rise(LoRa* lora_dev, uint, uint32_t);
+static void onDio0Rise( uint, uint32_t);
 
 #endif
