@@ -36,18 +36,18 @@
 #define PA_OUTPUT_RFO_PIN          0
 #define PA_OUTPUT_PA_BOOST_PIN     1
 
+typedef struct LoRa LoRa;
 
-
-
-typedef struct LoRa {
+typedef struct LoRa{
+    spi_inst_t* spi;
     uint8_t nss_pin;
     uint8_t reset_pin;
     uint8_t interrupt_pin;
     long frequency;
     uint packet_index;
     uint8_t implicit_header;
-    void (*onReceive)(int);
-    void (*onTxDone)();
+    void (*onReceive)(LoRa*, int);
+    void (*onTxDone)(LoRa*);
 };
 
 uint8_t lora_init(
@@ -56,31 +56,35 @@ uint8_t lora_init(
         uint8_t
         );
 
-int begin(long frequency);
+int begin(LoRa* lora_dev, long frequency);
 void end();
 
 int beginPacket(int implicitHeader);
-int endPacket(bool async);
+int endPacket(LoRa* lora_dev, bool async);
 
-int parsePacket(int size);
-int packetRssi();
+int parsePacket(LoRa* lora_dev, int size);
+int packetRssi(LoRa* lora_dev);
 float packetSnr();
-long packetFrequencyError();
+long packetFrequencyError(LoRa* lora_dev);
 
-int rssi();
+int rssi(LoRa* lora_dev);
 
-void onReceive(void(*callback)(int));
-void onTxDone(void(*callback)());
+void onReceive(LoRa* lora_dev, void(*callback)(LoRa*, int));
+void onTxDone(LoRa* lora_dev, void(*callback)(LoRa*));
 
 void receive(int size);
 
 void idle();
 void sleep();
 
+size_t write(const uint8_t *buffer, size_t size);
+int read(LoRa* lora_dev);
+int peek(LoRa* lora_dev);
+
 // size_t print(const char* c);
 
 void setTxPower(int level, int outputPin);
-void setFrequency(long frequency);
+void setFrequency(LoRa* lora_dev, long frequency);
 void setSpreadingFactor(int sf);
 void setSignalBandwidth(long sbw);
 void setCodingRate4(int denominator);
@@ -88,29 +92,29 @@ void setPreambleLength(long length);
 void setSyncWord(int sw);
 void enableCrc();
 void disableCrc();
-void enableInvertIQ();
-void disableInvertIQ();
+void enableInvertIQ(LoRa* lora_dev);
+void disableInvertIQ(LoRa* lora_dev);
 
-void setOCP(uint8_t mA); // Over Current Protection control
+void setOCP(LoRa* lora_dev, uint8_t mA); // Over Current Protection control
 
-void setGain(uint8_t gain); // Set LNA gain
+void setGain(LoRa* lora_dev, uint8_t gain); // Set LNA gain
 
 // deprecated
 void crc() { enableCrc(); }
 void noCrc() { disableCrc(); }
 
-uint8_t random();
+uint8_t random(LoRa* lora_dev);
 
-void setPins(int ss, int reset, int dio0);
-void setSPI(spi_inst_t* spi);
+void setPins(LoRa* lora_dev, int ss, int reset, int dio0);
+void setSPI(LoRa* lora_dev, spi_inst_t* spi);
 void setSPIFrequency(uint32_t frequency);
 
 void dumpRegisters();
 
-void explicitHeaderMode();
-void implicitHeaderMode();
+void explicitHeaderMode(LoRa* lora_dev);
+void implicitHeaderMode(LoRa* lora_dev);
 
-void handleDio0Rise();
+void handleDio0Rise(LoRa* lora_dev);
 bool isTransmitting();
 
 int getSpreadingFactor();
@@ -118,10 +122,10 @@ long getSignalBandwidth();
 
 void setLdoFlag();
 
-uint8_t readRegister(uint8_t address);
-void writeRegister(uint8_t address, uint8_t value);
-uint8_t singleTransfer(uint8_t address, uint8_t value);
+uint8_t readRegister(LoRa* lora_dev, uint8_t address);
+void writeRegister(LoRa* lora_dev, uint8_t address, uint8_t value);
+uint8_t singleTransfer(LoRa* lora_dev, uint8_t address, uint8_t value);
 
-static void onDio0Rise(uint, uint32_t);
+static void onDio0Rise(LoRa* lora_dev, uint, uint32_t);
 
 #endif

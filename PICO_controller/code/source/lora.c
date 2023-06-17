@@ -68,23 +68,23 @@
 
 
 
-int begin(long frequency)
+int begin(LoRa* lora_dev, long frequency)
 {
 
     // setup pins
-    gpio_init(_ss);
-    gpio_set_dir(_ss, GPIO_OUT);
+    gpio_init(lora_dev->nss_pin);
+    gpio_set_dir(lora_dev->nss_pin, GPIO_OUT);
     // set SS high
-    gpio_put(_ss, 1);
+    gpio_put(lora_dev->nss_pin, 1);
 
-    if (_reset != -1) {
-        gpio_init(_reset);
-        gpio_set_dir(_reset, GPIO_OUT);
+    if (lora_dev->reset_pin != -1) {
+        gpio_init(lora_dev->reset_pin);
+        gpio_set_dir(lora_dev->reset_pin, GPIO_OUT);
 
         // perform reset
-        gpio_put(_reset, 0);
+        gpio_put(lora_dev->reset_pin, 0);
         sleep_ms(10);
-        gpio_put(_reset, 1);
+        gpio_put(lora_dev->reset_pin, 1);
         sleep_ms(10);
     }
 
@@ -169,10 +169,10 @@ int beginPacket(int implicitHeader)
     return 1;
 }
 
-int endPacket(bool async)
+int endPacket(LoRa* lora_dev, bool async)
 {
 
-    if ((async) && (_onTxDone))
+    if ((async) && (lora_dev->onTxDone))
         writeRegister(REG_DIO_MAPPING_1, 0x40); // DIO0 => TXDONE
 
     // put in TX mode
@@ -204,7 +204,7 @@ bool isTransmitting()
     return false;
 }
 
-int parsePacket(int size)
+int parsePacket(LoRa* lora_dev, int size)
 {
     int packetLength = 0;
 
@@ -223,10 +223,10 @@ int parsePacket(int size)
 
     if ((irqFlags & IRQ_RX_DONE_MASK) && (irqFlags & IRQ_PAYLOAD_CRC_ERROR_MASK) == 0) {
         // received a packet
-        _packetIndex = 0;
+        lora_dev->packet_index = 0;
 
         // read packet length
-        if (_implicitHeaderMode) {
+        if (lora_dev->implicit_header) {
             packetLength = readRegister(REG_PAYLOAD_LENGTH);
         } else {
             packetLength = readRegister(REG_RX_NB_BYTES);
@@ -250,9 +250,9 @@ int parsePacket(int size)
     return packetLength;
 }
 
-int packetRssi()
+int packetRssi(LoRa* lora_dev)
 {
-    return (readRegister(REG_PKT_RSSI_VALUE) - (_frequency < RF_MID_BAND_THRESHOLD ? RSSI_OFFSET_LF_PORT : RSSI_OFFSET_HF_PORT));
+    return (readRegister(REG_PKT_RSSI_VALUE) - (lora_dev->frequency < RF_MID_BAND_THRESHOLD ? RSSI_OFFSET_LF_PORT : RSSI_OFFSET_HF_PORT));
 }
 
 float packetSnr()
@@ -260,34 +260,34 @@ float packetSnr()
     return ((int8_t)readRegister(REG_PKT_SNR_VALUE)) * 0.25;
 }
 
-long packetFrequencyError()
+long packetFrequencyError(LoRa* lora_dev)
 {
     int32_t freqError = 0;
-    freqError = static_cast<int32_t>(readRegister(REG_FREQ_ERROR_MSB) & 0x111);
+    freqError = readRegister(REG_FREQ_ERROR_MSB) & 0x111;
     freqError <<= 8L;
-    freqError += static_cast<int32_t>(readRegister(REG_FREQ_ERROR_MID));
+    freqError += readRegister(REG_FREQ_ERROR_MID);
     freqError <<= 8L;
-    freqError += static_cast<int32_t>(readRegister(REG_FREQ_ERROR_LSB));
+    freqError += readRegister(REG_FREQ_ERROR_LSB);
 
     if (readRegister(REG_FREQ_ERROR_MSB) & 0x1000) { // Sign bit is on
         freqError -= 524288; // B1000'0000'0000'0000'0000
     }
 
     const float fXtal = 32E6; // FXOSC: crystal oscillator (XTAL) frequency (2.5. Chip Specification, p. 14)
-    const float fError = ((static_cast<float>(freqError) * (1L << 24)) / fXtal) * (getSignalBandwidth() / 500000.0f); // p. 37
+    const float fError = (((float)(freqError) * (1L << 24)) / fXtal) * (getSignalBandwidth() / 500000.0f); // p. 37
 
-    return static_cast<long>(fError);
+    return (long)(fError);
 }
 
-int rssi()
+int rssi(LoRa* lora_dev)
 {
-    return (readRegister(REG_RSSI_VALUE) - (_frequency < RF_MID_BAND_THRESHOLD ? RSSI_OFFSET_LF_PORT : RSSI_OFFSET_HF_PORT));
+    return (readRegister(REG_RSSI_VALUE) - (lora_dev->frequency < RF_MID_BAND_THRESHOLD ? RSSI_OFFSET_LF_PORT : RSSI_OFFSET_HF_PORT));
 }
 
-size_t write(uint8_t byte)
-{
-    return write(&byte, sizeof(byte));
-}
+//size_t write(uint8_t byte)
+//{
+//    return write(&byte, sizeof(byte));
+//}
 
 size_t write(const uint8_t *buffer, size_t size)
 {
@@ -309,25 +309,25 @@ size_t write(const uint8_t *buffer, size_t size)
     return size;
 }
 
-int available()
+int available(LoRa* lora_dev)
 {
-    return (readRegister(REG_RX_NB_BYTES) - _packetIndex);
+    return (readRegister(REG_RX_NB_BYTES) - lora_dev->packet_index);
 }
 
-int read()
+int read(LoRa* lora_dev)
 {
-    if (!available()) {
+    if (!available(lora_dev)) {
         return -1;
     }
 
-    _packetIndex++;
+    lora_dev->packet_index++;
 
     return readRegister(REG_FIFO);
 }
 
-int peek()
+int peek(LoRa* lora_dev)
 {
-    if (!available()) {
+    if (!available(lora_dev)) {
         return -1;
     }
 
@@ -347,25 +347,25 @@ void flush()
 {
 }
 
-void onReceive(void(*callback)(int))
+void onReceive(LoRa* lora_dev, void(*callback)(LoRa*, int))
 {
-    _onReceive = callback;
+    lora_dev->onReceive = callback;
 
     if (callback) {
-        gpio_set_irq_enabled_with_callback(_dio0, GPIO_IRQ_EDGE_RISE, true, &onDio0Rise);
+        gpio_set_irq_enabled_with_callback(lora_dev->interrupt_pin , GPIO_IRQ_EDGE_RISE, true, &onDio0Rise);
     } else {
-        gpio_set_irq_enabled(_dio0, GPIO_IRQ_EDGE_RISE, false);
+        gpio_set_irq_enabled(lora_dev->interrupt_pin , GPIO_IRQ_EDGE_RISE, false);
     }
 }
 
-void onTxDone(void(*callback)())
+void onTxDone(LoRa* lora_dev, void(*callback)(LoRa*))
 {
-    _onTxDone = callback;
+    lora_dev->onTxDone = callback;
 
     if (callback) {
-        gpio_set_irq_enabled_with_callback(_dio0, GPIO_IRQ_EDGE_RISE, true, &onDio0Rise);
+        gpio_set_irq_enabled_with_callback(lora_dev->interrupt_pin , GPIO_IRQ_EDGE_RISE, true, &onDio0Rise);
     } else {
-        gpio_set_irq_enabled(_dio0, GPIO_IRQ_EDGE_RISE, false);
+        gpio_set_irq_enabled(lora_dev->interrupt_pin , GPIO_IRQ_EDGE_RISE, false);
     }
 }
 
@@ -432,9 +432,9 @@ void setTxPower(int level, int outputPin)
     }
 }
 
-void setFrequency(long frequency)
+void setFrequency(LoRa* lora_dev, long frequency)
 {
-    _frequency = frequency;
+    lora_dev->frequency = frequency;
 
     uint64_t frf = ((uint64_t)frequency << 19) / 32000000;
 
@@ -565,19 +565,19 @@ void disableCrc()
     writeRegister(REG_MODEM_CONFIG_2, readRegister(REG_MODEM_CONFIG_2) & 0xfb);
 }
 
-void enableInvertIQ()
+void enableInvertIQ(LoRa* lora_dev)
 {
-    writeRegister(REG_INVERTIQ,  0x66);
-    writeRegister(REG_INVERTIQ2, 0x19);
+    writeRegister(lora_dev, REG_INVERTIQ,  0x66);
+    writeRegister(lora_dev, REG_INVERTIQ2, 0x19);
 }
 
-void disableInvertIQ()
+void disableInvertIQ(LoRa* lora_dev)
 {
-    writeRegister(REG_INVERTIQ,  0x27);
-    writeRegister(REG_INVERTIQ2, 0x1d);
+    writeRegister(lora_dev, REG_INVERTIQ,  0x27);
+    writeRegister(lora_dev, REG_INVERTIQ2, 0x1d);
 }
 
-void setOCP(uint8_t mA)
+void setOCP(LoRa* lora_dev, uint8_t mA)
 {
     uint8_t ocpTrim = 27;
 
@@ -587,10 +587,10 @@ void setOCP(uint8_t mA)
         ocpTrim = (mA + 30) / 10;
     }
 
-    writeRegister(REG_OCP, 0x20 | (0x1F & ocpTrim));
+    writeRegister(lora_dev, REG_OCP, 0x20 | (0x1F & ocpTrim));
 }
 
-void setGain(uint8_t gain)
+void setGain(LoRa* lora_dev, uint8_t gain)
 {
     // check allowed range
     if (gain > 6) {
@@ -603,34 +603,34 @@ void setGain(uint8_t gain)
     // set gain
     if (gain == 0) {
         // if gain = 0, enable AGC
-        writeRegister(REG_MODEM_CONFIG_3, 0x04);
+        writeRegister(lora_dev, REG_MODEM_CONFIG_3, 0x04);
     } else {
         // disable AGC
-        writeRegister(REG_MODEM_CONFIG_3, 0x00);
+        writeRegister(lora_dev, REG_MODEM_CONFIG_3, 0x00);
 
         // clear Gain and set LNA boost
-        writeRegister(REG_LNA, 0x03);
+        writeRegister(lora_dev, REG_LNA, 0x03);
 
         // set gain
-        writeRegister(REG_LNA, readRegister(REG_LNA) | (gain << 5));
+        writeRegister(lora_dev, REG_LNA, readRegister(lora_dev, REG_LNA) | (gain << 5));
     }
 }
 
-uint8_t random()
+uint8_t random(LoRa* lora_dev)
 {
-    return readRegister(REG_RSSI_WIDEBAND);
+    return readRegister(lora_dev, REG_RSSI_WIDEBAND);
 }
 
-void setPins(int ss, int reset, int dio0)
+void setPins(LoRa* lora_dev, int ss, int reset, int dio0)
 {
-    _ss = ss;
-    _reset = reset;
-    _dio0 = dio0;
+    lora_dev->nss_pin = ss;
+    lora_dev->reset_pin = reset;
+    lora_dev->interrupt_pin = dio0;
 }
 
-void setSPI(spi_inst_t& spi)
+void setSPI(LoRa* lora_dev, spi_inst_t* spi)
 {
-_spi = &spi;
+    lora_dev->spi = &spi;
 }
 
 void setSPIFrequency(uint32_t frequency)
@@ -638,87 +638,81 @@ void setSPIFrequency(uint32_t frequency)
     spi_set_baudrate(SPI_PORT, frequency);
 }
 
-void dumpRegisters()
+
+
+void explicitHeaderMode(LoRa* lora_dev)
 {
-    for (int i = 0; i < 128; i++) {
-        printf("0x%x: 0x%x\n",i,readRegister(i));
-    }
+    lora_dev->implicit_header = 0;
+
+    writeRegister(lora_dev, REG_MODEM_CONFIG_1, readRegister(lora_dev, REG_MODEM_CONFIG_1) & 0xfe);
 }
 
-void explicitHeaderMode()
+void implicitHeaderMode(LoRa* lora_dev)
 {
-    _implicitHeaderMode = 0;
+    lora_dev->implicit_header = 1;
 
-    writeRegister(REG_MODEM_CONFIG_1, readRegister(REG_MODEM_CONFIG_1) & 0xfe);
+    writeRegister(lora_dev, REG_MODEM_CONFIG_1, readRegister(lora_dev, REG_MODEM_CONFIG_1) | 0x01);
 }
 
-void implicitHeaderMode()
+void handleDio0Rise(LoRa* lora_dev)
 {
-    _implicitHeaderMode = 1;
-
-    writeRegister(REG_MODEM_CONFIG_1, readRegister(REG_MODEM_CONFIG_1) | 0x01);
-}
-
-void handleDio0Rise()
-{
-    int irqFlags = readRegister(REG_IRQ_FLAGS);
+    int irqFlags = readRegister(lora_dev, REG_IRQ_FLAGS);
 
     // clear IRQ's
-    writeRegister(REG_IRQ_FLAGS, irqFlags);
-    writeRegister(REG_IRQ_FLAGS, irqFlags);
+    writeRegister(lora_dev, REG_IRQ_FLAGS, irqFlags);
+    writeRegister(lora_dev, REG_IRQ_FLAGS, irqFlags);
 
     if ((irqFlags & IRQ_PAYLOAD_CRC_ERROR_MASK) == 0) {
 
         if ((irqFlags & IRQ_RX_DONE_MASK) != 0) {
             // received a packet
-            _packetIndex = 0;
+            lora_dev->packet_index = 0;
 
             // read packet length
-            int packetLength = _implicitHeaderMode ? readRegister(REG_PAYLOAD_LENGTH) : readRegister(REG_RX_NB_BYTES);
+            int packetLength = lora_dev->implicit_header ? readRegister(lora_dev, REG_PAYLOAD_LENGTH) : readRegister(lora_dev, REG_RX_NB_BYTES);
 
             // set FIFO address to current RX address
-            writeRegister(REG_FIFO_ADDR_PTR, readRegister(REG_FIFO_RX_CURRENT_ADDR));
+            writeRegister(lora_dev, REG_FIFO_ADDR_PTR, readRegister(lora_dev, REG_FIFO_RX_CURRENT_ADDR));
 
-            if (_onReceive) {
-                _onReceive(packetLength);
+            if (lora_dev->onReceive) {
+                lora_dev->onReceive(lora_dev, packetLength);
             }
         }
         else if ((irqFlags & IRQ_TX_DONE_MASK) != 0) {
-            if (_onTxDone) {
-                _onTxDone();
+            if (lora_dev->onTxDone) {
+                lora_dev->onTxDone(lora_dev);
             }
         }
     }
 }
 
-uint8_t readRegister(uint8_t address)
+uint8_t readRegister(LoRa* lora_dev, uint8_t address)
 {
-    return singleTransfer(address & 0x7f, 0x00);
+    return singleTransfer(lora_dev, address & 0x7f, 0x00);
 }
 
-void writeRegister(uint8_t address, uint8_t value)
+void writeRegister(LoRa* lora_dev, uint8_t address, uint8_t value)
 {
-    singleTransfer(address | 0x80, value);
+    singleTransfer(lora_dev, address | 0x80, value);
 }
 
-uint8_t singleTransfer(uint8_t address, uint8_t value)
+uint8_t singleTransfer(LoRa* lora_dev, uint8_t address, uint8_t value)
 {
     uint8_t response;
 
-    gpio_put(_ss, 0);
+    gpio_put(lora_dev->nss_pin, 0);
 
     spi_write_blocking(SPI_PORT, &address, 1);
     spi_write_read_blocking(SPI_PORT, &value, &response, 1);
 
-    gpio_put(_ss, 1);
+    gpio_put(lora_dev->nss_pin, 1);
 
     return response;
 }
 
-void onDio0Rise(uint gpio, uint32_t events)
+void onDio0Rise(LoRa* lora_dev, uint gpio, uint32_t events)
 {
     gpio_acknowledge_irq(gpio, events);
-    LoRa.handleDio0Rise();
+    handleDio0Rise(lora_dev);
 }
 
-LoRaClass LoRa;
