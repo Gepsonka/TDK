@@ -106,4 +106,6 @@ uint8_t singleTransfer( uint8_t address, uint8_t value);
 
 static void onDio0Rise( uint, uint32_t);
 
+int lora_rx_read_payload(uint8_t* buffer, uint8_t* packet_size);
+
 #endif

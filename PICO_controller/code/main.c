@@ -8,18 +8,27 @@
 #include "pico/stdlib.h"
 #include "hardware/spi.h"
 #include "lora.h"
+#include "servo.h"
+#include "elevon.h"
+#include "motor.h"
+
+
 
 extern LoRa lora_device;
 
-void lora_on_receive(LoRa* lora_dev, int pakcet_size) {
-    uint8_t asd = read(&lora_device);
-    int csoki = asd;
+void lora_on_receive(LoRa* lora_dev, int packet_size) {
+    uint8_t buff[255];
+    uint8_t size_packet;
+
+    lora_rx_read_payload(buff, &size_packet);
+    for (int i = 0; i < packet_size; i++) {
+        buff[i] = read(lora_dev);
+    }
+    int adsd;
+
 }
 
-void lora_rx_interrupt() {
-    int asd = read(&lora_device);
 
-}
 
 
 int main() {
@@ -32,7 +41,15 @@ int main() {
 
     int8_t res = begin(&lora_device, 437200012);
     onReceive(&lora_device, &lora_on_receive);
+    disableCrc();
+    setSignalBandwidth(500E3);
+    explicitHeaderMode(&lora_device);
+    setCodingRate4(0);
+
     receive(&lora_device, 1);
+
+    elevon_init();
+    motor_init();
 
     while (true) {
 

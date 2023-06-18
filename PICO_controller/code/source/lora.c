@@ -711,9 +711,27 @@ uint8_t singleTransfer(uint8_t address, uint8_t value)
     return response;
 }
 
+uint8_t readBuffer(uint8_t address, uint8_t* buffer, uint16_t length) {
+    gpio_put(LORA_NSS_PIN, 0);
+
+    spi_read_blocking(LORA_SPI_PORT, address, buffer, length);
+
+    gpio_put(LORA_NSS_PIN, 1);
+}
+
 void onDio0Rise(uint gpio, uint32_t events)
 {
     gpio_acknowledge_irq(gpio, events);
     handleDio0Rise(&lora_device);
 }
 
+int lora_rx_read_payload(uint8_t* buffer, uint8_t *packet_size) {
+    uint8_t length;
+
+    length = readRegister(REG_RX_NB_BYTES);
+    *packet_size = length;
+
+    uint8_t current = readRegister(REG_FIFO_RX_CURRENT_ADDR);
+    writeRegister(REG_FIFO_ADDR_PTR, current);
+    return readBuffer(REG_FIFO, buffer, length);
+}
