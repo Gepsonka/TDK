@@ -39,14 +39,14 @@ int main() {
     gpio_pull_down(LORA_INTERRUPT_PIN);
 
 
-    int8_t res = begin(&lora_device, 437200012);
+    begin(&lora_device, 437200012);
     onReceive(&lora_device, &lora_on_receive);
     disableCrc();
     setSignalBandwidth(500E3);
     explicitHeaderMode(&lora_device);
     setCodingRate4(0);
 
-    receive(&lora_device, 1);
+    receive(&lora_device, -1);
 
     elevon_init();
     motor_init();
