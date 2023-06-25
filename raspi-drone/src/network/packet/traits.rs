@@ -12,6 +12,5 @@ pub trait PacketPayload {
 
 
 pub trait Packet {
-    fn construct_packet(array: Vec<u8>) -> Result<dyn Packet,Box(dyn std::error::Error)>;
-    fn deconstruct_packet(&self, array: Vec<u8>) -> Result<Vec<u8>,Box(dyn std::error::Error)>;
+    
 }

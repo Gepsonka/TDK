@@ -49,7 +49,7 @@ impl LoRaPacketHeader {
 impl PacketHeader for LoRaPacketHeader {
     fn calculate_header_crc(&mut self: LoRaPacketHeader) {
         const X25: crc::Crc<u16> = crc::Crc::<u16>::new(&crc::CRC_16_IBM_SDLC);
-        self.header_crc = X25.checksum(self.into()[0..5]);
+        self.header_crc = X25.checksum(&self.into()[0..5]);
     }
 
     fn check_header_crc(&self: LoRaPacketHeader) -> bool {
@@ -71,9 +71,23 @@ impl From<[u8; 7]> for LoRaPacketHeader {
     }
 }
 
-impl Into<[u8; 7]> for LoRaPacketHeader {
-    fn into(&self) -> [u8; 7] {
-        [
+// impl Into<[u8; 7]> for LoRaPacketHeader {
+//     fn into(&self) -> [u8; 7] {
+//         [
+//             self.source_addr,
+//             self.dest_addr,
+//             self.message_packet_num,
+//             self.packet_num,
+//             self.payload_size,
+//             (self.header_crc >> 8) & 0xFF as u8,
+//             self.header_crc & 0xFF as u8
+//         ]
+//     }
+// }
+
+impl Into<Vec<u8>> for LoRaPacketHeader {
+    fn into(self) -> Vec<u8> {
+        vec![
             self.source_addr,
             self.dest_addr,
             self.message_packet_num,
@@ -82,20 +96,6 @@ impl Into<[u8; 7]> for LoRaPacketHeader {
             (self.header_crc >> 8) & 0xFF as u8,
             self.header_crc & 0xFF as u8
         ]
-    }
-}
-
-impl Into<Vec<u8>> for LoRaPacketHeader {
-    fn into(self) -> Vec<u8> {
-        [
-            self.source_addr,
-            self.dest_addr,
-            self.message_packet_num,
-            self.packet_num,
-            self.payload_size,
-            (self.header_crc >> 8) & 0xFF as u8,
-            self.header_crc & 0xFF as u8
-        ].to_vec()
     }
 }
 
@@ -150,6 +150,8 @@ pub struct LoRaPacket {
     payload: LoRaPacketPayload
 }
 
+impl Packet for LoRaPacket {}
+
 impl LoRaPacket {
     pub fn new(header: LoRaPacketHeader, payload: LoRaPacketPayload) -> Self {
         LoRaPacket {
@@ -159,24 +161,38 @@ impl LoRaPacket {
     }
 }
 
+impl LoRaPakcet {
+    pub fn new(packet_header: LoRaPacketHeader, packet_payload: LoRaPacketPayload) -> LoRaPacket {
+        LoRaPacket {
+            header: packet_header,
+            payload: packet_payload
+        }
+    }
+}
+
 
 impl Into<Vec<u8>> for LoRaPacket {
     fn into(self) -> Vec<u8> {
-        todo!()
+        let mut raw_packet: Vec<u8> = self.header.into();
+        raw_packet.append(self.payload.into());
+
+        raw_packet
     }
 }
 
 impl From<Vec<u8>> for LoRaPacket {
-    fn from(value: Vec<u8>) -> Self {
-        todo!()
-    }
-}
+    fn from(value: Vec<u8>) -> Result<LoRaPacket, Box<dyn Error>> {
+        if value.len() > 255 {
+            Err(PacketSizeError)
+        }
+        let header = LoRaPacketHeader::from(value[0..=7].as_mut() as [u8; 7])?;
+        let payload = LoRaPacketPayload::from(value[8..=value.len() - 1].to_vec())?;
 
-
-
-
-impl LoRaPakcet {
-    pub fn new(packet_header: LoRaPacketHeader, packet_payload: LoRaPacketPayload) -> Result<LoRaPakcet, ()> {
-
+        Ok(
+            LoRaPacketHeader (
+                header,
+                payload
+            )
+        )
     }
 }
