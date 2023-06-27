@@ -10,10 +10,10 @@
 
 #define ELEVON_MIN_PULSE_WIDTH 1280
 #define ELEVON_MAX_PULSE_WIDTH 1520
-#define ELEVON_ONE_PERCENT_DUTY 1.2
+#define ELEVON_ONE_PERCENT_DUTY 1.5
 
 typedef enum {
-    LEFT_ELEVON = 26, // representing the connected gpio nums
+    LEFT_ELEVON = 21, // representing the connected gpio nums
     RIGHT_ELEVON = 27
 } Elevon_Number;
 
@@ -23,7 +23,7 @@ float elevon_left_elevon_mix(float pitch_input, float roll_input, float mixing_g
 
 float elevon_right_elevon_mix(float pitch_input, float roll_input, float mixing_gain);
 
-void elevon_set_elevon_by_percentage(Elevon_Number elevon_number, int8_t percentage);
+void elevon_set_elevon_by_percentage(Elevon_Number elevon_number, float percentage);
 
 
 #endif //PICO_CONTROLLER_ELEVON_H

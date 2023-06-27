@@ -18,7 +18,7 @@ float elevon_right_elevon_mix(float pitch_input, float roll_input, float mixing_
     return pitch_input * mixing_gain - roll_input * mixing_gain;
 }
 
-void elevon_set_elevon_by_percentage(Elevon_Number elevon_number,int8_t percentage) {
-    servo_set_millis(elevon_number, SERVO_NEUTRAL_PULSE_WIDTH + (float) percentage * (float) ELEVON_ONE_PERCENT_DUTY);
+void elevon_set_elevon_by_percentage(Elevon_Number elevon_number,float percentage) {
+    servo_set_millis(elevon_number, SERVO_NEUTRAL_PULSE_WIDTH + percentage * (float) ELEVON_ONE_PERCENT_DUTY);
 }
 

@@ -9,6 +9,7 @@
 #include "hardware/gpio.h"
 #include "hardware/spi.h"
 #include "string.h"
+#include "crc.h"
 
 
 
@@ -22,6 +23,42 @@
 
 #define PA_OUTPUT_RFO_PIN          0
 #define PA_OUTPUT_PA_BOOST_PIN     1
+
+#define LORA_PAYLOAD_MAX_SIZE 255
+#define LORA_HEADER_SIZE 7
+
+typedef enum {
+    NETWORK_OK = 0,
+    NETWORK_INVALID_PACKET_SIZE = -1,
+    NETWORK_INVALID_HEADER_CRC = -2,
+    NETWORK_INVALID_PAYLOAD_CRC = -3
+} LoRa_Network_Status;
+
+typedef struct {
+    uint8_t src_device_addr;
+    uint8_t dest_device_addr;
+    uint8_t num_of_packets;
+    uint8_t packet_num;
+    uint8_t payload_size;
+    uint16_t header_crc;
+} LoRa_Packet_Header;
+
+typedef struct {
+    uint8_t payload[LORA_PAYLOAD_MAX_SIZE]; // Lora packet at 128 coding rate is 256 bytes - 7 bytes of header - 2 bytes crc
+    uint16_t payload_crc;
+} LoRa_Packet_Payload;
+
+typedef struct  {
+    LoRa_Packet_Header header;
+    LoRa_Packet_Payload payload;
+
+} LoRa_Packet;
+
+
+int8_t lora_parse_packet(LoRa_Packet* lora_packet, const uint8_t* buff, size_t packet_size);
+
+
+// Low level functionality
 
 typedef struct LoRa LoRa;
 
@@ -106,6 +143,9 @@ uint8_t singleTransfer( uint8_t address, uint8_t value);
 
 static void onDio0Rise( uint, uint32_t);
 
-int lora_rx_read_payload(uint8_t* buffer, uint8_t* packet_size);
+int lora_rx_read_payload(LoRa* lora_dev, uint8_t* buffer, uint8_t packet_size);
+int lora_set_syncword(uint8_t value);
+int lora_set_preamble_length(uint16_t value);
+
 
 #endif

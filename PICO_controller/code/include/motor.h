@@ -7,6 +7,7 @@
 
 #include "servo.h"
 #include "pico/stdlib.h"
+#include "hardware/pwm.h"
 
 #define MOTOR_MAX_DUTY 2400
 #define MOTOR_MIN_DUTY 400

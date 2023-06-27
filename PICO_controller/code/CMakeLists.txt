@@ -1,6 +1,6 @@
 add_executable(main
         main.c
-        include/network.h source/network.c include/lora.h source/lora.c include/servo.h source/servo.c include/motor.h source/motor.c source/elevon.c include/elevon.h)
+        include/network.h source/network.c include/lora.h source/lora.c include/servo.h source/servo.c include/motor.h source/motor.c source/elevon.c include/elevon.h include/crc.h source/crc.c)
 
 target_include_directories(main PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}/include

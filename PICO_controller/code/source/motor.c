@@ -7,8 +7,8 @@
 
 
 void motor_init() {
-    servo_init_servo(MOTOR_PIN, MOTOR_MIN_DUTY);
-    sleep_ms(2000);
+    servo_init_servo(MOTOR_PIN, 1000);
+    sleep_ms(3000);
 }
 
 void motor_set_speed_by_percentage(uint8_t percentage) {

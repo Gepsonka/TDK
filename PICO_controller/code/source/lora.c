@@ -67,6 +67,35 @@
 
 LoRa lora_device;
 
+int8_t lora_parse_packet(LoRa_Packet* lora_packet, const uint8_t* buff, size_t packet_size) {
+    if (packet_size < LORA_HEADER_SIZE){
+        return NETWORK_INVALID_PACKET_SIZE;
+    }
+
+    lora_packet->header.src_device_addr = buff[0];
+    lora_packet->header.dest_device_addr = buff[1];
+    lora_packet->header.num_of_packets = buff[2];
+    lora_packet->header.packet_num = buff[3];
+    lora_packet->header.payload_size = buff[4];
+    lora_packet->header.header_crc = (uint16_t) buff[5] << 8 | buff[6];
+
+    // copy buff payload into lora_packet payload
+    memcpy(lora_packet->payload.payload, buff + 7, lora_packet->header.payload_size);
+
+//    if (crc16_ccitt(&buff[0], 5) != lora_packet->header.header_crc) {
+//        return NETWORK_INVALID_HEADER_CRC;
+//    }
+//
+//    if (crc16_ccitt(&buff[7], lora_packet->header.payload_size) != lora_packet->payload.payload_crc) {
+//        return NETWORK_INVALID_PAYLOAD_CRC;
+//    }
+
+    return NETWORK_OK;
+}
+
+
+
+// Low level functionality
 
 int begin(LoRa* lora_dev, long frequency)
 {
@@ -714,7 +743,8 @@ uint8_t singleTransfer(uint8_t address, uint8_t value)
 uint8_t readBuffer(uint8_t address, uint8_t* buffer, uint16_t length) {
     gpio_put(LORA_NSS_PIN, 0);
 
-    spi_read_blocking(LORA_SPI_PORT, address, buffer, length);
+    spi_write_blocking(LORA_SPI_PORT, &address, 1);
+    spi_read_blocking(LORA_SPI_PORT, 0, buffer, length);
 
     gpio_put(LORA_NSS_PIN, 1);
 }
@@ -725,13 +755,20 @@ void onDio0Rise(uint gpio, uint32_t events)
     handleDio0Rise(&lora_device);
 }
 
-int lora_rx_read_payload(uint8_t* buffer, uint8_t *packet_size) {
-    uint8_t length;
+int lora_rx_read_payload(LoRa* lora_dev, uint8_t* buffer, uint8_t packet_size) {
+    readBuffer(REG_FIFO, buffer, packet_size);
 
-    length = readRegister(REG_RX_NB_BYTES);
-    *packet_size = length;
+    return 0;
+}
 
-    uint8_t current = readRegister(REG_FIFO_RX_CURRENT_ADDR);
-    writeRegister(REG_FIFO_ADDR_PTR, current);
-    return readBuffer(REG_FIFO, buffer, length);
+
+int lora_set_syncword(uint8_t value) {
+    writeRegister(REG_SYNC_WORD, value);
+    return 1;
+}
+
+int lora_set_preamble_length(uint16_t value) {
+    writeRegister(REG_PREAMBLE_MSB, (uint8_t)(value >> 8));
+    writeRegister(REG_PREAMBLE_MSB, (uint8_t)(value >> 0));
+    return 1;
 }
