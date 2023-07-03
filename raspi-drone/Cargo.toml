@@ -8,5 +8,5 @@ edition = "2021"
 [dependencies]
 
 crc = "3.0.1"
-rppal = "0.14.1"
-aes = "0.8.3"
+aes-gcm = "0.10.2"
+x448 = "0.6.0"
