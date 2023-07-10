@@ -10,7 +10,7 @@
 
 #define ELEVON_MIN_PULSE_WIDTH 1280
 #define ELEVON_MAX_PULSE_WIDTH 1520
-#define ELEVON_ONE_PERCENT_DUTY 1.5
+#define ELEVON_ONE_PERCENT_DUTY 2.5f
 
 typedef enum {
     LEFT_ELEVON = 21, // representing the connected gpio nums
