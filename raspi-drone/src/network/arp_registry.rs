@@ -11,7 +11,7 @@ pub trait InitializationVectorContainer<NonceSize>
     where NonceSize: ArrayLength<u8> + Clone + Copy + Eq + Hash
 {
     fn delete_expired_ivs(&mut self);
-    fn add_iv(&mut self, iv: InitializationVector<NonceSize>);
+    fn add_iv(&mut self, iv: &mut InitializationVector<NonceSize>);
     fn check_if_iv_is_used(&self, iv: &Nonce<NonceSize>) -> bool;
 }
 
@@ -95,11 +95,11 @@ impl<NonceSize> InitializationVectorContainer<NonceSize> for AESInitializationVe
         }
     }
 
-    fn add_iv(&mut self, iv: InitializationVector<NonceSize>) {
-        self.initialization_vectors.insert(iv.iv, iv.clone());
+    fn add_iv(&mut self, iv: &mut InitializationVector<NonceSize>) {
+        self.initialization_vectors.insert(iv.iv.clone(), iv.clone());
     }
 
-    fn check_if_iv_is_used(&self, iv: &Nonce<NonceSize>) -> bool{
+    fn check_if_iv_is_used(&self, iv: &Nonce<NonceSize>) -> bool {
         self.initialization_vectors.contains_key(iv)
     }
 }

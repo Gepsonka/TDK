@@ -85,14 +85,14 @@ pub trait Packet {
 }
 
 
-#[derive(Debug, Default, Copy, Clone)]
+#[derive(Debug, Default, Copy, Clone, PartialEq, Eq)]
 pub struct LoRaPacketHeader {
-    source_addr: u8,
-    dest_addr: u8,
-    message_packet_num: u8,
-    packet_num: u8,
-    payload_size: u8,
-    header_crc: u16
+    pub source_addr: u8,
+    pub dest_addr: u8,
+    pub message_packet_num: u8,
+    pub packet_num: u8,
+    pub payload_size: u8,
+    pub header_crc: u16
 }
 
 impl LoRaPacketHeader {
@@ -122,14 +122,14 @@ impl PacketHeader for LoRaPacketHeader {
     fn calculate_header_crc(&mut self) {
         let header: Vec<u8> = self.into();
 
-        const X25: crc::Crc<u16> = crc::Crc::<u16>::new(&crc::CRC_16_IBM_SDLC);
+        const X25: crc::Crc<u16> = crc::Crc::<u16>::new(&crc::CRC_16_KERMIT);
         self.header_crc = X25.checksum(&header.as_slice()[0..=4]);
     }
 
     fn check_header_crc(&self) -> bool {
         let header: Vec<u8> = self.into();
 
-        const X25: crc::Crc<u16> = crc::Crc::<u16>::new(&crc::CRC_16_IBM_SDLC);
+        const X25: crc::Crc<u16> = crc::Crc::<u16>::new(&crc::CRC_16_KERMIT);
         X25.checksum( &header.as_slice()[0..=4]) == self.header_crc
     }
 }
@@ -213,10 +213,10 @@ impl Into<Vec<u8>> for &mut LoRaPacketHeader {
     }
 }
 
-#[derive(Debug, Default, Clone)]
-struct LoRaPacketPayload {
-    payload_crc: u16,
-    payload: Vec<u8>,
+#[derive(Debug, Default, Clone, PartialEq, Eq)]
+pub struct LoRaPacketPayload {
+    pub payload_crc: u16,
+    pub payload: Vec<u8>,
 
 }
 
@@ -241,7 +241,7 @@ impl TryFrom<Vec<u8>> for LoRaPacketPayload {
         if value.len() > MAX_PAYLOAD_SIZE {
             Err(PacketSizeError::new(value.len()))
         } else {
-            let payload_crc = ((value[0] << 8) | value[1]) as u16;
+            let payload_crc = ((value[0] as u16) << 8) | value[1] as u16;
             let payload = value[2..value.len()].to_vec();
 
             Ok(LoRaPacketPayload {
@@ -265,6 +265,7 @@ impl Into<Vec<u8>> for LoRaPacketPayload {
     }
 }
 
+#[derive(Debug, Default, Clone, PartialEq, Eq)]
 pub struct LoRaPacket {
     header: LoRaPacketHeader,
     payload: LoRaPacketPayload
