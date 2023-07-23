@@ -1,5 +1,7 @@
 use std::error::Error;
 use std::fmt::{Display, Formatter};
+use aes_gcm::aead::generic_array::ArrayLength;
+use aes_gcm::{Key, KeySizeUser};
 
 /// max num of bytes in a LoRa packetdep
 pub const MAX_PACKET_SIZE: usize = 255;
@@ -80,6 +82,13 @@ pub trait PacketPayload {
 }
 
 
+pub trait PacketEncrypt<KeySize>
+where KeySize: KeySizeUser
+{
+    fn encrypt_payload(&mut self, key: Key<KeySize>) -> Result<(), Box<dyn std::error::Error>>;
+    fn decrypt_payload(&mut self, key: Key<KeySize>) -> Result<(), Box<dyn std::error::Error>>;
+}
+
 pub trait Packet {
 
 }
@@ -140,7 +149,7 @@ impl TryFrom<Vec<u8>> for LoRaPacketHeader {
 
     fn try_from(value: Vec<u8>) -> Result<Self, Self::Error> {
         if value.len() != HEADER_SIZE {
-            Err(PacketSizeError::new(value.len()))
+            Err(Self::Error::new(value.len()))
         } else {
             Ok(LoRaPacketHeader {
                 source_addr: value[0],
@@ -234,9 +243,9 @@ impl LoRaPacketPayload {
 }
 
 impl TryFrom<Vec<u8>> for LoRaPacketPayload {
-    /// First two bytes of @value must be the crc then comes the payload
-    type Error = PacketSizeError;
 
+    type Error = PacketSizeError;
+    /// First two bytes of @value must be the crc then comes the payload
     fn try_from(value: Vec<u8>) -> Result<Self, Self::Error> {
         if value.len() > MAX_PAYLOAD_SIZE {
             Err(PacketSizeError::new(value.len()))

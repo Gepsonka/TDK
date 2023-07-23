@@ -7,6 +7,10 @@ edition = "2021"
 
 [dependencies]
 
+log = "0.4.19"
+env_logger = "0.10.0"
 crc = "3.0.1"
 aes-gcm = "0.10.2"
 x448 = "0.6.0"
+rppal = { version = "0.14.1", features = ["hal"] }
+

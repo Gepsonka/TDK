@@ -2,7 +2,7 @@ use std::collections::{BTreeMap, LinkedList};
 use std::hash::Hash;
 use std::time::{Duration, SystemTime};
 use aes_gcm::aes::cipher::ArrayLength;
-use aes_gcm::{AeadCore, Aes128Gcm, KeySizeUser, Nonce};
+use aes_gcm::{AeadCore, Aes128Gcm, Key, KeySizeUser, Nonce};
 use aes_gcm::aead::OsRng;
 use crate::network::packet::Packet;
 
@@ -15,16 +15,10 @@ pub trait InitializationVectorContainer<NonceSize>
     fn check_if_iv_is_used(&self, iv: &Nonce<NonceSize>) -> bool;
 }
 
-pub trait ArpRegistry<SecretKey>
-    where SecretKey: KeySizeUser{
-    fn set_addr(&mut self, addr: u8);
-    fn set_secret_key(&mut self, secret_key: SecretKey);
-    fn set_device_status(&mut self, device_status: DeviceStatus);
-    fn set_iv_expiration_duration(&mut self, duration: Duration);
-}
 
 
-#[derive(Debug, Clone, PartialEq)]
+
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub enum DeviceStatus {
     KeyExchangeInitiated,
 }
@@ -64,10 +58,7 @@ impl <NonceSize> PartialEq<Self> for InitializationVector<NonceSize>
     }
 }
 
-
-
-
-#[derive(Debug)]
+#[derive(Debug, Clone, Hash)]
 pub struct AESInitializationVectorContainer<NonceSize>
     where NonceSize: ArrayLength<u8> + Clone + Copy + Eq + Hash
 {
@@ -104,31 +95,31 @@ impl<NonceSize> InitializationVectorContainer<NonceSize> for AESInitializationVe
     }
 }
 
-#[derive(Debug)]
-pub struct LoRaArpRegistry<PacketT, SecretKey, NonceSize>
+#[derive(Debug, Clone)]
+pub struct ArpRegistry<PacketT, KeySize, NonceSize>
     where PacketT: Packet + Into<Vec<u8>> + From<Vec<u8>>,
-          SecretKey: KeySizeUser,
+          KeySize: KeySizeUser,
           NonceSize: ArrayLength<u8> + Clone + Copy + Eq + Hash
 {
     address: u8,
-    device_status: DeviceStatus,
-    secret_key: Option<SecretKey>,
+    pub(crate) device_status: DeviceStatus,
+    pub(crate) secret_key: Option<Key<KeySize>>,
     packet_rx_vec: LinkedList<PacketT>,
     packet_tx_vec: LinkedList<PacketT>,
-    rx_message: Vec<u8>,
+    pub(crate) rx_message: Vec<u8>,
     tx_message: Vec<u8>,
     used_ivs: AESInitializationVectorContainer<NonceSize>,
     iv_expiration_duration: Option<Duration>
 }
 
 
-impl <PacketT, SecretKey, NonceSize> LoRaArpRegistry<PacketT, SecretKey, NonceSize>
+impl <PacketT, KeySize, NonceSize> ArpRegistry<PacketT, KeySize, NonceSize>
     where PacketT: Packet + Into<Vec<u8>> + From<Vec<u8>>,
-          SecretKey: KeySizeUser,
+          KeySize: KeySizeUser,
           NonceSize: ArrayLength<u8> + Clone + Copy + Eq + Hash
 {
     pub fn new(address: u8, device_status: DeviceStatus) -> Self {
-        LoRaArpRegistry {
+        ArpRegistry {
             address,
             device_status,
             secret_key: None,
@@ -140,18 +131,12 @@ impl <PacketT, SecretKey, NonceSize> LoRaArpRegistry<PacketT, SecretKey, NonceSi
             iv_expiration_duration: None
         }
     }
-}
 
-impl <PacketT, SecretKey, NonceSize> ArpRegistry<SecretKey> for LoRaArpRegistry<PacketT, SecretKey, NonceSize>
-    where PacketT: Packet + Into<Vec<u8>> + From<Vec<u8>>,
-          SecretKey: KeySizeUser,
-          NonceSize: ArrayLength<u8> + Clone + Copy + Eq + Hash
-{
     fn set_addr(&mut self, addr: u8) {
         self.address = addr;
     }
 
-    fn set_secret_key(&mut self, secret_key: SecretKey) {
+    fn set_secret_key(&mut self, secret_key: Key<KeySize>) {
         self.secret_key = Some(secret_key);
     }
 
@@ -163,6 +148,8 @@ impl <PacketT, SecretKey, NonceSize> ArpRegistry<SecretKey> for LoRaArpRegistry<
         self.iv_expiration_duration = Some(duration);
     }
 }
+
+
 
 
 
