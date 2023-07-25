@@ -3,7 +3,7 @@ use std::fmt::{Display, Formatter};
 use aes_gcm::aead::generic_array::ArrayLength;
 use aes_gcm::{Key, KeySizeUser};
 
-/// max num of bytes in a LoRa packetdep
+/// max num of bytes in a LoRa packet
 pub const MAX_PACKET_SIZE: usize = 255;
 pub const HEADER_SIZE: usize = 7;
 /// MAX_PACKET_SIZE - header - payload crc size
@@ -89,15 +89,12 @@ where KeySize: KeySizeUser
     fn decrypt_payload(&mut self, key: Key<KeySize>) -> Result<(), Box<dyn std::error::Error>>;
 }
 
-pub trait Packet {
-
-}
 
 
 #[derive(Debug, Default, Copy, Clone, PartialEq, Eq)]
 pub struct LoRaPacketHeader {
     pub source_addr: u8,
-    pub dest_addr: u8,
+    pub destination_addr: u8,
     pub message_packet_num: u8,
     pub packet_num: u8,
     pub payload_size: u8,
@@ -117,7 +114,7 @@ impl LoRaPacketHeader {
         } else {
             Ok(LoRaPacketHeader {
                 source_addr,
-                dest_addr,
+                destination_addr: dest_addr,
                 message_packet_num,
                 packet_num,
                 payload_size,
@@ -153,7 +150,7 @@ impl TryFrom<Vec<u8>> for LoRaPacketHeader {
         } else {
             Ok(LoRaPacketHeader {
                 source_addr: value[0],
-                dest_addr: value[1],
+                destination_addr: value[1],
                 message_packet_num: value[2],
                 packet_num: value[3],
                 payload_size: value[4],
@@ -170,7 +167,7 @@ impl Into<[u8; 7]> for LoRaPacketHeader {
     fn into(self) -> [u8; 7] {
         [
             self.source_addr,
-            self.dest_addr,
+            self.destination_addr,
             self.message_packet_num,
             self.packet_num,
             self.payload_size,
@@ -184,7 +181,7 @@ impl Into<Vec<u8>> for LoRaPacketHeader {
     fn into(self) -> Vec<u8> {
         vec![
             self.source_addr,
-            self.dest_addr,
+            self.destination_addr,
             self.message_packet_num,
             self.packet_num,
             self.payload_size,
@@ -198,7 +195,7 @@ impl Into<Vec<u8>> for &LoRaPacketHeader {
     fn into(self) -> Vec<u8> {
         vec![
             self.source_addr,
-            self.dest_addr,
+            self.destination_addr,
             self.message_packet_num,
             self.packet_num,
             self.payload_size,
@@ -212,7 +209,7 @@ impl Into<Vec<u8>> for &mut LoRaPacketHeader {
     fn into(self) -> Vec<u8> {
         vec![
             self.source_addr,
-            self.dest_addr,
+            self.destination_addr,
             self.message_packet_num,
             self.packet_num,
             self.payload_size,
@@ -263,6 +260,7 @@ impl TryFrom<Vec<u8>> for LoRaPacketPayload {
 }
 
 
+
 impl Into<Vec<u8>> for LoRaPacketPayload {
     fn into(mut self) -> Vec<u8> {
         let mut payload_vec: Vec<u8> = vec![((self.payload_crc >> 8) & 0xFF) as u8,
@@ -280,8 +278,6 @@ pub struct LoRaPacket {
     payload: LoRaPacketPayload
 }
 
-impl Packet for LoRaPacket {}
-
 impl LoRaPacket {
     pub fn new(header: LoRaPacketHeader, payload: LoRaPacketPayload) -> Self {
         LoRaPacket {
@@ -290,7 +286,6 @@ impl LoRaPacket {
         }
     }
 }
-
 
 
 impl Into<Vec<u8>> for LoRaPacket {
@@ -315,3 +310,5 @@ impl TryFrom<Vec<u8>> for LoRaPacket {
         })
     }
 }
+
+

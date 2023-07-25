@@ -3,6 +3,7 @@ use rppal::spi::{Bus, Mode, Segment, SlaveSelect, Spi};
 use log::{debug, info, warn};
 use std::{thread, time};
 use std::error::Error;
+use aes_gcm::Nonce;
 
 #[allow(dead_code)]
 pub const REG_FIFO: u8 = 0x00;
@@ -163,8 +164,39 @@ pub const SX127x_FSTEP: f32 = (SX127x_OSCILLATOR_FREQUENCY / (1 << 19) as f32);
 pub const SX127x_REG_MODEM_CONFIG_3_AGC_ON: u8 = 0b00000100;
 pub const SX127x_REG_MODEM_CONFIG_3_AGC_OFF: u8 = 0b00000000;
 
+pub const SX127x_IRQ_FLAG_RXTIMEOUT: u8 = 0b10000000                      ;
+pub const SX127x_IRQ_FLAG_RXDONE: u8 =  0b01000000                         ;
+pub const SX127x_IRQ_FLAG_PAYLOAD_CRC_ERROR: u8 =  0b00100000               ;
+pub const SX127x_IRQ_FLAG_VALID_HEADER: u8 =  0b00010000                     ;
+pub const SX127x_IRQ_FLAG_TXDONE: u8 =  0b00001000                            ;
+pub const SX127x_IRQ_FLAG_CADDONE: u8 =  0b00000100                            ;
+pub const SX127x_IRQ_FLAG_FHSSCHANGECHANNEL: u8 =  0b00000010                   ;
+pub const SX127x_IRQ_FLAG_CAD_DETECTED: u8 =  0b00000001                         ;
+
+pub const SX127X_FSK_IRQ_FIFO_FULL: u8 =  0b10000000                              ;
+pub const SX127X_FSK_IRQ_FIFO_EMPTY: u8 =  0b01000000                              ;
+pub const SX127X_FSK_IRQ_FIFO_LEVEL: u8 =  0b00100000                               ;
+pub const SX127X_FSK_IRQ_FIFO_OVERRUN: u8 =  0b00010000                              ;
+pub const SX127X_FSK_IRQ_PACKET_SENT: u8 =  0b00001000                                ;
+pub const SX127X_FSK_IRQ_PAYLOAD_READY: u8 =  0b00000100                               ;
+pub const SX127X_FSK_IRQ_CRC_OK: u8 =  0b00000010                                       ;
+pub const SX127X_FSK_IRQ_LOW_BATTERY: u8 =  0b00000001                                   ;
+pub const SX127X_FSK_IRQ_PREAMBLE_DETECT: u8 =  0b00000010                                ;
+pub const SX127X_FSK_IRQ_SYNC_ADDRESS_MATCH: u8 =  0b00000001                              ;
+
 pub const FIFO_TX_BASE_ADDR: u8 = 0b00000000;
 pub const FIFO_RX_BASE_ADDR: u8 = 0b00000000;
+
+pub const RF_MID_BAND_THRESHOLD: u32 =  525000000    ;
+pub const RSSI_OFFSET_HF_PORT: u8 =  157             ;
+pub const RSSI_OFFSET_LF_PORT: u8 =  164              ;
+
+pub const SX127x_MAX_POWER: u8 =  0b01110000           ;
+pub const SX127x_LOW_POWER: u8 =  0b00000000            ;
+
+pub const SX127x_HIGH_POWER_ON: u8 =  0b10000111         ;
+pub const SX127x_HIGH_POWER_OFF: u8 =  0b10000100         ;
+
 
 
 #[allow(dead_code)]
@@ -225,32 +257,33 @@ pub enum HeaderMode {
 #[allow(dead_code)]
 pub struct LoRa {
     spi: Spi,
-    interrupt_pin: InputPin,
     reset_pin: OutputPin,
     header_mode: HeaderMode,
     frequency: u64,
     opmod: Option<OperationMode>,
     spread_factor: Option<SpreadFactor>,
-    rx_callback: fn(),
+    rx_callback: fn(Vec<u8>),
     tx_callback: fn(),
+    waiting_for_tx: bool,
 
 }
 
 impl LoRa {
-    pub fn new(spi: Spi, interrupt_pin: InputPin, reset_pin: OutputPin, header_mode: HeaderMode, frequency: u64, rx_callback: fn(), tx_callback: fn()) -> Result<Self, Box<dyn Error>> {
+    pub fn new(spi: Spi, reset_pin: OutputPin, header_mode: HeaderMode, frequency: u64, rx_callback: fn(Vec<u8>), tx_callback: fn()) -> Result<Self, Box<dyn Error>> {
         let mut lora = LoRa {
             spi,
-            interrupt_pin,
             reset_pin,
             header_mode,
             opmod: None,
             spread_factor: None,
             frequency,
             rx_callback,
-            tx_callback
+            tx_callback,
+            waiting_for_tx: false
         };
 
-        lora.interrupt_pin.set_interrupt(Trigger::RisingEdge)?;
+
+
 
         Ok(lora)
     }
@@ -279,9 +312,7 @@ impl LoRa {
     pub fn append_register(&mut self, register: u8, value: u8, mask: u8) -> Result<(), Box<dyn std::error::Error>> {
         let mut prev: [u8; 1] = [0];
         self.read_register(register, &mut prev)?;
-        debug!("Previous register value: {:#b}", prev[0]);
         let mut data: [u8; 1] = [((prev[0] & mask) | value)];
-        debug!("New register value: {:#b}", data[0]);
         self.write_register(register, &data)?;
 
         Ok(())
@@ -339,11 +370,13 @@ impl LoRa {
         ];
         self.write_register(REG_FRF_MSB, &data)?;
         self.frequency = freq;
+        info!("Frequency set to: {}", freq);
         Ok(())
     }
 
     pub fn reload_low_datarate_optimalization(&mut self) -> Result<(), Box<dyn std::error::Error>> {
         let mut bandwidth: [u32; 1] = [self.get_bandwidth()?];
+        bandwidth[0] = self.get_bandwidth()?;
         let mut spreading_factor: [u8; 1] = [0];
         self.read_register(REG_MODEM_CONFIG_2, &mut spreading_factor)?;
         spreading_factor[0] = spreading_factor[0] >> 4;
@@ -371,7 +404,6 @@ impl LoRa {
     pub fn get_bandwidth(&mut self) -> Result<u32, Box<dyn std::error::Error>> {
         let mut buff: [u8; 1] = [0];
         self.read_register(REG_MODEM_CONFIG_1, &mut buff)?;
-        println!("{:#b}", buff[0]);
         buff[0] = buff[0] >> 4;
         let bw = match buff[0] {
             0b0000 => 7800,
@@ -384,7 +416,7 @@ impl LoRa {
             0b0111 => 125000,
             0b1000 => 250000,
             0b1001 => 500000,
-            _ => 0
+            _ => Err("Invalid bandwidth")?
         };
 
         Ok(bw)
@@ -393,6 +425,7 @@ impl LoRa {
     pub fn set_bandwidth(&mut self, bandwidth: Bandwidth) -> Result<(), Box<dyn std::error::Error>> {
         self.append_register(REG_MODEM_CONFIG_1, bandwidth as u8, 0b00001111)?;
         self.reload_low_datarate_optimalization()?;
+        info!("LoRa bandwidth set to: {}", bandwidth as u32);
         Ok(())
     }
 
@@ -441,12 +474,14 @@ impl LoRa {
         self.append_register(REG_MODEM_CONFIG_2, sf as u8, 0b00001111)?;
         self.reload_low_datarate_optimalization()?;
         self.spread_factor = Some(sf);
+        info!("Spread factor set to: {}", sf as u8);
 
         Ok(())
     }
 
     pub fn set_syncword(&mut self, value: u8) -> Result<(), Box<dyn std::error::Error>> {
         self.write_register(REG_SYNC_WORD, &[value])?;
+        info!("Syncword set to: {:x}", value);
         Ok(())
     }
 
@@ -456,13 +491,117 @@ impl LoRa {
             (value & 0xff) as u8
         ];
         self.write_register(REG_PREAMBLE_MSB, &data)?;
+        info!("Preamble length set to: {}", value);
         Ok(())
+    }
+
+    pub fn get_packet_rssi(&mut self) -> Result<i16, Box<dyn std::error::Error>> {
+        let mut buff: [u8; 1] = [0];
+        let mut rssi: i16;
+        self.read_register(REG_PKT_RSSI_VALUE, &mut buff)?;
+        if self.frequency < RF_MID_BAND_THRESHOLD as u64 {
+            rssi = (buff[0] - RSSI_OFFSET_LF_PORT as u8) as i16;
+        } else {
+            rssi = (buff[0] - RSSI_OFFSET_HF_PORT as u8) as i16;
+        }
+
+        let mut snr = self.get_packet_snr();
+        match snr {
+            Ok(snr) => {
+                Ok((rssi + (snr as i16)))
+            },
+            Err(_) => Ok(0)
+        }
+    }
+
+    pub fn get_packet_snr(&mut self) -> Result<f32, Box<dyn std::error::Error>> {
+        let mut buff: [u8; 1] = [0];
+        let mut snr: f32;
+        self.read_register(REG_PKT_SNR_VALUE, &mut buff)?;
+        snr = buff[0] as f32 * 0.25f32;
+
+        Ok(snr)
+    }
+
+    pub fn get_frequency_error(&mut self) -> Result<i32, Box<dyn std::error::Error>> {
+        let mut result: i32;
+        let mut buff: [u8; 3] = [0; 3];
+        self.read_register(REG_FREQ_ERROR_MSB, &mut buff)?;
+        let mut freq_error: i32 = ((buff[0] as i32) << 16) | ((buff[1] as i32) << 8) | (buff[2] as i32);
+        let mut bandwidth: u32 = self.get_bandwidth()?;
+        if freq_error & 0x80000 != 0 {
+            freq_error = (!(freq_error) + 1) & 0xfffff;
+            result = -1;
+        } else {
+            result = 1;
+        }
+
+        Ok(result * (freq_error as f32 * SX127x_FREQ_ERROR_FACTOR * bandwidth as f32 / 500000.0f32) as i32)
     }
 
 
 
-    pub fn read_payload(&mut self, buff: &mut [u8]) -> Result<(), Box<dyn std::error::Error>> {
-        self.read_register(REG_FIFO, buff)?;
+    pub fn read_payload(&mut self, buff: &mut [u8]) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
+        let mut length: [u8; 1] = [0];
+        self.read_register(REG_RX_NB_BYTES, &mut length)?;
+
+        let mut current_addr: [u8; 1] = [0];
+        self.read_register(REG_FIFO_RX_CURRENT_ADDR, &mut current_addr)?;
+        self.write_register(REG_FIFO_ADDR_PTR, &[current_addr[0]])?;
+        let mut payload_buff: Vec<u8> = vec![0; length[0] as usize];
+        self.read_register(REG_FIFO, &mut payload_buff)?;
+
+        Ok(payload_buff)
+    }
+
+    pub fn handle_interrupt(&mut self) -> Result<(), Box<dyn std::error::Error>> {
+        let mut irq_flags: [u8; 1] = [0];
+        self.read_register(REG_IRQ_FLAGS, &mut irq_flags)?;
+        self.write_register(REG_IRQ_FLAGS, &irq_flags)?;
+        if irq_flags[0] & SX127x_IRQ_FLAG_CADDONE != 0 {
+            todo!("CAD done");
+        }
+        if irq_flags[0] & SX127x_IRQ_FLAG_PAYLOAD_CRC_ERROR != 0 {
+            todo!("Payload CRC error");
+        }
+
+        if irq_flags[0] & SX127x_IRQ_FLAG_RXDONE != 0 {
+            let payload: Vec<u8> = self.read_payload(&mut [0; 255])?;
+            (self.rx_callback)(payload);
+        }
+
+        if irq_flags[0] & SX127x_IRQ_FLAG_TXDONE != 0 {
+            self.waiting_for_tx = false;
+            (self.tx_callback)();
+        }
+
         Ok(())
     }
+
+    // Must immediately followed by a set_opmod call to start the transmission
+    pub fn set_for_transmission(&mut self, data: &[u8]) -> Result<(), Box<dyn Error>> {
+        if data.len() == 0 {
+            Err("Data length must be greater than 0")?;
+        }
+
+        if data.len() > 255 {
+            Err("Data length must be less than 255")?;
+        }
+
+        self.write_register(REG_FIFO_ADDR_PTR, &[FIFO_TX_BASE_ADDR])?;
+        self.write_register(REG_PAYLOAD_LENGTH, &[data.len() as u8])?;
+        self.write_register(REG_FIFO, data)?;
+
+        self.waiting_for_tx = true;
+        Ok(())
+    }
+
+    pub fn set_ppm_offset(&mut self, freq_err: i32) -> Result<(), Box<dyn Error>> {
+        let value: u8 = (0.95f32 * (freq_err as f32 / (self.frequency as f32 / 1E6f32))) as u8;
+        self.write_register(REG_FREQ_ERROR_LSB, &[value])?;
+
+        Ok(())
+    }
+
+
 }

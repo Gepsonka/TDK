@@ -4,7 +4,8 @@ use std::time::{Duration, SystemTime};
 use aes_gcm::aes::cipher::ArrayLength;
 use aes_gcm::{AeadCore, Aes128Gcm, Key, KeySizeUser, Nonce};
 use aes_gcm::aead::OsRng;
-use crate::network::packet::Packet;
+use crate::network::lora::LoRa;
+use crate::network::packet::{LoRaPacket};
 
 
 pub trait InitializationVectorContainer<NonceSize>
@@ -97,25 +98,25 @@ impl<NonceSize> InitializationVectorContainer<NonceSize> for AESInitializationVe
 
 #[derive(Debug, Clone)]
 pub struct ArpRegistry<PacketT, KeySize, NonceSize>
-    where PacketT: Packet + Into<Vec<u8>> + From<Vec<u8>>,
+    where PacketT: Into<Vec<u8>> + TryFrom<Vec<u8>>,
           KeySize: KeySizeUser,
           NonceSize: ArrayLength<u8> + Clone + Copy + Eq + Hash
 {
     address: u8,
     pub(crate) device_status: DeviceStatus,
     pub(crate) secret_key: Option<Key<KeySize>>,
-    packet_rx_vec: LinkedList<PacketT>,
-    packet_tx_vec: LinkedList<PacketT>,
+    packet_rx_vec: Vec<PacketT>,
+    packet_tx_vec: Vec<PacketT>,
     pub(crate) rx_message: Vec<u8>,
     tx_message: Vec<u8>,
+    faulty_packages: Vec<u8>,
     used_ivs: AESInitializationVectorContainer<NonceSize>,
     iv_expiration_duration: Option<Duration>
 }
 
 
-impl <PacketT, KeySize, NonceSize> ArpRegistry<PacketT, KeySize, NonceSize>
-    where PacketT: Packet + Into<Vec<u8>> + From<Vec<u8>>,
-          KeySize: KeySizeUser,
+impl <KeySize, NonceSize> ArpRegistry<LoRaPacket, KeySize, NonceSize>
+    where KeySize: KeySizeUser,
           NonceSize: ArrayLength<u8> + Clone + Copy + Eq + Hash
 {
     pub fn new(address: u8, device_status: DeviceStatus) -> Self {
@@ -123,12 +124,13 @@ impl <PacketT, KeySize, NonceSize> ArpRegistry<PacketT, KeySize, NonceSize>
             address,
             device_status,
             secret_key: None,
-            packet_rx_vec: LinkedList::new(),
-            packet_tx_vec: LinkedList::new(),
+            packet_rx_vec: Vec::new(),
+            packet_tx_vec: Vec::new(),
             rx_message: Vec::new(),
             tx_message: Vec::new(),
+            faulty_packages: Vec::new(),
             used_ivs: AESInitializationVectorContainer::new(),
-            iv_expiration_duration: None
+            iv_expiration_duration: Some(Duration::from_secs(5))
         }
     }
 
