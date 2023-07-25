@@ -13,7 +13,7 @@ use crate::network::queue::Queue;
 
 pub struct ReceiveQueue<PacketT, KeySize, NonceSize>
 where PacketT: Into<PacketT> + TryFrom<PacketT>,
-      KeySize: KeySizeUser,
+      KeySize: KeySizeUser + InnerUser
       NonceSize: ArrayLength<u8> + Clone + Copy + Eq + Hash
 {
     queue: Vec<PacketT>,
@@ -31,7 +31,7 @@ where KeySize: KeySizeUser + InnerUser,
 
     pub fn packet_dispatch_thread(
         queue: &mut Self,
-        arp_table: Arc<Mutex<ArpTable<LoRaPacket, KeySize, NonceSize>>>,
+        arp_table: Arc<Mutex<ArpTable<u8, LoRaPacket, KeySize, NonceSize>>>,
         blacklist: Arc<Mutex<BlackList<u8>>>,
     ) {
         let mut arp_table = Arc::clone(&arp_table);

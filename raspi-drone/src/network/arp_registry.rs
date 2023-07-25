@@ -98,7 +98,7 @@ impl<NonceSize> InitializationVectorContainer<NonceSize> for AESInitializationVe
 
 #[derive(Debug, Clone)]
 pub struct ArpRegistry<PacketT, KeySize, NonceSize>
-    where PacketT: Into<Vec<u8>> + TryFrom<Vec<u8>>,
+    where PacketT: Into<PacketT> + TryFrom<PacketT>,
           KeySize: KeySizeUser,
           NonceSize: ArrayLength<u8> + Clone + Copy + Eq + Hash
 {

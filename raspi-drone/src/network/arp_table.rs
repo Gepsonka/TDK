@@ -6,16 +6,16 @@ use aes_gcm::aead::OsRng;
 use crate::network::arp_registry::{ArpRegistry, DeviceStatus};
 use crate::network::packet::{LoRaPacket};
 
-pub struct ArpTable<PacketT, KeySize, NonceSize>
+pub struct ArpTable<AddressSize, PacketT, KeySize, NonceSize>
 where PacketT: Into<PacketT> + TryFrom<PacketT>,
       KeySize: KeySizeUser,
       NonceSize: ArrayLength<u8> + Clone + Copy + Eq + Hash
 {
-    pub arp_table: HashMap<u8, ArpRegistry<PacketT, KeySize, NonceSize>>
+    pub arp_table: HashMap<AddressSize, ArpRegistry<PacketT, KeySize, NonceSize>>
 }
 
 
-impl <KeySize, NonceSize> ArpTable<LoRaPacket, KeySize, NonceSize>
+impl <AddressSize,KeySize, NonceSize> ArpTable<AddressSize, LoRaPacket, KeySize, NonceSize>
     where KeySize: KeySizeUser,
           NonceSize: ArrayLength<u8> + Clone + Copy + Eq + Hash
 {
