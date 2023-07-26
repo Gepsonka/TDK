@@ -4,24 +4,22 @@ use std::sync::{Arc, Mutex};
 use std::thread;
 use aes_gcm::aead::generic_array::ArrayLength;
 use aes_gcm::aes::cipher::crypto_common::InnerUser;
-use aes_gcm::KeySizeUser;
+use aes_gcm::{AeadCore, Aes128Gcm, Key, KeySizeUser, Nonce};
+use aes_gcm::aead::consts::U12;
+use aes_gcm::aes::Aes128;
 use log::debug;
 use crate::network::arp_table::ArpTable;
 use crate::network::blacklist::BlackList;
 use crate::network::packet::{LoRaPacket};
 use crate::network::queue::Queue;
 
-pub struct ReceiveQueue<PacketT, KeySize, NonceSize>
+pub struct ReceiveQueue<PacketT>
 where PacketT: Into<PacketT> + TryFrom<PacketT>,
-      KeySize: KeySizeUser + InnerUser
-      NonceSize: ArrayLength<u8> + Clone + Copy + Eq + Hash
 {
     queue: Vec<PacketT>,
 }
 
-impl <KeySize, NonceSize> ReceiveQueue<LoRaPacket, KeySize, NonceSize>
-where KeySize: KeySizeUser + InnerUser,
-      NonceSize: ArrayLength<u8> + Clone + Copy + Eq + Hash
+impl ReceiveQueue<LoRaPacket>
 {
     pub fn new() -> Self {
         ReceiveQueue {
@@ -31,7 +29,7 @@ where KeySize: KeySizeUser + InnerUser,
 
     pub fn packet_dispatch_thread(
         queue: &mut Self,
-        arp_table: Arc<Mutex<ArpTable<u8, LoRaPacket, KeySize, NonceSize>>>,
+        arp_table: Arc<Mutex<ArpTable<u8, LoRaPacket, Key<Aes128>, Nonce<U12>>>>,
         blacklist: Arc<Mutex<BlackList<u8>>>,
     ) {
         let mut arp_table = Arc::clone(&arp_table);
@@ -61,7 +59,9 @@ where KeySize: KeySizeUser + InnerUser,
     }
 }
 
-impl <PacketT, KeySize, NonceSize> Queue<PacketT> for ReceiveQueue<PacketT, KeySize, NonceSize> {
+impl <PacketT> Queue<PacketT> for ReceiveQueue<PacketT>
+where PacketT: Into<PacketT> + TryFrom<PacketT>,
+{
     fn get_top_item(&mut self) -> Option<PacketT> {
         self.queue.front().clone()
     }

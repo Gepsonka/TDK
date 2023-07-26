@@ -1,23 +1,22 @@
 use std::collections::HashMap;
 use std::hash::Hash;
+
+use aes_gcm::{Aes128Gcm, Aes256Gcm, AesGcm, Key, KeyInit, KeySizeUser};
+use aes_gcm::aead::consts::U12;
 use aes_gcm::aead::generic_array::ArrayLength;
-use aes_gcm::{Aes256Gcm, Key, KeyInit, KeySizeUser};
 use aes_gcm::aead::OsRng;
+use aes_gcm::aes::Aes128;
 use crate::network::arp_registry::{ArpRegistry, DeviceStatus};
 use crate::network::packet::{LoRaPacket};
 
 pub struct ArpTable<AddressSize, PacketT, KeySize, NonceSize>
-where PacketT: Into<PacketT> + TryFrom<PacketT>,
-      KeySize: KeySizeUser,
-      NonceSize: ArrayLength<u8> + Clone + Copy + Eq + Hash
+    where KeySize: ArrayLength<u8> + 'static
 {
     pub arp_table: HashMap<AddressSize, ArpRegistry<PacketT, KeySize, NonceSize>>
 }
 
 
-impl <AddressSize,KeySize, NonceSize> ArpTable<AddressSize, LoRaPacket, KeySize, NonceSize>
-    where KeySize: KeySizeUser,
-          NonceSize: ArrayLength<u8> + Clone + Copy + Eq + Hash
+impl ArpTable<u8, LoRaPacket, AesGcm<Aes128, U12>, AesGcm<Aes128, U12>>
 {
     pub fn new() -> Self {
         ArpTable {
@@ -33,7 +32,7 @@ impl <AddressSize,KeySize, NonceSize> ArpTable<AddressSize, LoRaPacket, KeySize,
         self.arp_table.remove(&address);
     }
 
-    pub fn get_device(&mut self, address: u8) -> Option<&mut ArpRegistry<LoRaPacket, KeySize, NonceSize>> {
+    pub fn get_device(&mut self, address: u8) -> Option<&mut ArpRegistry<LoRaPacket, AesGcm<Aes128, U12>, AesGcm<Aes128, U12>>> {
         self.arp_table.get_mut(&address)
     }
 
@@ -44,7 +43,7 @@ impl <AddressSize,KeySize, NonceSize> ArpTable<AddressSize, LoRaPacket, KeySize,
         }
     }
 
-    pub fn get_device_secret_key(&mut self, address: u8) -> Option<Key<KeySize>> {
+    pub fn get_device_secret_key(&mut self, address: u8) -> Option<Key<AesGcm<Aes128, U12>>> {
         let curr_device;
         match self.arp_table.get(&address) {
             Some(device) => curr_device = device,

@@ -7,7 +7,7 @@ pub struct BlackList<AddressSize> {
 
 
 impl <AddressSize> BlackList<AddressSize>
-    where AddressSize: PartialEq  + Add
+    where AddressSize: PartialEq + Add
 {
 
     pub fn new() -> Self {
@@ -17,11 +17,12 @@ impl <AddressSize> BlackList<AddressSize>
     }
 
     pub fn add_to_blacklist(&mut self, address: AddressSize) {
-        self.blacklist.push_back(address);
+        self.blacklist.push(address);
     }
 
     pub fn remove_from_blacklist(&mut self, address: AddressSize) {
-        self.blacklist.remove(address);
+        let index = self.blacklist.iter().position(|x| *x == address).unwrap();
+        self.blacklist.remove(index);
     }
 
     pub fn is_blacklisted(&self, address: AddressSize) -> bool {

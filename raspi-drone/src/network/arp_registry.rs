@@ -1,19 +1,20 @@
 use std::collections::{BTreeMap, LinkedList};
 use std::hash::Hash;
 use std::time::{Duration, SystemTime};
-use aes_gcm::aes::cipher::ArrayLength;
 use aes_gcm::{AeadCore, Aes128Gcm, Key, KeySizeUser, Nonce};
+use aes_gcm::aead::consts::U12;
+use aes_gcm::aead::generic_array::ArrayLength;
 use aes_gcm::aead::OsRng;
-use crate::network::lora::LoRa;
 use crate::network::packet::{LoRaPacket};
 
 
-pub trait InitializationVectorContainer<NonceSize>
-    where NonceSize: ArrayLength<u8> + Clone + Copy + Eq + Hash
+pub trait InitializationVectorContainer
 {
+    type NonceSize: ArrayLength<u8>;
+
     fn delete_expired_ivs(&mut self);
-    fn add_iv(&mut self, iv: &mut InitializationVector<NonceSize>);
-    fn check_if_iv_is_used(&self, iv: &Nonce<NonceSize>) -> bool;
+    fn add_iv(&mut self, iv: &mut InitializationVector<Self::NonceSize>);
+    fn check_if_iv_is_used(&self, iv: &InitializationVector<Self::NonceSize>) -> bool;
 }
 
 
@@ -26,7 +27,7 @@ pub enum DeviceStatus {
 
 #[derive(Debug, Clone, Hash)]
 pub struct InitializationVector<NonceSize>
-    where NonceSize: ArrayLength<u8> + Clone + Copy + Eq + Hash
+where NonceSize: ArrayLength<u8>
 {
     iv: Nonce<NonceSize>,
     expiration_duration: Duration,
@@ -35,7 +36,7 @@ pub struct InitializationVector<NonceSize>
 
 
 impl <NonceSize> InitializationVector<NonceSize>
-    where NonceSize: ArrayLength<u8> + Clone + Copy + Eq + Hash
+where NonceSize: ArrayLength<u8>
 {
     pub fn new(iv: Nonce<NonceSize>, expiration: Duration, creation_time: SystemTime) -> Self {
         let nonce = Aes128Gcm::generate_nonce(&mut OsRng);
@@ -52,7 +53,7 @@ impl <NonceSize> InitializationVector<NonceSize>
 }
 
 impl <NonceSize> PartialEq<Self> for InitializationVector<NonceSize>
-    where NonceSize: ArrayLength<u8> + Clone + Copy + Eq + Hash
+where NonceSize: ArrayLength<u8>
 {
     fn eq(&self, other: &Self) -> bool {
         self.iv == other.iv
@@ -61,13 +62,13 @@ impl <NonceSize> PartialEq<Self> for InitializationVector<NonceSize>
 
 #[derive(Debug, Clone, Hash)]
 pub struct AESInitializationVectorContainer<NonceSize>
-    where NonceSize: ArrayLength<u8> + Clone + Copy + Eq + Hash
+where NonceSize: ArrayLength<u8>
 {
     initialization_vectors: BTreeMap<Nonce<NonceSize>, InitializationVector<NonceSize>>
 }
 
 impl <NonceSize> AESInitializationVectorContainer<NonceSize>
-    where NonceSize: ArrayLength<u8> + Clone + Copy + Eq + Hash
+where NonceSize: ArrayLength<u8>
 {
     pub fn new() -> Self {
         AESInitializationVectorContainer {
@@ -76,9 +77,11 @@ impl <NonceSize> AESInitializationVectorContainer<NonceSize>
     }
 }
 
-impl<NonceSize> InitializationVectorContainer<NonceSize> for AESInitializationVectorContainer<NonceSize>
-    where NonceSize: ArrayLength<u8> + Clone + Copy + Eq + Hash,
+impl<NonceSize> InitializationVectorContainer for AESInitializationVectorContainer<NonceSize>
+where NonceSize: ArrayLength<u8>
 {
+    type NonceSize = NonceSize;
+
     fn delete_expired_ivs(&mut self) {
         for (key, val) in self.initialization_vectors.clone().into_iter() {
             if val.creation_time.elapsed().unwrap() > val.expiration_duration {
@@ -91,16 +94,15 @@ impl<NonceSize> InitializationVectorContainer<NonceSize> for AESInitializationVe
         self.initialization_vectors.insert(iv.iv.clone(), iv.clone());
     }
 
-    fn check_if_iv_is_used(&self, iv: &Nonce<NonceSize>) -> bool {
+    fn check_if_iv_is_used(&self, iv: &InitializationVector<NonceSize>) -> bool {
         self.initialization_vectors.contains_key(iv)
     }
 }
 
 #[derive(Debug, Clone)]
 pub struct ArpRegistry<PacketT, KeySize, NonceSize>
-    where PacketT: Into<PacketT> + TryFrom<PacketT>,
-          KeySize: KeySizeUser,
-          NonceSize: ArrayLength<u8> + Clone + Copy + Eq + Hash
+    where KeySize: KeySizeUser,
+    NonceSize: ArrayLength<u8>
 {
     address: u8,
     pub(crate) device_status: DeviceStatus,
@@ -116,8 +118,8 @@ pub struct ArpRegistry<PacketT, KeySize, NonceSize>
 
 
 impl <KeySize, NonceSize> ArpRegistry<LoRaPacket, KeySize, NonceSize>
-    where KeySize: KeySizeUser,
-          NonceSize: ArrayLength<u8> + Clone + Copy + Eq + Hash
+where KeySize: KeySizeUser,
+NonceSize: ArrayLength<u8>
 {
     pub fn new(address: u8, device_status: DeviceStatus) -> Self {
         ArpRegistry {

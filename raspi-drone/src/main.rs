@@ -62,8 +62,8 @@ fn main() {
 
         loop {
             int_pin.poll_interrupt(true, None).unwrap();
-            let mut lora_device = lora.lock().unwrap();
-            *lora_device.handle_interrupt();
+            let mut lora_thr = lora.lock().unwrap();
+            (*lora_thr).handle_interrupt().unwrap();
         }
     });
 
