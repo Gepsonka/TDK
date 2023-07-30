@@ -274,7 +274,7 @@ impl Into<Vec<u8>> for LoRaPacketPayload {
 
 #[derive(Debug, Default, Clone, PartialEq, Eq)]
 pub struct LoRaPacket {
-    header: LoRaPacketHeader,
+    pub(crate) header: LoRaPacketHeader,
     payload: LoRaPacketPayload
 }
 

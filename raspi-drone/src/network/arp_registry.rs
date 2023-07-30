@@ -1,11 +1,12 @@
-use std::collections::{BTreeMap, LinkedList};
+use std::collections::{BTreeMap};
 use std::hash::Hash;
 use std::time::{Duration, SystemTime};
 use aes_gcm::{AeadCore, Aes128Gcm, Key, KeySizeUser, Nonce};
-use aes_gcm::aead::consts::U12;
 use aes_gcm::aead::generic_array::ArrayLength;
 use aes_gcm::aead::OsRng;
 use crate::network::packet::{LoRaPacket};
+use std::marker::PhantomData;
+use aes_gcm::aes::cipher::crypto_common::InnerUser;
 
 
 pub trait InitializationVectorContainer
@@ -101,8 +102,8 @@ where NonceSize: ArrayLength<u8>
 
 #[derive(Debug, Clone)]
 pub struct ArpRegistry<PacketT, KeySize, NonceSize>
-    where KeySize: KeySizeUser,
-    NonceSize: ArrayLength<u8>
+where KeySize: KeySizeUser,
+NonceSize: ArrayLength<u8>,
 {
     address: u8,
     pub(crate) device_status: DeviceStatus,
@@ -119,7 +120,7 @@ pub struct ArpRegistry<PacketT, KeySize, NonceSize>
 
 impl <KeySize, NonceSize> ArpRegistry<LoRaPacket, KeySize, NonceSize>
 where KeySize: KeySizeUser,
-NonceSize: ArrayLength<u8>
+NonceSize: ArrayLength<u8>,
 {
     pub fn new(address: u8, device_status: DeviceStatus) -> Self {
         ArpRegistry {

@@ -1,11 +1,10 @@
-use std::collections::LinkedList;
+use std::collections::VecDeque;
 use std::hash::Hash;
 use std::sync::{Arc, Mutex};
 use std::thread;
-use aes_gcm::aead::generic_array::ArrayLength;
-use aes_gcm::aes::cipher::crypto_common::InnerUser;
-use aes_gcm::{AeadCore, Aes128Gcm, Key, KeySizeUser, Nonce};
+use aes_gcm::{Aes256Gcm, AesGcm, Key, KeyInit, Nonce};
 use aes_gcm::aead::consts::U12;
+use aes_gcm::aead::OsRng;
 use aes_gcm::aes::Aes128;
 use log::debug;
 use crate::network::arp_table::ArpTable;
@@ -16,25 +15,25 @@ use crate::network::queue::Queue;
 pub struct ReceiveQueue<PacketT>
 where PacketT: Into<PacketT> + TryFrom<PacketT>,
 {
-    queue: Vec<PacketT>,
+    queue: VecDeque<PacketT>,
 }
 
 impl ReceiveQueue<LoRaPacket>
 {
     pub fn new() -> Self {
         ReceiveQueue {
-            queue: Vec::new()
+            queue: VecDeque::new()
         }
     }
 
     pub fn packet_dispatch_thread(
         queue: &mut Self,
-        arp_table: Arc<Mutex<ArpTable<u8, LoRaPacket, Key<Aes128>, Nonce<U12>>>>,
+        arp_table: Arc<Mutex<ArpTable<u8, LoRaPacket, AesGcm<Aes128, U12>, U12>>>,
         blacklist: Arc<Mutex<BlackList<u8>>>,
     ) {
         let mut arp_table = Arc::clone(&arp_table);
         let blacklist = Arc::clone(&blacklist);
-
+        let key = Aes256Gcm::generate_key(OsRng);
         let packet_dispatch_thread_handle = thread::spawn(move || {
             loop {
                 if !queue.is_empty() {
@@ -45,7 +44,8 @@ impl ReceiveQueue<LoRaPacket>
                         continue;
                     }
 
-                    match arp_table.get_device(packet.source_address) {
+                    let mut arp_table = arp_table.lock().unwrap();
+                    match arp_table.get_device(packet.header.source_addr) {
                         Some(device) => {
                             device.packet_received(packet);
                         },
@@ -62,8 +62,8 @@ impl ReceiveQueue<LoRaPacket>
 impl <PacketT> Queue<PacketT> for ReceiveQueue<PacketT>
 where PacketT: Into<PacketT> + TryFrom<PacketT>,
 {
-    fn get_top_item(&mut self) -> Option<PacketT> {
-        self.queue.front().clone()
+    fn get_top_item(&mut self) -> Option<&PacketT> {
+        self.queue.front()
     }
 
     fn pop(&mut self) -> Option<PacketT> {

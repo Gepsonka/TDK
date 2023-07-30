@@ -1,22 +1,26 @@
 use std::collections::HashMap;
 use std::hash::Hash;
 
-use aes_gcm::{Aes128Gcm, Aes256Gcm, AesGcm, Key, KeyInit, KeySizeUser};
+use aes_gcm::{AesGcm, Key, KeyInit, KeySizeUser};
 use aes_gcm::aead::consts::U12;
 use aes_gcm::aead::generic_array::ArrayLength;
-use aes_gcm::aead::OsRng;
 use aes_gcm::aes::Aes128;
+use aes_gcm::aes::cipher::crypto_common::InnerUser;
 use crate::network::arp_registry::{ArpRegistry, DeviceStatus};
 use crate::network::packet::{LoRaPacket};
 
 pub struct ArpTable<AddressSize, PacketT, KeySize, NonceSize>
-    where KeySize: ArrayLength<u8> + 'static
+    where KeySize: KeySizeUser,
+            NonceSize: ArrayLength<u8>,
+            AddressSize: Hash + Eq + Copy + Into<u8> + From<u8>,
 {
     pub arp_table: HashMap<AddressSize, ArpRegistry<PacketT, KeySize, NonceSize>>
 }
 
 
-impl ArpTable<u8, LoRaPacket, AesGcm<Aes128, U12>, AesGcm<Aes128, U12>>
+impl <KeySize, NonceSize> ArpTable<u8, LoRaPacket, KeySize, NonceSize>
+    where KeySize: KeySizeUser,
+          NonceSize: ArrayLength<u8>,
 {
     pub fn new() -> Self {
         ArpTable {
@@ -32,7 +36,7 @@ impl ArpTable<u8, LoRaPacket, AesGcm<Aes128, U12>, AesGcm<Aes128, U12>>
         self.arp_table.remove(&address);
     }
 
-    pub fn get_device(&mut self, address: u8) -> Option<&mut ArpRegistry<LoRaPacket, AesGcm<Aes128, U12>, AesGcm<Aes128, U12>>> {
+    pub fn get_device(&mut self, address: u8) -> Option<&mut ArpRegistry<LoRaPacket, KeySize, NonceSize>> {
         self.arp_table.get_mut(&address)
     }
 
@@ -43,7 +47,7 @@ impl ArpTable<u8, LoRaPacket, AesGcm<Aes128, U12>, AesGcm<Aes128, U12>>
         }
     }
 
-    pub fn get_device_secret_key(&mut self, address: u8) -> Option<Key<AesGcm<Aes128, U12>>> {
+    pub fn get_device_secret_key(&mut self, address: u8) -> Option<Key<KeySize>> {
         let curr_device;
         match self.arp_table.get(&address) {
             Some(device) => curr_device = device,
@@ -51,7 +55,7 @@ impl ArpTable<u8, LoRaPacket, AesGcm<Aes128, U12>, AesGcm<Aes128, U12>>
         };
 
         match &curr_device.secret_key {
-            Some(secret_key) => Some(secret_key.clone()),
+            Some(secret_key) => Some(secret_key),
             None => None
         }
     }
