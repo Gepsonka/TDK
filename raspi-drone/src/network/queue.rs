@@ -9,3 +9,13 @@ pub trait Queue<PacketT>
 }
 
 
+pub trait QueueTx<PacketT>
+{
+    fn send(&mut self, packet: PacketT) -> Result<(), ()>;
+}
+
+
+pub trait QueueRx<PacketT>
+{
+    fn receive(&mut self) -> Option<PacketT>;
+}

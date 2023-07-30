@@ -1,10 +1,10 @@
-use std::collections::{BTreeMap};
+use std::collections::BTreeMap;
 use std::hash::Hash;
 use std::time::{Duration, SystemTime};
 use aes_gcm::{AeadCore, Aes128Gcm, Key, KeySizeUser, Nonce};
 use aes_gcm::aead::generic_array::ArrayLength;
 use aes_gcm::aead::OsRng;
-use crate::network::packet::{LoRaPacket};
+use crate::network::packet::LoRaPacket;
 use std::marker::PhantomData;
 use aes_gcm::aes::cipher::crypto_common::InnerUser;
 
@@ -83,6 +83,7 @@ where NonceSize: ArrayLength<u8>
 {
     type NonceSize = NonceSize;
 
+    /// Deletes all expired initialization vectors
     fn delete_expired_ivs(&mut self) {
         for (key, val) in self.initialization_vectors.clone().into_iter() {
             if val.creation_time.elapsed().unwrap() > val.expiration_duration {
@@ -108,11 +109,11 @@ NonceSize: ArrayLength<u8>,
     address: u8,
     pub(crate) device_status: DeviceStatus,
     pub(crate) secret_key: Option<Key<KeySize>>,
-    packet_rx_vec: Vec<PacketT>,
+    pub(crate) packet_rx_vec: Vec<PacketT>,
     packet_tx_vec: Vec<PacketT>,
     pub(crate) rx_message: Vec<u8>,
     tx_message: Vec<u8>,
-    faulty_packages: Vec<u8>,
+    faulty_packets: Vec<u8>,
     used_ivs: AESInitializationVectorContainer<NonceSize>,
     iv_expiration_duration: Option<Duration>
 }
@@ -131,7 +132,7 @@ NonceSize: ArrayLength<u8>,
             packet_tx_vec: Vec::new(),
             rx_message: Vec::new(),
             tx_message: Vec::new(),
-            faulty_packages: Vec::new(),
+            faulty_packets: Vec::new(),
             used_ivs: AESInitializationVectorContainer::new(),
             iv_expiration_duration: Some(Duration::from_secs(5))
         }

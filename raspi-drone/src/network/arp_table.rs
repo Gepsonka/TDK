@@ -1,11 +1,7 @@
 use std::collections::HashMap;
 use std::hash::Hash;
-
-use aes_gcm::{AesGcm, Key, KeyInit, KeySizeUser};
-use aes_gcm::aead::consts::U12;
+use aes_gcm::{ Key, KeyInit, KeySizeUser};
 use aes_gcm::aead::generic_array::ArrayLength;
-use aes_gcm::aes::Aes128;
-use aes_gcm::aes::cipher::crypto_common::InnerUser;
 use crate::network::arp_registry::{ArpRegistry, DeviceStatus};
 use crate::network::packet::{LoRaPacket};
 
@@ -55,7 +51,7 @@ impl <KeySize, NonceSize> ArpTable<u8, LoRaPacket, KeySize, NonceSize>
         };
 
         match &curr_device.secret_key {
-            Some(secret_key) => Some(secret_key),
+            Some(secret_key) => Some(secret_key.clone()),
             None => None
         }
     }

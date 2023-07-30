@@ -9,11 +9,11 @@ use aes_gcm::aes::Aes128;
 use log::debug;
 use crate::network::arp_table::ArpTable;
 use crate::network::blacklist::BlackList;
-use crate::network::packet::{LoRaPacket};
+use crate::network::packet::LoRaPacket;
 use crate::network::queue::Queue;
 
 pub struct ReceiveQueue<PacketT>
-where PacketT: Into<PacketT> + TryFrom<PacketT>,
+where PacketT: Into<PacketT> + TryFrom<PacketT> + Clone,
 {
     queue: VecDeque<PacketT>,
 }
@@ -39,7 +39,7 @@ impl ReceiveQueue<LoRaPacket>
                 if !queue.is_empty() {
                     let packet = queue.pop().unwrap();
                     let blacklist = blacklist.lock().unwrap();
-                    if *blacklist.is_blacklisted(packet.get_source_address()) {
+                    if blacklist.is_blacklisted(packet.header.source_addr) {
                         debug!("Received packet from blacklisted device!");
                         continue;
                     }
@@ -47,7 +47,7 @@ impl ReceiveQueue<LoRaPacket>
                     let mut arp_table = arp_table.lock().unwrap();
                     match arp_table.get_device(packet.header.source_addr) {
                         Some(device) => {
-                            device.packet_received(packet);
+                            device.packet_rx_vec.push(packet);
                         },
                         None => {
                             println!("Received packet from unknown device!");
@@ -60,10 +60,10 @@ impl ReceiveQueue<LoRaPacket>
 }
 
 impl <PacketT> Queue<PacketT> for ReceiveQueue<PacketT>
-where PacketT: Into<PacketT> + TryFrom<PacketT>,
+where PacketT: Into<PacketT> + TryFrom<PacketT> + Clone,
 {
-    fn get_top_item(&mut self) -> Option<&PacketT> {
-        self.queue.front()
+    fn get_top_item(&mut self) -> Option<PacketT> {
+        self.queue.front().cloned()
     }
 
     fn pop(&mut self) -> Option<PacketT> {
