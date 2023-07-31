@@ -70,15 +70,20 @@ impl Error for CRCError {}
 
 
 
-
+/// Every network communication is done via packets.
+/// This trait defines the basic functionality of a packet header
+/// reqiuired for the network communication of drones.
+/// Each packet must have a header and payload CRC to ensure data integrity,
+/// since every packet is sent through a wireless medium.
 pub trait PacketHeader {
     fn calculate_header_crc(&mut self);
     fn check_header_crc(&self) -> bool;
 }
 
+
 pub trait PacketPayload {
-    fn calculate_payload_crc(&mut self) -> Result<(), Box<dyn std::error::Error>>;
-    fn check_payload_crc(&self) -> Result<bool, Box<dyn std::error::Error>>;
+    fn calculate_payload_crc(&mut self) -> Result<u16, Box<dyn std::error::Error>>;
+    fn check_payload_crc(&self, ) -> Result<bool, Box<dyn std::error::Error>>;
 }
 
 

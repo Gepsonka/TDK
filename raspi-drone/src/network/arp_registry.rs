@@ -1,3 +1,4 @@
+use std::borrow::Borrow;
 use std::collections::BTreeMap;
 use std::hash::Hash;
 use std::time::{Duration, SystemTime};
@@ -9,14 +10,7 @@ use std::marker::PhantomData;
 use aes_gcm::aes::cipher::crypto_common::InnerUser;
 
 
-pub trait InitializationVectorContainer
-{
-    type NonceSize: ArrayLength<u8>;
 
-    fn delete_expired_ivs(&mut self);
-    fn add_iv(&mut self, iv: &mut InitializationVector<Self::NonceSize>);
-    fn check_if_iv_is_used(&self, iv: &InitializationVector<Self::NonceSize>) -> bool;
-}
 
 
 
@@ -26,7 +20,7 @@ pub enum DeviceStatus {
     KeyExchangeInitiated,
 }
 
-#[derive(Debug, Clone, Hash)]
+#[derive(Debug, Clone, Hash, Eq, PartialOrd)]
 pub struct InitializationVector<NonceSize>
 where NonceSize: ArrayLength<u8>
 {
@@ -61,45 +55,32 @@ where NonceSize: ArrayLength<u8>
     }
 }
 
+impl <NonceSize> Ord for InitializationVector<NonceSize>
+where NonceSize: ArrayLength<u8> + Eq + PartialOrd
+{
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        self.iv.as_slice().cmp(&other.iv.as_slice())
+    }
+}
+
 #[derive(Debug, Clone, Hash)]
-pub struct AESInitializationVectorContainer<NonceSize>
+pub struct InitializationVectorContainer<NonceSize>
 where NonceSize: ArrayLength<u8>
 {
     initialization_vectors: BTreeMap<Nonce<NonceSize>, InitializationVector<NonceSize>>
 }
 
-impl <NonceSize> AESInitializationVectorContainer<NonceSize>
+impl <NonceSize> InitializationVectorContainer<NonceSize>
 where NonceSize: ArrayLength<u8>
 {
     pub fn new() -> Self {
-        AESInitializationVectorContainer {
+        InitializationVectorContainer {
             initialization_vectors: BTreeMap::new(),
         }
     }
 }
 
-impl<NonceSize> InitializationVectorContainer for AESInitializationVectorContainer<NonceSize>
-where NonceSize: ArrayLength<u8>
-{
-    type NonceSize = NonceSize;
 
-    /// Deletes all expired initialization vectors
-    fn delete_expired_ivs(&mut self) {
-        for (key, val) in self.initialization_vectors.clone().into_iter() {
-            if val.creation_time.elapsed().unwrap() > val.expiration_duration {
-                self.initialization_vectors.remove(&key);
-            }
-        }
-    }
-
-    fn add_iv(&mut self, iv: &mut InitializationVector<NonceSize>) {
-        self.initialization_vectors.insert(iv.iv.clone(), iv.clone());
-    }
-
-    fn check_if_iv_is_used(&self, iv: &InitializationVector<NonceSize>) -> bool {
-        self.initialization_vectors.contains_key(iv)
-    }
-}
 
 #[derive(Debug, Clone)]
 pub struct ArpRegistry<PacketT, KeySize, NonceSize>
@@ -114,7 +95,7 @@ NonceSize: ArrayLength<u8>,
     pub(crate) rx_message: Vec<u8>,
     tx_message: Vec<u8>,
     faulty_packets: Vec<u8>,
-    used_ivs: AESInitializationVectorContainer<NonceSize>,
+    used_ivs: InitializationVectorContainer<NonceSize>,
     iv_expiration_duration: Option<Duration>
 }
 
@@ -133,26 +114,12 @@ NonceSize: ArrayLength<u8>,
             rx_message: Vec::new(),
             tx_message: Vec::new(),
             faulty_packets: Vec::new(),
-            used_ivs: AESInitializationVectorContainer::new(),
+            used_ivs: InitializationVectorContainer::new(),
             iv_expiration_duration: Some(Duration::from_secs(5))
         }
     }
 
-    fn set_addr(&mut self, addr: u8) {
-        self.address = addr;
-    }
 
-    fn set_secret_key(&mut self, secret_key: Key<KeySize>) {
-        self.secret_key = Some(secret_key);
-    }
-
-    fn set_device_status(&mut self, device_status: DeviceStatus) {
-        self.device_status = device_status;
-    }
-
-    fn set_iv_expiration_duration(&mut self, duration: Duration) {
-        self.iv_expiration_duration = Some(duration);
-    }
 }
 
 

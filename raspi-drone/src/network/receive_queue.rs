@@ -15,7 +15,7 @@ use crate::network::queue::Queue;
 pub struct ReceiveQueue<PacketT>
 where PacketT: Into<PacketT> + TryFrom<PacketT> + Clone,
 {
-    queue: VecDeque<PacketT>,
+    pub queue: VecDeque<PacketT>,
 }
 
 impl ReceiveQueue<LoRaPacket>
@@ -27,17 +27,17 @@ impl ReceiveQueue<LoRaPacket>
     }
 
     pub fn packet_dispatch_thread(
-        queue: &mut Self,
+        queue: Arc<Mutex<Self>>,
         arp_table: Arc<Mutex<ArpTable<u8, LoRaPacket, AesGcm<Aes128, U12>, U12>>>,
         blacklist: Arc<Mutex<BlackList<u8>>>,
     ) {
+        let mut queue = Arc::clone(&queue);
         let mut arp_table = Arc::clone(&arp_table);
         let blacklist = Arc::clone(&blacklist);
-        let key = Aes256Gcm::generate_key(OsRng);
         let packet_dispatch_thread_handle = thread::spawn(move || {
             loop {
-                if !queue.is_empty() {
-                    let packet = queue.pop().unwrap();
+                if !queue.lock().unwrap().queue.is_empty() {
+                    let packet = queue.lock().unwrap().queue.pop_front().unwrap();
                     let blacklist = blacklist.lock().unwrap();
                     if blacklist.is_blacklisted(packet.header.source_addr) {
                         debug!("Received packet from blacklisted device!");
@@ -74,11 +74,11 @@ where PacketT: Into<PacketT> + TryFrom<PacketT> + Clone,
         self.queue.push_back(item);
     }
 
-    fn is_empty(&mut self) -> bool {
+    fn is_empty(&self) -> bool {
         self.queue.is_empty()
     }
 
-    fn len(&mut self) -> usize {
+    fn len(&self) -> usize {
         self.queue.len()
     }
 }
