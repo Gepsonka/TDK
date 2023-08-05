@@ -1,4 +1,4 @@
-<mxfile host="app.diagrams.net" modified="2023-08-05T12:51:58.943Z" agent="Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:109.0) Gecko/20100101 Firefox/115.0" etag="QG-Kba7R7VkNKatAKgrL" version="21.6.6" type="github">
+<mxfile host="app.diagrams.net" modified="2023-08-05T12:53:59.767Z" agent="Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:109.0) Gecko/20100101 Firefox/115.0" etag="Zk4xxE6u0CthmE541GpA" version="21.6.6" type="github">
   <diagram name="Page-1" id="d0J7wmIgQw-V9BeTZogU">
     <mxGraphModel dx="1026" dy="686" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="850" pageHeight="1100" math="0" shadow="0">
       <root>
@@ -37,6 +37,15 @@
         <mxCell id="g4TZp5pNpmG4t6H4J_1g-9" value="Address acknowledgement" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];labelBackgroundColor=none;" vertex="1" connectable="0" parent="g4TZp5pNpmG4t6H4J_1g-8">
           <mxGeometry x="0.1375" y="-1" relative="1" as="geometry">
             <mxPoint x="-23" y="-11" as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="g4TZp5pNpmG4t6H4J_1g-11" value="Arp table updates with the new device. Status: Unauthorized" style="rounded=1;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="596.22" y="420" width="120" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="g4TZp5pNpmG4t6H4J_1g-12" value="" style="endArrow=classic;html=1;rounded=0;entryX=0.448;entryY=0;entryDx=0;entryDy=0;entryPerimeter=0;" edge="1" parent="1" target="g4TZp5pNpmG4t6H4J_1g-11">
+          <mxGeometry width="50" height="50" relative="1" as="geometry">
+            <mxPoint x="650" y="350" as="sourcePoint" />
+            <mxPoint x="700" y="300" as="targetPoint" />
           </mxGeometry>
         </mxCell>
       </root>
