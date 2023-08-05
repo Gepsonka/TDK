@@ -101,9 +101,9 @@ pub struct LoRaPacketHeader {
     pub source_addr: u8,
     pub destination_addr: u8,
     pub message_packet_num: u8,
-    pub packet_num: u8,
+    pub total_number_of_packets: u8,
     pub payload_size: u8,
-    pub header_crc: u16
+    pub header_crc: u16,
 }
 
 impl LoRaPacketHeader {
@@ -121,7 +121,7 @@ impl LoRaPacketHeader {
                 source_addr,
                 destination_addr: dest_addr,
                 message_packet_num,
-                packet_num,
+                total_number_of_packets: packet_num,
                 payload_size,
                 header_crc,
             })
@@ -157,7 +157,7 @@ impl TryFrom<Vec<u8>> for LoRaPacketHeader {
                 source_addr: value[0],
                 destination_addr: value[1],
                 message_packet_num: value[2],
-                packet_num: value[3],
+                total_number_of_packets: value[3],
                 payload_size: value[4],
                 header_crc: ((value[5] as u16) << 8) | value[6] as u16
             })
@@ -174,7 +174,7 @@ impl Into<[u8; 7]> for LoRaPacketHeader {
             self.source_addr,
             self.destination_addr,
             self.message_packet_num,
-            self.packet_num,
+            self.total_number_of_packets,
             self.payload_size,
             ((self.header_crc >> 8) & 0xFF) as u8,
             (self.header_crc & 0xFF) as u8
@@ -188,7 +188,7 @@ impl Into<Vec<u8>> for LoRaPacketHeader {
             self.source_addr,
             self.destination_addr,
             self.message_packet_num,
-            self.packet_num,
+            self.total_number_of_packets,
             self.payload_size,
             ((self.header_crc >> 8) & 0xFF) as u8,
             (self.header_crc & 0xFF) as u8
@@ -202,7 +202,7 @@ impl Into<Vec<u8>> for &LoRaPacketHeader {
             self.source_addr,
             self.destination_addr,
             self.message_packet_num,
-            self.packet_num,
+            self.total_number_of_packets,
             self.payload_size,
             ((self.header_crc >> 8) & 0xFF) as u8,
             (self.header_crc & 0xFF) as u8
@@ -216,7 +216,7 @@ impl Into<Vec<u8>> for &mut LoRaPacketHeader {
             self.source_addr,
             self.destination_addr,
             self.message_packet_num,
-            self.packet_num,
+            self.total_number_of_packets,
             self.payload_size,
             ((self.header_crc >> 8) & 0xFF) as u8,
             (self.header_crc & 0xFF) as u8

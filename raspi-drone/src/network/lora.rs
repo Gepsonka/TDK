@@ -260,11 +260,11 @@ pub struct LoRa {
     reset_pin: OutputPin,
     header_mode: HeaderMode,
     frequency: u64,
-    opmod: Option<OperationMode>,
+    pub opmod: Option<OperationMode>,
     spread_factor: Option<SpreadFactor>,
     rx_callback: fn(Vec<u8>),
     tx_callback: fn(),
-    waiting_for_tx: bool,
+    pub waiting_for_tx: bool,
 
 }
 

@@ -9,13 +9,15 @@ use aes_gcm::aes::Aes128;
 use log::debug;
 use crate::network::arp_table::ArpTable;
 use crate::network::blacklist::BlackList;
+use crate::network::device_status::DeviceStatus;
+use crate::network::device_status::DeviceStatus::Unknown;
 use crate::network::packet::LoRaPacket;
 use crate::network::queue::Queue;
 
 pub struct ReceiveQueue<PacketT>
 where PacketT: Into<PacketT> + TryFrom<PacketT> + Clone,
 {
-    pub queue: VecDeque<PacketT>,
+    queue: VecDeque<PacketT>,
 }
 
 impl ReceiveQueue<LoRaPacket>
@@ -40,19 +42,29 @@ impl ReceiveQueue<LoRaPacket>
                     let packet = queue.lock().unwrap().queue.pop_front().unwrap();
                     let blacklist = blacklist.lock().unwrap();
                     if blacklist.is_blacklisted(packet.header.source_addr) {
-                        debug!("Received packet from blacklisted device!");
+                        debug!("Received packet from blacklisted device! IGNORING PACKET");
                         continue;
                     }
 
                     let mut arp_table = arp_table.lock().unwrap();
-                    match arp_table.get_device(packet.header.source_addr) {
-                        Some(device) => {
-                            device.packet_rx_vec.push(packet);
-                        },
-                        None => {
-                            println!("Received packet from unknown device!");
+                    if let Some(device) = arp_table.get_device(packet.header.source_addr) {
+                        // add packet to device's packet_rx_vec
+                        device.packet_rx_vec.push(packet.clone());
+                        if packet.header.message_packet_num == packet.header.total_number_of_packets - 1 {
+                            todo!("send signal to message assembler to assemble message");
+                        }
+                    } else {
+                        debug!("Received packet from unknown device!");
+                        // add packet to unknown device's packet_rx_vec
+                        arp_table.add_device(packet.header.source_addr, DeviceStatus::Unknown);
+                        let device = arp_table.get_device(packet.header.source_addr);
+                        if let Some(device) = device {
+                            device.packet_rx_vec.push(packet.clone());
+                        } else {
+                            panic!("Device was not added to arp table!");
                         }
                     }
+
                 }
             }
         });

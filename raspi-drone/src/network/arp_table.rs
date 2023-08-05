@@ -2,7 +2,8 @@ use std::collections::HashMap;
 use std::hash::Hash;
 use aes_gcm::{ Key, KeyInit, KeySizeUser};
 use aes_gcm::aead::generic_array::ArrayLength;
-use crate::network::arp_registry::{ArpRegistry, DeviceStatus};
+use crate::network::arp_registry::{ArpRegistry};
+use crate::network::device_status::DeviceStatus;
 use crate::network::packet::{LoRaPacket};
 
 pub struct ArpTable<AddressSize, PacketT, KeySize, NonceSize>
