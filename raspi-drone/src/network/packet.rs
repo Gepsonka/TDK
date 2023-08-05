@@ -103,7 +103,7 @@ pub struct LoRaPacketHeader {
     pub message_packet_num: u8,
     pub total_number_of_packets: u8,
     pub payload_size: u8,
-    pub header_crc: u16
+    pub header_crc: u16,
 }
 
 impl LoRaPacketHeader {
