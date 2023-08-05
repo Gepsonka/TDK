@@ -1,13 +1,20 @@
 use core::time;
 use std::sync::{Arc, Mutex};
 use std::thread;
+use aes_gcm::aead::consts::U12;
+use aes_gcm::{Aes128Gcm, AesGcm, KeyInit};
+use aes_gcm::aead::OsRng;
+use aes_gcm::aes::Aes128;
 use env_logger::Target;
 use log::{debug, info};
 use rppal::gpio::{Gpio, InputPin, Trigger};
 use rppal::spi::{Bus, Mode, SlaveSelect, Spi};
 use env_logger;
+use crate::network::arp_table::ArpTable;
 use crate::network::lora;
 use crate::network::lora::Bandwidth;
+use crate::network::packet::LoRaPacket;
+use crate::network::queue::Queue;
 pub mod network;
 
 
@@ -55,20 +62,43 @@ fn main() {
 
     info!("LoRa init done!");
 
-    let lora_mutex = Arc::new(Mutex::new(lora_device));
+
+    let arp_table_arc: Arc<Mutex<ArpTable<u8, LoRaPacket, AesGcm<Aes128, U12>, U12>>> = Arc::new(Mutex::new(network::arp_table::ArpTable::new()));
+    let lora_arc = Arc::new(Mutex::new(lora_device));
+    let tx_queue_arc = Arc::new(Mutex::new(network::transmit_queue::TransmitQueue::<LoRaPacket>::new()));
+    let rx_queue_arc = Arc::new(Mutex::new(network::receive_queue::ReceiveQueue::new()));
+    let black_list_arc = Arc::new(Mutex::new(network::blacklist::BlackList::new()));
+
+    network::transmit_queue::TransmitQueue::packet_tx_thread(
+        &tx_queue_arc,
+        &lora_arc,
+    );
+
+    network::receive_queue::ReceiveQueue::packet_dispatch_thread(
+        &rx_queue_arc,
+        &arp_table_arc,
+        &black_list_arc,
+    );
 
     thread::spawn(move || {
-        let mut lora = Arc::clone(&lora_mutex);
-
+        let mut packet_to_tx: LoRaPacket;
+        let mut tx_queue_mutex = Arc::clone(&tx_queue_arc);
         loop {
-            int_pin.poll_interrupt(true, None).unwrap();
-            let mut lora_thr = lora.lock().unwrap();
-            (*lora_thr).handle_interrupt().unwrap();
+            thread::sleep(time::Duration::from_secs(1));
+            packet_to_tx = LoRaPacket::try_from(vec![0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0A, 0x0B]).unwrap();
+            let mut tx_queue = tx_queue_mutex.lock().unwrap();
+            tx_queue.push(packet_to_tx);
         }
+
     });
 
+    let mut lora = Arc::clone(&lora_arc);
+
     loop {
-        thread::sleep(time::Duration::from_secs(1));
-        //lora_device.set_bandwidth(Bandwidth::SX127x_BW_500000).unwrap();
+        int_pin.poll_interrupt(true, None).unwrap();
+        let mut lora_thr = lora.lock().unwrap();
+        lora_thr.handle_interrupt().unwrap();
+        info!("Interrupt handled");
     }
+
 }

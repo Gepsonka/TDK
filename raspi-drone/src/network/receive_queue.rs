@@ -6,7 +6,7 @@ use aes_gcm::{Aes256Gcm, AesGcm, Key, KeyInit, Nonce};
 use aes_gcm::aead::consts::U12;
 use aes_gcm::aead::OsRng;
 use aes_gcm::aes::Aes128;
-use log::debug;
+use log::{debug, info};
 use crate::network::arp_table::ArpTable;
 use crate::network::blacklist::BlackList;
 use crate::network::device_status::DeviceStatus;
@@ -29,13 +29,14 @@ impl ReceiveQueue<LoRaPacket>
     }
 
     pub fn packet_dispatch_thread(
-        queue: Arc<Mutex<Self>>,
-        arp_table: Arc<Mutex<ArpTable<u8, LoRaPacket, AesGcm<Aes128, U12>, U12>>>,
-        blacklist: Arc<Mutex<BlackList<u8>>>,
+        queue: &Arc<Mutex<Self>>,
+        arp_table: &Arc<Mutex<ArpTable<u8, LoRaPacket, AesGcm<Aes128, U12>, U12>>>,
+        blacklist: &Arc<Mutex<BlackList<u8>>>,
     ) {
         let mut queue = Arc::clone(&queue);
         let mut arp_table = Arc::clone(&arp_table);
         let blacklist = Arc::clone(&blacklist);
+        info!("Starting packet dispatch thread");
         let packet_dispatch_thread_handle = thread::spawn(move || {
             loop {
                 if !queue.lock().unwrap().queue.is_empty() {

@@ -7,15 +7,3 @@ pub trait Queue<PacketT>
     fn is_empty(&self) -> bool;
     fn len(&self) -> usize;
 }
-
-
-pub trait PacketTransmit<PacketT>
-{
-    fn send(&mut self, packet: PacketT) -> Result<(), ()>;
-}
-
-
-pub trait PacketReceive<PacketT>
-{
-    fn receive(&mut self) -> Option<PacketT>;
-}

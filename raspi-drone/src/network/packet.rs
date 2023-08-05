@@ -245,7 +245,6 @@ impl LoRaPacketPayload {
 }
 
 impl TryFrom<Vec<u8>> for LoRaPacketPayload {
-
     type Error = PacketSizeError;
     /// First two bytes of @value must be the crc then comes the payload
     fn try_from(value: Vec<u8>) -> Result<Self, Self::Error> {
