@@ -7,3 +7,5 @@ mod receive_queue;
 mod transmit_queue;
 mod queue;
 mod blacklist;
+mod device_status;
+mod device_type;

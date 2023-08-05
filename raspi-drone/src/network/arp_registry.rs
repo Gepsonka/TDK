@@ -6,19 +6,9 @@ use aes_gcm::{AeadCore, Aes128Gcm, Key, KeySizeUser, Nonce};
 use aes_gcm::aead::generic_array::ArrayLength;
 use aes_gcm::aead::OsRng;
 use crate::network::packet::LoRaPacket;
-use std::marker::PhantomData;
-use aes_gcm::aes::cipher::crypto_common::InnerUser;
+use crate::network::device_status::DeviceStatus;
+use crate::network::device_type::DeviceType;
 
-
-
-
-
-
-
-#[derive(Debug, Clone, Copy, PartialEq)]
-pub enum DeviceStatus {
-    KeyExchangeInitiated,
-}
 
 #[derive(Debug, Clone, Hash, Eq, PartialOrd)]
 pub struct InitializationVector<NonceSize>
@@ -88,11 +78,12 @@ where KeySize: KeySizeUser,
 NonceSize: ArrayLength<u8>,
 {
     address: u8,
-    pub(crate) device_status: DeviceStatus,
-    pub(crate) secret_key: Option<Key<KeySize>>,
-    pub(crate) packet_rx_vec: Vec<PacketT>,
+    pub device_type: Option<DeviceType>,
+    pub device_status: DeviceStatus,
+    pub secret_key: Option<Key<KeySize>>,
+    pub packet_rx_vec: Vec<PacketT>,
     packet_tx_vec: Vec<PacketT>,
-    pub(crate) rx_message: Vec<u8>,
+    pub rx_message: Vec<u8>,
     tx_message: Vec<u8>,
     faulty_packets: Vec<u8>,
     used_ivs: InitializationVectorContainer<NonceSize>,
@@ -107,6 +98,7 @@ NonceSize: ArrayLength<u8>,
     pub fn new(address: u8, device_status: DeviceStatus) -> Self {
         ArpRegistry {
             address,
+            device_type: None,
             device_status,
             secret_key: None,
             packet_rx_vec: Vec::new(),
@@ -118,8 +110,7 @@ NonceSize: ArrayLength<u8>,
             iv_expiration_duration: Some(Duration::from_secs(5))
         }
     }
-
-
+    
 }
 
 
