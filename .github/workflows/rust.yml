@@ -17,6 +17,8 @@ jobs:
     steps:
     - uses: actions/checkout@v3
     - name: Build
+      working-directory: ./raspi-drone
       run: cargo build --release --target=arm-unknown-linux-musleabi
     - name: Run tests
+      working-directory: ./raspi-drone
       run: cargo test --verbose
