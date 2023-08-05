@@ -1,4 +1,4 @@
-<mxfile host="app.diagrams.net" modified="2023-08-05T12:48:21.287Z" agent="Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:109.0) Gecko/20100101 Firefox/115.0" etag="8iWdFHrTDlwVPEID8LZI" version="21.6.6" type="github">
+<mxfile host="app.diagrams.net" modified="2023-08-05T12:51:58.943Z" agent="Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:109.0) Gecko/20100101 Firefox/115.0" etag="QG-Kba7R7VkNKatAKgrL" version="21.6.6" type="github">
   <diagram name="Page-1" id="d0J7wmIgQw-V9BeTZogU">
     <mxGraphModel dx="1026" dy="686" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="850" pageHeight="1100" math="0" shadow="0">
       <root>
@@ -16,9 +16,27 @@
             <mxPoint x="340" y="205" as="targetPoint" />
           </mxGeometry>
         </mxCell>
-        <mxCell id="g4TZp5pNpmG4t6H4J_1g-6" value="&lt;div&gt;Request address with a 32 bit randomly generated&lt;/div&gt;&lt;div&gt;ID&lt;br&gt;&lt;/div&gt;" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];" vertex="1" connectable="0" parent="g4TZp5pNpmG4t6H4J_1g-4">
+        <mxCell id="g4TZp5pNpmG4t6H4J_1g-6" value="&lt;div&gt;Request address with a 32 bit randomly generated&lt;/div&gt;&lt;div&gt;ID&lt;br&gt;&lt;/div&gt;" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];labelBackgroundColor=none;" vertex="1" connectable="0" parent="g4TZp5pNpmG4t6H4J_1g-4">
           <mxGeometry x="0.0182" y="-3" relative="1" as="geometry">
-            <mxPoint y="-23" as="offset" />
+            <mxPoint y="-13" as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="g4TZp5pNpmG4t6H4J_1g-7" value="&lt;div&gt;Address offer. 32 bit ID sent back with one&lt;/div&gt;&lt;div&gt;&amp;nbsp;byte of address.&lt;/div&gt;" style="shape=flexArrow;endArrow=classic;html=1;rounded=0;entryX=1;entryY=1;entryDx=0;entryDy=0;labelBackgroundColor=none;exitX=0.008;exitY=0.963;exitDx=0;exitDy=0;exitPerimeter=0;" edge="1" parent="1" source="g4TZp5pNpmG4t6H4J_1g-1" target="g4TZp5pNpmG4t6H4J_1g-2">
+          <mxGeometry x="0.0475" y="-15" width="50" height="50" relative="1" as="geometry">
+            <mxPoint x="590" y="290" as="sourcePoint" />
+            <mxPoint x="400" y="240" as="targetPoint" />
+            <mxPoint as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="g4TZp5pNpmG4t6H4J_1g-8" value="" style="shape=flexArrow;endArrow=classic;html=1;rounded=0;" edge="1" parent="1">
+          <mxGeometry width="50" height="50" relative="1" as="geometry">
+            <mxPoint x="120" y="350" as="sourcePoint" />
+            <mxPoint x="600" y="350" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="g4TZp5pNpmG4t6H4J_1g-9" value="Address acknowledgement" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];labelBackgroundColor=none;" vertex="1" connectable="0" parent="g4TZp5pNpmG4t6H4J_1g-8">
+          <mxGeometry x="0.1375" y="-1" relative="1" as="geometry">
+            <mxPoint x="-23" y="-11" as="offset" />
           </mxGeometry>
         </mxCell>
       </root>
