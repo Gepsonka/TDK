@@ -215,7 +215,7 @@ pub enum Bandwidth {
 }
 
 #[allow(dead_code)]
-#[derive(Clone, Copy, Eq, PartialEq)]
+#[derive(Clone, Copy, Eq, PartialEq, Debug)]
 pub enum OperationMode {
     SX127x_MODE_SLEEP = 0b00000000,      // SLEEP
     SX127x_MODE_STANDBY = 0b00000001,    // STDBY

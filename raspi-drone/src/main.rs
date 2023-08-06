@@ -87,7 +87,10 @@ fn main() {
             thread::sleep(time::Duration::from_secs(1));
             packet_to_tx = LoRaPacket::try_from(vec![0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0A, 0x0B]).unwrap();
             let mut tx_queue = tx_queue_mutex.lock().unwrap();
-            tx_queue.push(packet_to_tx);
+            tx_queue.push(packet_to_tx.clone());
+            tx_queue.push(packet_to_tx.clone());
+            tx_queue.push(packet_to_tx.clone());
+            debug!("sending packet");
         }
 
     });
@@ -98,7 +101,7 @@ fn main() {
         int_pin.poll_interrupt(true, None).unwrap();
         let mut lora_thr = lora.lock().unwrap();
         lora_thr.handle_interrupt().unwrap();
-        info!("Interrupt handled");
+        debug!("tx status: {:?}", lora_thr.waiting_for_tx);
     }
 
 }

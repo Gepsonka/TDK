@@ -1,7 +1,7 @@
 use std::collections::VecDeque;
 use std::sync::{Arc, Mutex};
 use std::thread;
-use log::{error, info};
+use log::{debug, error, info};
 use crate::network::lora::OperationMode;
 use crate::network::queue::Queue;
 use super::{packet::LoRaPacket, lora::{LoRa, self}};
@@ -34,7 +34,6 @@ impl TransmitQueue<LoRaPacket> {
                             break;
                         }
                     }
-                    info!("Transmitting packet");
                     let mut lora_device = lora_device_mutex.lock().unwrap();
                     let packet = tx_queue_mutex.lock().unwrap().queue.pop_front().unwrap();
                     let lora_packet_raw: Vec<u8> = packet.into();
@@ -42,20 +41,21 @@ impl TransmitQueue<LoRaPacket> {
                     lora_device.set_opmod(OperationMode::SX127x_MODE_TX).unwrap();
                 } else {
                     let mut lora_device = lora_device_mutex.lock().unwrap();
-                    if lora_device.waiting_for_tx {
-                        break;
-                    }
-                    if let Some(opmode) = lora_device.opmod {
-                        match opmode {
-                            OperationMode::SX127x_MODE_RX_CONT => {},
-                            _ => lora_device.set_opmod(OperationMode::SX127x_MODE_RX_CONT).expect("Cannot set opmode to RX_CONT")
+                    if !lora_device.waiting_for_tx {
+                        if let Some(opmode) = lora_device.opmod {
+                            match opmode {
+                                OperationMode::SX127x_MODE_RX_CONT => {},
+                                _ => lora_device.set_opmod(OperationMode::SX127x_MODE_RX_CONT).expect("Cannot set opmode to RX_CONT")
+                            }
+                        } else {
+                            error!("LoRa opmode is not set.");
+                            panic!("LoRa opmode is not set.");
                         }
-                    } else {
-                        error!("LoRa opmode is not set.");
-                        panic!("LoRa opmode is not set.");
                     }
+
                 }
             }
+            debug!("Packet transmit thread exiting");
         });
     }
 }
