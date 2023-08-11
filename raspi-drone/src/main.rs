@@ -92,7 +92,6 @@ fn main() {
             tx_queue.push(packet_to_tx.clone());
             debug!("sending packet");
         }
-
     });
 
     let mut lora = Arc::clone(&lora_arc);
@@ -102,6 +101,7 @@ fn main() {
         let mut lora_thr = lora.lock().unwrap();
         lora_thr.handle_interrupt().unwrap();
         debug!("tx status: {:?}", lora_thr.waiting_for_tx);
+
     }
 
 }

@@ -5,9 +5,12 @@ use std::time::{Duration, SystemTime};
 use aes_gcm::{AeadCore, Aes128Gcm, Key, KeySizeUser, Nonce};
 use aes_gcm::aead::generic_array::ArrayLength;
 use aes_gcm::aead::OsRng;
-use crate::network::packet::LoRaPacket;
+use crate::network::packet::{LoRaPacket, MAX_PACKET_SIZE, MAX_MESSAGE_SLICE_SIZE};
 use crate::network::device_status::DeviceStatus;
 use crate::network::device_type::DeviceType;
+
+
+
 
 
 #[derive(Debug, Clone, Hash, Eq, PartialOrd)]
@@ -77,7 +80,7 @@ pub struct ArpRegistry<PacketT, KeySize, NonceSize>
 where KeySize: KeySizeUser,
 NonceSize: ArrayLength<u8>,
 {
-    address: u8,
+    pub address: u8,
     pub device_type: Option<DeviceType>,
     pub device_status: DeviceStatus,
     pub secret_key: Option<Key<KeySize>>,
@@ -110,7 +113,30 @@ NonceSize: ArrayLength<u8>,
             iv_expiration_duration: Some(Duration::from_secs(5))
         }
     }
+
+    pub fn build_packets_from_message<TagSize: ArrayLength<u8>>(&mut self, dest_address: u8) -> Result<(), ()> {
+        if self.tx_message.len() == 0 {
+            Err(())
+        }
+
+        self.packet_tx_vec.clear();
+        if let Some(address) = self.address {
+            for (i, chunk) in self.tx_message.chunks(MAX_MESSAGE_SLICE_SIZE).enumerate() {
+
+            }
+        } else {
+            for (i, chunk) in self.tx_message.chunks(MAX_PACKET_SIZE).enumerate() {
+
+            }
+        }
+
+
+        Ok(())
+    }
+
     
+
+
 }
 
 

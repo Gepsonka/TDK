@@ -1,13 +1,16 @@
 use std::error::Error;
 use std::fmt::{Display, Formatter};
 use aes_gcm::aead::generic_array::ArrayLength;
-use aes_gcm::{Key, KeySizeUser};
+use aes_gcm::{Aes128Gcm, Key, KeySizeUser, Nonce};
 
 /// max num of bytes in a LoRa packet
 pub const MAX_PACKET_SIZE: usize = 255;
 pub const HEADER_SIZE: usize = 7;
 /// MAX_PACKET_SIZE - header - payload crc size
 pub const MAX_PAYLOAD_SIZE: usize = MAX_PACKET_SIZE - HEADER_SIZE - 2;
+
+/// = packet max size (255) - nonce size (12) - tag size (16)
+pub const MAX_MESSAGE_SLICE_SIZE: usize = 227;
 
 #[derive(Debug)]
 pub struct PacketPayloadSizeError {
@@ -87,11 +90,20 @@ pub trait PacketPayload {
 }
 
 
-pub trait PacketEncrypt<KeySize>
-where KeySize: KeySizeUser
+
+
+pub trait PacketEncrypt<KeySize, NonceSize>
+where KeySize: KeySizeUser,
+      NonceSize: ArrayLength<u8>
 {
-    fn encrypt_payload(&mut self, key: Key<KeySize>) -> Result<(), Box<dyn std::error::Error>>;
-    fn decrypt_payload(&mut self, key: Key<KeySize>) -> Result<(), Box<dyn std::error::Error>>;
+    fn encrypt(&mut self, key: &Key<KeySize>, nonce: &Nonce<NonceSize>) -> Result<(), Box<dyn std::error::Error>>;
+}
+
+pub trait PacketDecrypt<KeySize, NonceSize>
+where KeySize: KeySizeUser,
+      NonceSize: ArrayLength<u8>
+{
+    fn decrypt(&mut self, key: &Key<KeySize>, nonce: &Nonce<NonceSize>) -> Result<(), Box<dyn std::error::Error>>;
 }
 
 
@@ -288,6 +300,15 @@ impl LoRaPacket {
             header,
             payload,
         }
+    }
+}
+
+impl <KeySize, NonceSize> PacketEncrypt<KeySize, NonceSize> for LoRaPacket
+where KeySize: ArrayLength<u8>, NonceSize: ArrayLength<u8>
+{
+    fn encrypt(&mut self, cypher: , nonce: NonceSize) -> Result<(), Box<dyn Error>> {
+        let cipher = Aes128Gcm::new(&key);
+        Ok(())
     }
 }
 
