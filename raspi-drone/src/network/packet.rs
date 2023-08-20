@@ -1,7 +1,8 @@
 use std::error::Error;
 use std::fmt::{Display, Formatter};
+use aes_gcm::aead::AeadMut;
 use aes_gcm::aead::generic_array::ArrayLength;
-use aes_gcm::{Aes128Gcm, Key, KeySizeUser, Nonce};
+use aes_gcm::{Aes128Gcm, Key, KeySizeUser, Nonce, AesGcm, KeyInit, AeadInPlace};
 
 /// max num of bytes in a LoRa packet
 pub const MAX_PACKET_SIZE: usize = 255;
@@ -92,11 +93,12 @@ pub trait PacketPayload {
 
 
 
-pub trait PacketEncrypt<KeySize, NonceSize>
-where KeySize: KeySizeUser,
-      NonceSize: ArrayLength<u8>
+pub trait PacketEncrypt
 {
-    fn encrypt(&mut self, key: &Key<KeySize>, nonce: &Nonce<NonceSize>) -> Result<(), Box<dyn std::error::Error>>;
+    fn encrypt<KeySize, NonceSize, Cipher>(&mut self, key: &Key<KeySize>,cipher: Cipher, nonce: &Nonce<NonceSize>) -> Result<(), Box<dyn std::error::Error>>
+    where KeySize: KeySizeUser,
+        NonceSize: ArrayLength<u8>,
+        Cipher: KeyInit + AeadMut + AeadInPlace;
 }
 
 pub trait PacketDecrypt<KeySize, NonceSize>
@@ -303,11 +305,15 @@ impl LoRaPacket {
     }
 }
 
-impl <KeySize, NonceSize> PacketEncrypt<KeySize, NonceSize> for LoRaPacket
-where KeySize: ArrayLength<u8>, NonceSize: ArrayLength<u8>
+impl PacketEncrypt for LoRaPacket
 {
-    fn encrypt(&mut self, cypher: , nonce: NonceSize) -> Result<(), Box<dyn Error>> {
-        let cipher = Aes128Gcm::new(&key);
+    fn encrypt<KeySize, NonceSize, Cipher>(&mut self, key: &Key<KeySize>,  cypher: Cipher, nonce: &Nonce<NonceSize>) -> Result<(), Box<dyn Error>>
+    where KeySize: KeySizeUser,
+    NonceSize: ArrayLength<u8>,
+    Cipher: KeyInit + AeadMut + AeadInPlace
+    {
+        let mut cipher = Cipher::new(key);
+        let cyphertext = cipher.encrypt(nonce, self.payload.payload.as_slice());
         Ok(())
     }
 }

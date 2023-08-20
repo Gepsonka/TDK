@@ -2,7 +2,7 @@ use core::time;
 use std::sync::{Arc, Mutex};
 use std::thread;
 use aes_gcm::aead::consts::U12;
-use aes_gcm::{Aes128Gcm, AesGcm, KeyInit};
+use aes_gcm::{Aes128Gcm, AesGcm, KeyInit, Aes256Gcm};
 use aes_gcm::aead::OsRng;
 use aes_gcm::aes::Aes128;
 use env_logger::Target;
@@ -103,5 +103,8 @@ fn main() {
         debug!("tx status: {:?}", lora_thr.waiting_for_tx);
 
     }
+
+    let key = Aes256Gcm::generate_key(OsRng);
+    let cipher = Aes256Gcm::new(&key);
 
 }
