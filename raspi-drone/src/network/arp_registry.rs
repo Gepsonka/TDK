@@ -80,7 +80,7 @@ pub struct ArpRegistry<PacketT, KeySize, NonceSize>
 where KeySize: KeySizeUser,
 NonceSize: ArrayLength<u8>,
 {
-    pub address: u8,
+    pub address: Option<u8>,
     pub device_type: Option<DeviceType>,
     pub device_status: DeviceStatus,
     pub secret_key: Option<Key<KeySize>>,
@@ -100,7 +100,7 @@ NonceSize: ArrayLength<u8>,
 {
     pub fn new(address: u8, device_status: DeviceStatus) -> Self {
         ArpRegistry {
-            address,
+            address: Some(address),
             device_type: None,
             device_status,
             secret_key: None,
@@ -116,7 +116,7 @@ NonceSize: ArrayLength<u8>,
 
     pub fn build_packets_from_message<TagSize: ArrayLength<u8>>(&mut self, dest_address: u8) -> Result<(), ()> {
         if self.tx_message.len() == 0 {
-            Err(())
+            return Err(());
         }
 
         self.packet_tx_vec.clear();

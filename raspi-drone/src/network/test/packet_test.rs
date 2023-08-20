@@ -1,7 +1,7 @@
 #[cfg(test)]
 mod header_tests {
     use crate::network::packet;
-    use crate::network::packet::PacketHeader;
+    use crate::network::packet::PacketHeaderCRC;
 
     #[test]
     #[should_panic]

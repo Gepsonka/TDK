@@ -1,7 +1,9 @@
 use std::error::Error;
 use std::fmt::{Display, Formatter};
 use aes_gcm::aead::generic_array::ArrayLength;
-use aes_gcm::{Aes128Gcm, Key, KeySizeUser, Nonce};
+use aes_gcm::{Key, KeyInit, KeySizeUser, Nonce};
+use aes_gcm::aead::AeadMut;
+use log::debug;
 
 /// max num of bytes in a LoRa packet
 pub const MAX_PACKET_SIZE: usize = 255;
@@ -9,8 +11,8 @@ pub const HEADER_SIZE: usize = 7;
 /// MAX_PACKET_SIZE - header - payload crc size
 pub const MAX_PAYLOAD_SIZE: usize = MAX_PACKET_SIZE - HEADER_SIZE - 2;
 
-/// = packet max size (255) - nonce size (12) - tag size (16)
-pub const MAX_MESSAGE_SLICE_SIZE: usize = 227;
+/// = packet max size (MAX_PAYLOAD_SIZE) - nonce size (12)
+pub const MAX_MESSAGE_SLICE_SIZE: usize = MAX_PAYLOAD_SIZE - 12;
 
 #[derive(Debug)]
 pub struct PacketPayloadSizeError {
@@ -72,36 +74,44 @@ impl Display for CRCError {
 impl Error for CRCError {}
 
 
+pub trait PacketHeaderInit {
+    fn new_from_slice(slice: &[u8]) -> Result<Self, Box<dyn std::error::Error>> where Self: Sized;
+}
+
+pub trait PacketPayloadInit {
+    fn new(payload: Vec<u8>) -> Self where Self: Sized;
+    fn new_from_slice(slice: &[u8]) -> Result<Self, Box<dyn std::error::Error>> where Self: Sized;
+}
 
 /// Every network communication is done via packets.
 /// This trait defines the basic functionality of a packet header
-/// reqiuired for the network communication of drones.
+/// required for the network communication of drones.
 /// Each packet must have a header and payload CRC to ensure data integrity,
 /// since every packet is sent through a wireless medium.
-pub trait PacketHeader {
+pub trait PacketHeaderCRC {
     fn calculate_header_crc(&mut self);
     fn check_header_crc(&self) -> bool;
 }
 
 
-pub trait PacketPayload {
-    fn calculate_payload_crc(&mut self) -> Result<u16, Box<dyn std::error::Error>>;
-    fn check_payload_crc(&self, ) -> Result<bool, Box<dyn std::error::Error>>;
+pub trait PacketPayloadCRC {
+    fn calculate_payload_crc(&mut self) -> Result<(), Box<dyn std::error::Error>>;
+    fn check_payload_crc(&self) -> Result<bool, Box<dyn std::error::Error>>;
 }
 
 
-
-
-pub trait PacketEncrypt<KeySize, NonceSize>
-where KeySize: KeySizeUser,
-      NonceSize: ArrayLength<u8>
+pub trait PacketEncrypt<AesGcm, KeySize, NonceSize>
+where NonceSize: ArrayLength<u8>,
+      KeySize: KeySizeUser,
+      AesGcm: AeadMut + KeyInit
 {
     fn encrypt(&mut self, key: &Key<KeySize>, nonce: &Nonce<NonceSize>) -> Result<(), Box<dyn std::error::Error>>;
 }
 
-pub trait PacketDecrypt<KeySize, NonceSize>
+pub trait PacketDecrypt<AesGcm, KeySize, NonceSize>
 where KeySize: KeySizeUser,
-      NonceSize: ArrayLength<u8>
+      NonceSize: ArrayLength<u8>,
+        AesGcm: AeadMut + KeyInit
 {
     fn decrypt(&mut self, key: &Key<KeySize>, nonce: &Nonce<NonceSize>) -> Result<(), Box<dyn std::error::Error>>;
 }
@@ -118,30 +128,26 @@ pub struct LoRaPacketHeader {
     pub header_crc: u16,
 }
 
-impl LoRaPacketHeader {
-    pub fn new(source_addr: u8,
-               dest_addr: u8,
-               message_packet_num: u8,
-               packet_num: u8,
-               payload_size: u8,
-               header_crc: u16) -> Result<Self, PacketSizeError> {
-
-        if payload_size as usize > MAX_PAYLOAD_SIZE {
-            Err(PacketSizeError::new(payload_size as usize))
-        } else {
-            Ok(LoRaPacketHeader {
-                source_addr,
-                destination_addr: dest_addr,
-                message_packet_num,
-                total_number_of_packets: packet_num,
-                payload_size,
-                header_crc,
-            })
+impl PacketHeaderInit for LoRaPacketHeader {
+    fn new_from_slice(slice: &[u8]) -> Result<LoRaPacketHeader, Box<dyn Error>> {
+        if slice.len() != HEADER_SIZE {
+            return Err(Box::new(PacketSizeError::new(slice.len())));
         }
+
+        let mut header = LoRaPacketHeader::default();
+        header.source_addr = slice[0];
+        header.destination_addr = slice[1];
+        header.message_packet_num = slice[2];
+        header.total_number_of_packets = slice[3];
+        header.payload_size = slice[4];
+        header.header_crc = u16::from_be_bytes([slice[5], slice[6]]);
+
+
+        Ok(header)
     }
 }
 
-impl PacketHeader for LoRaPacketHeader {
+impl PacketHeaderCRC for LoRaPacketHeader {
     fn calculate_header_crc(&mut self) {
         let header: Vec<u8> = self.into();
 
@@ -240,19 +246,27 @@ impl Into<Vec<u8>> for &mut LoRaPacketHeader {
 pub struct LoRaPacketPayload {
     pub payload_crc: u16,
     pub payload: Vec<u8>,
-
 }
 
-impl LoRaPacketPayload {
-    pub fn new(payload_crc: u16, payload: Vec<u8>) -> Result<Self, PacketSizeError> {
-        if payload.len() > MAX_PAYLOAD_SIZE {
-            Err(PacketSizeError::new(payload.len()))
-        } else {
-            Ok(LoRaPacketPayload {
-                payload_crc,
-                payload: payload.clone(),
-            })
+impl PacketPayloadInit for LoRaPacketPayload {
+    /// Does not calculates the CRC, it initiates it to 0
+    fn new(payload: Vec<u8>) -> LoRaPacketPayload {
+        LoRaPacketPayload {
+            payload_crc: 0,
+            payload,
         }
+    }
+
+    fn new_from_slice(slice: &[u8]) -> Result<LoRaPacketPayload, Box<dyn Error>> {
+        if slice.len() > MAX_PAYLOAD_SIZE {
+            return Err(Box::new(PacketSizeError::new(slice.len())));
+        }
+
+        let mut payload = LoRaPacketPayload::default();
+        payload.payload_crc = 0;
+        payload.payload = slice.to_vec();
+
+        Ok(payload)
     }
 }
 
@@ -303,11 +317,33 @@ impl LoRaPacket {
     }
 }
 
-impl <KeySize, NonceSize> PacketEncrypt<KeySize, NonceSize> for LoRaPacket
-where KeySize: ArrayLength<u8>, NonceSize: ArrayLength<u8>
+impl <AesGcm, KeySize, NonceSize> PacketEncrypt<AesGcm, KeySize, NonceSize> for LoRaPacket
+where NonceSize: ArrayLength<u8>,
+      KeySize: KeySizeUser,
+      AesGcm: AeadMut + KeyInit,
 {
-    fn encrypt(&mut self, cypher: , nonce: NonceSize) -> Result<(), Box<dyn Error>> {
-        let cipher = Aes128Gcm::new(&key);
+    fn encrypt(&mut self, key: &Key<KeySize> , nonce: &Nonce<NonceSize>) -> Result<(), Box<dyn Error>> {
+        let mut cipher = AesGcm::new(key);
+        let mut ciphertext = cipher.encrypt(nonce, &self.payload.payload.as_slice())?;
+        if ciphertext.len() > MAX_MESSAGE_SLICE_SIZE {
+            debug!("Ciphertext length is too long: {}", ciphertext.len());
+            return Err(Box::new(PacketSizeError::new(ciphertext.len())));
+        }
+        self.payload.payload = nonce.to_vec();
+        self.payload.payload.append(&mut ciphertext);
+        Ok(())
+    }
+}
+
+impl <AesGcm, KeySize, NonceSize> PacketDecrypt<AesGcm, KeySize, NonceSize> for LoRaPacket
+    where NonceSize: ArrayLength<u8>,
+          KeySize: KeySizeUser,
+          AesGcm: AeadMut + KeyInit,
+{
+    fn decrypt(&mut self, key: &Key<KeySize> , nonce: &Nonce<NonceSize>) -> Result<(), Box<dyn Error>> {
+        let mut cipher = AesGcm::new(key);
+        let mut plaintext = cipher.decrypt(nonce, &self.payload.payload.as_slice())?;
+        self.payload.payload = plaintext;
         Ok(())
     }
 }
