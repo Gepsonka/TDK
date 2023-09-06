@@ -45,7 +45,10 @@ impl TransmitQueue<LoRaPacket> {
                         if let Some(opmode) = lora_device.opmod {
                             match opmode {
                                 OperationMode::SX127x_MODE_RX_CONT => {},
-                                _ => lora_device.set_opmod(OperationMode::SX127x_MODE_RX_CONT).expect("Cannot set opmode to RX_CONT")
+                                _ => {
+                                    lora_device.set_opmod(OperationMode::SX127x_MODE_RX_CONT).expect("Cannot set opmode to RX_CONT");
+                                    debug!("Set opmode to RX_CONT")
+                                }
                             }
                         } else {
                             error!("LoRa opmode is not set.");
