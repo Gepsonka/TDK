@@ -1,32 +1,20 @@
 #[cfg(test)]
 mod header_tests {
-    use crate::network::packet;
-    use crate::network::packet::PacketHeader;
+    use crate::network::packet::{self, PacketHeaderInit};
+    use crate::network::packet::PacketHeaderCRC;
 
-    #[test]
-    #[should_panic]
-    fn test_lora_packet_header() {
-        let header = packet::LoRaPacketHeader::new(
-            0x01,
-            0x02,
-            0x03,
-            0xFF,
-            0xFF,
-            0xFFFF
-        ).unwrap();
-
-    }
 
     #[test]
     fn test_lora_packet_header_crc_calculation() {
-        let mut header = packet::LoRaPacketHeader::new(
+        let mut header = packet::LoRaPacketHeader::new_from_slice([
             0x01,
             0x02,
             0x03,
             0x04,
             0x05,
-            0xFFFF
-        ).unwrap();
+            0xFF,
+            0xFF
+        ]).unwrap();
 
         header.calculate_header_crc();
 
@@ -35,14 +23,15 @@ mod header_tests {
 
     #[test]
     fn test_lora_packet_header_crc_checker() {
-        let mut header = packet::LoRaPacketHeader::new(
+        let mut header = packet::LoRaPacketHeader::new_from_slice([
             0x01,
             0x02,
             0x03,
             0x04,
             0x05,
-            0xFFFF
-        ).unwrap();
+            0xFF,
+            0xFF
+        ]).unwrap();
 
         header.calculate_header_crc();
 
@@ -51,14 +40,15 @@ mod header_tests {
 
     #[test]
     fn test_lora_packet_header_into_vec_u8() {
-        let header = packet::LoRaPacketHeader::new(
+        let header = packet::LoRaPacketHeader::new_from_slice([
             0x01,
             0x02,
             0x03,
             0x04,
             0x05,
-            0xFFFF
-        ).unwrap();
+            0xFF,
+            0xFF
+        ]).unwrap();
 
         let header_vec: Vec<u8> = header.into();
 
@@ -78,28 +68,30 @@ mod header_tests {
     fn test_lora_packet_header_tryfrom() {
         let header = packet::LoRaPacketHeader::try_from(vec![0x01, 0x02, 0x03, 0x04, 0x05, 0xBF, 0xFF]).unwrap();
 
-        let assert_header = packet::LoRaPacketHeader::new(
+        let assert_header = packet::LoRaPacketHeader::new_from_slice([
             0x01,
             0x02,
             0x03,
             0x04,
             0x05,
-            0xBFFF
-        ).unwrap();
+            0xBF,
+            0xFF
+        ]).unwrap();
 
         assert_eq!(header, assert_header);
     }
 
     #[test]
     fn test_lora_packet_header_into_array_u8() {
-        let header = packet::LoRaPacketHeader::new(
+        let header = packet::LoRaPacketHeader::new_from_slice([
             0x01,
             0x02,
             0x03,
             0x04,
             0x05,
-            0xBFFF
-        ).unwrap();
+            0xBF,
+            0xFF
+        ]).unwrap();
 
         let header_array: [u8; 7] = header.into();
 
@@ -112,17 +104,17 @@ mod header_tests {
 
 #[cfg(test)]
 mod payload_tests {
-    use crate::network::packet::LoRaPacketPayload;
+    use crate::network::packet::{LoRaPacketPayload, PacketPayloadInit};
 
     #[test]
     #[should_panic]
     fn packet_new_should_fail() {
-        let payload = LoRaPacketPayload::new(0xFFFF, (0..255).collect::<Vec<u8>>()).unwrap();
+        LoRaPacketPayload::new((0..255).collect::<Vec<u8>>()).unwrap();
     }
 
     #[test]
     fn packet_new() {
-        let payload = LoRaPacketPayload::new(0xFFFF, (0..6).collect::<Vec<u8>>()).unwrap();
+        let payload = LoRaPacketPayload::new((0..6).collect::<Vec<u8>>()).unwrap();
 
         assert_eq!(payload.payload, vec![0,1, 2, 3, 4, 5]);
 
@@ -131,7 +123,7 @@ mod payload_tests {
     #[test]
     #[should_panic]
     fn payload_tryfrom_vec_u8_should_fail() {
-        let payload = LoRaPacketPayload::new(0xFFFF, (0..255).collect::<Vec<u8>>()).unwrap();
+        LoRaPacketPayload::new((0..255).collect::<Vec<u8>>()).unwrap();
     }
 
     #[test]
@@ -154,8 +146,20 @@ mod payload_tests {
 
 #[cfg(test)]
 mod packet_test {
-    use crate::network::packet::LoRaPacket;
+    use aes_gcm::{Key, Nonce};
 
+    use crate::network::packet::{LoRaPacket, PacketEncrypt};
 
+    #[test]
+    fn packet_encryption_test() {
+        let mut packet = LoRaPacket::try_from(vec![0x01, 0x02, 0x03, 0x04, 0x05]).unwrap();
+        
+        let key = Key::from_slice(&"asdasdasdasdasda".as_bytes());
+        let nonce = Nonce::from_slice(&"asdasdasdasd".as_bytes());
+
+        packet.encrypt(&key, &nonce).unwrap();
+
+        assert_eq!(packet.payload.payload, vec![0x01, 0x02, 0x03, 0x04, 0x05]);
+    }
 
 }
