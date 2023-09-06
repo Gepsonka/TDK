@@ -5,7 +5,7 @@ use std::time::{Duration, SystemTime};
 use aes_gcm::{AeadCore, Aes128Gcm, Key, KeySizeUser, Nonce};
 use aes_gcm::aead::generic_array::ArrayLength;
 use aes_gcm::aead::OsRng;
-use crate::network::packet::{LoRaPacket, MAX_PACKET_SIZE, MAX_MESSAGE_SLICE_SIZE};
+use crate::network::packet::{LoRaPacket, PacketDecrypt, MAX_PACKET_SIZE, MAX_MESSAGE_SLICE_SIZE};
 use crate::network::device_status::DeviceStatus;
 use crate::network::device_type::DeviceType;
 
@@ -56,6 +56,7 @@ where NonceSize: ArrayLength<u8> + Eq + PartialOrd
     }
 }
 
+
 #[derive(Debug, Clone, Hash)]
 pub struct InitializationVectorContainer<NonceSize>
 where NonceSize: ArrayLength<u8>
@@ -74,22 +75,47 @@ where NonceSize: ArrayLength<u8>
 }
 
 
+pub trait ArpRegistryInit {
+    fn new(address: u8, device_status: DeviceStatus) -> Self;
+}
+
+pub trait PacketDecryptor {
+    type PacketType;
+
+    fn decrypt_packet(&mut self, packet: &mut Self::PacketType) -> Result<(), ()>;
+    fn decrypt_packets(&mut self, packets: &mut Vec<Self::PacketType>) -> Result<(), ()>;
+}
+
+pub trait PacketEncryptor {
+    type PacketType;
+
+    fn encrypt_packet(&mut self, packet: &mut Self::PacketType) -> Result<(), ()>;
+    fn encrypt_packets(&mut self, packets: &mut Vec<Self::PacketType>) -> Result<(), ()>;
+}
+
+pub trait MessageAssembler {
+    /// Assembles a message from a vector of packets
+    fn assemble_message_from_packets(&mut self) -> Result<(), ()>;
+}
+
+pub trait MessageDisassembler {
+    fn disassemble_message_into_packets(&mut self) -> Result<(), ()>;
+}
 
 #[derive(Debug, Clone)]
-pub struct ArpRegistry<PacketT, KeySize, NonceSize>
-where KeySize: KeySizeUser,
-NonceSize: ArrayLength<u8>,
+pub struct ArpRegistry<PacketT, AesGcm>
+where AesGcm: AeadMut + KeyInit
 {
     pub address: Option<u8>,
     pub device_type: Option<DeviceType>,
     pub device_status: DeviceStatus,
-    pub secret_key: Option<Key<KeySize>>,
+    pub secret_key: Option<Key<AesGcm>>,
     pub packet_rx_vec: Vec<PacketT>,
     packet_tx_vec: Vec<PacketT>,
     pub rx_message: Vec<u8>,
     tx_message: Vec<u8>,
     faulty_packets: Vec<u8>,
-    used_ivs: InitializationVectorContainer<NonceSize>,
+    used_ivs: InitializationVectorContainer<AesGcm::NonceSize>,
     iv_expiration_duration: Option<Duration>
 }
 
@@ -98,21 +124,6 @@ impl <KeySize, NonceSize> ArpRegistry<LoRaPacket, KeySize, NonceSize>
 where KeySize: KeySizeUser,
 NonceSize: ArrayLength<u8>,
 {
-    pub fn new(address: u8, device_status: DeviceStatus) -> Self {
-        ArpRegistry {
-            address: Some(address),
-            device_type: None,
-            device_status,
-            secret_key: None,
-            packet_rx_vec: Vec::new(),
-            packet_tx_vec: Vec::new(),
-            rx_message: Vec::new(),
-            tx_message: Vec::new(),
-            faulty_packets: Vec::new(),
-            used_ivs: InitializationVectorContainer::new(),
-            iv_expiration_duration: Some(Duration::from_secs(5))
-        }
-    }
 
     pub fn build_packets_from_message<TagSize: ArrayLength<u8>>(&mut self, dest_address: u8) -> Result<(), ()> {
         if self.tx_message.len() == 0 {
@@ -133,13 +144,51 @@ NonceSize: ArrayLength<u8>,
 
         Ok(())
     }
-
-    
-
-
 }
 
 
+impl ArpRegistryInit for ArpRegistry<LoRaPacket, KeySize, NonceSize>
+where KeySize: KeySizeUser,
+NonceSize: ArrayLength<u8>,
+{
+    fn new(address: u8, device_status: DeviceStatus) -> Self {
+        ArpRegistry {
+            address: Some(address),
+            device_type: None,
+            device_status,
+            secret_key: None,
+            packet_rx_vec: Vec::new(),
+            packet_tx_vec: Vec::new(),
+            rx_message: Vec::new(),
+            tx_message: Vec::new(),
+            faulty_packets: Vec::new(),
+            used_ivs: InitializationVectorContainer::new(),
+            iv_expiration_duration: Some(Duration::from_secs(5))
+        }
+    }
+}
 
 
+impl <KeySize, NonceSize> PacketDecryptor for ArpRegistry<LoRaPacket, KeySize, NonceSize>
+where KeySize: KeySizeUser,
+NonceSize: ArrayLength<u8>,
+{
+    type PacketType = LoRaPacket;
+
+    fn decrypt_packet(&mut self, &mut packet: Self::PacketType) -> Result<(), ()> {
+        if let Some(key) = self.secret_key {
+            packet.decrypt(&key)?;
+        }
+        
+
+        Ok(())
+    }
+
+    fn decrypt_packets(&mut self, &mut packets: Vec<Self::PacketType>) -> Result<(), ()> {
+        for packet in packets {
+            self.decrypt_packet(packet)?;
+        }
+        Ok(())
+    }
+}
 

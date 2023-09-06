@@ -108,6 +108,15 @@ pub trait PacketPayloadInit {
     fn new_from_slice(slice: &[u8]) -> Result<Self, Box<dyn std::error::Error>> where Self: Sized;
 }
 
+pub trait PacketInit {
+    type Header;
+    type Payload;
+
+
+    fn new(header: Self::Header, payload: Self::Payload) -> Self where Self: Sized;
+    fn new_from_slice(slice: &[u8]) -> Result<Self, Box<dyn std::error::Error>> where Self: Sized;
+}
+
 /// Every network communication is done via packets.
 /// This trait defines the basic functionality of a packet header
 /// required for the network communication of drones.
@@ -364,12 +373,29 @@ pub struct LoRaPacket {
     pub payload: LoRaPacketPayload
 }
 
-impl LoRaPacket {
-    pub fn new(header: LoRaPacketHeader, payload: LoRaPacketPayload) -> Self {
+impl PacketInit for LoRaPacket {
+    type Header = LoRaPacketHeader;
+    type Payload = LoRaPacketPayload;
+
+    fn new(header: Self::Header, payload: Self::Payload) -> Self {
         LoRaPacket {
             header,
             payload,
         }
+    }
+
+    fn new_from_slice(slice: &[u8]) -> Result<Self, Box<dyn Error>> {
+        if slice.len() > MAX_PACKET_SIZE {
+            return Err(Box::new(PacketSizeError::new(slice.len())));
+        }
+
+        let header = LoRaPacketHeader::try_from(slice[0..=6].to_vec())?;
+        let payload = LoRaPacketPayload::try_from(slice[7..slice.len()].to_vec())?;
+
+        Ok(LoRaPacket {
+            header,
+            payload,
+        })
     }
 }
 
@@ -461,7 +487,6 @@ impl PacketDecrypt<Aes128Gcm> for LoRaPacket
 
         Ok(())
     }
-
 }
 
 impl Into<Vec<u8>> for LoRaPacket {
