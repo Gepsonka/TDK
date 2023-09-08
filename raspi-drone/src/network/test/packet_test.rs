@@ -1,7 +1,7 @@
 #[cfg(test)]
 mod header_tests {
     use crate::network::packet::{self, PacketHeaderInit};
-    use crate::network::packet::PacketHeaderCRC;
+    use crate::network::packet::PacketHeaderCrcCalculator;
 
 
     #[test]

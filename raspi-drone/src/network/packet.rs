@@ -8,11 +8,19 @@ use aes_gcm::{Key, KeyInit, Nonce, Aes128Gcm};
 /// max num of bytes in a LoRa packet
 pub const MAX_PACKET_SIZE: usize = 255;
 pub const HEADER_SIZE: usize = 7;
+
 /// MAX_PACKET_SIZE - header - payload crc size
 pub const MAX_PAYLOAD_SIZE: usize = MAX_PACKET_SIZE - HEADER_SIZE - 2;
 
 /// = packet max size (MAX_PAYLOAD_SIZE) - nonce size (12)
 pub const MAX_MESSAGE_SLICE_SIZE: usize = MAX_PAYLOAD_SIZE - 12;
+
+pub const AES_GCM_128_TAG_SIZE: u8 = 16;
+
+pub const AES_GCM_128_NONCE_SIZE: u8 = 12;
+
+/// MAX_PAYLOAD_SIZE - NONCE_SIZE - TAG_SIZE
+pub const MAX_RAW_MESSAGE_SIZE_AES_GCM_128: usize = MAX_PAYLOAD_SIZE - AES_GCM_128_NONCE_SIZE - AES_GCM_128_TAG_SIZE;
 
 
 
@@ -122,7 +130,7 @@ pub trait PacketInit {
 /// required for the network communication of drones.
 /// Each packet must have a header and payload CRC to ensure data integrity,
 /// since every packet is sent through a wireless medium.
-pub trait PacketHeaderCRC {
+pub trait PacketHeaderCrcCalculator {
     fn calculate_header_crc(&mut self);
     fn check_header_crc(&self) -> bool;
 }
@@ -208,7 +216,7 @@ impl PacketHeaderInit for LoRaPacketHeader {
     }
 }
 
-impl PacketHeaderCRC for LoRaPacketHeader {
+impl PacketHeaderCrcCalculator for LoRaPacketHeader {
     fn calculate_header_crc(&mut self) {
         let header: Vec<u8> = self.into();
 
@@ -322,6 +330,12 @@ impl PacketPayloadInit for LoRaPacketPayload {
         })
     }
 
+    /// Creates a new payload from the slice.
+    /// Does not calculate the CRC! Automatically sets it to 0.
+    /// 
+    /// ## Arguments
+    /// 
+    /// * `slice` - Payload slice
     fn new_from_slice(slice: &[u8]) -> Result<LoRaPacketPayload, Box<dyn Error>> {
         if slice.len() > MAX_PAYLOAD_SIZE {
             return Err(Box::new(PacketSizeError::new(slice.len())));

@@ -26,7 +26,7 @@ impl <KeySize, NonceSize> ArpTable<u8, LoRaPacket, KeySize, NonceSize>
     }
 
     pub fn add_device(&mut self, address: u8, device_status: DeviceStatus) {
-        self.arp_table.insert(address, ArpRegistry::new(address, device_status));
+        self.arp_table.insert(address, ArpRegistry::new(address));
     }
 
     pub fn remove_device(&mut self, address: u8) {
