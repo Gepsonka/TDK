@@ -1,14 +1,23 @@
 use super::lora::LoRa;
-use super::packet::{LoRaPacketHeader, PacketHeaderInit, PacketInit, LoRaPacketPayload, PacketPayloadInit, PacketHeaderCrcCalculator};
+use super::packet::{
+    self, LoRaPacket, LoRaPacketHeader, LoRaPacketPayload, PacketDecrypt, PacketEncrypt,
+    PacketFields, PacketHeaderCrcCalculator, PacketHeaderInit, PacketInit,
+    PacketPayloadCrcCalculator, PacketPayloadInit, AES_GCM_128_NONCE_SIZE, AES_GCM_128_TAG_SIZE,
+    MAX_MESSAGE_SLICE_SIZE, MAX_PACKET_SIZE, MAX_PAYLOAD_SIZE, MAX_RAW_MESSAGE_SIZE_AES_GCM_128,
+    PacketSize
+};
+use crate::device_self::DeviceSelf;
 use crate::network::device_status::DeviceStatus;
 use crate::network::device_type::DeviceType;
-use crate::network::packet::{LoRaPacket, PacketDecrypt, MAX_MESSAGE_SLICE_SIZE, MAX_PACKET_SIZE};
 use aes_gcm::aead::generic_array::ArrayLength;
 use aes_gcm::aead::OsRng;
 use aes_gcm::aead::{AeadMut, KeyInit};
 use aes_gcm::{AeadCore, Aes128Gcm, Key, KeySizeUser, Nonce};
+use log::error;
 use std::borrow::Borrow;
 use std::collections::BTreeMap;
+use std::error::Error;
+use std::fmt::Debug;
 use std::hash::Hash;
 use std::time::{Duration, SystemTime};
 
@@ -63,7 +72,7 @@ pub struct InitializationVectorContainer<NonceSize>
 where
     NonceSize: ArrayLength<u8>,
 {
-    initialization_vectors: BTreeMap<Nonce<NonceSize>, InitializationVector<NonceSize>>,
+    pub initialization_vectors: BTreeMap<Nonce<NonceSize>, InitializationVector<NonceSize>>,
 }
 
 impl<NonceSize> InitializationVectorContainer<NonceSize>
@@ -78,42 +87,61 @@ where
 }
 
 pub trait ArpRegistryInit {
-    fn new(address: u8, device_status: DeviceStatus) -> Self;
+    fn new(address: Option<u8>, device_status: DeviceStatus) -> Self;
 }
 
 pub trait PacketDecryptor {
     type PacketType;
 
-    fn decrypt_packet(&mut self, packet: &mut Self::PacketType) -> Result<(), ()>;
-    fn decrypt_packets(&mut self, packets: &mut Vec<Self::PacketType>) -> Result<(), ()>;
+    fn decrypt_packet(&mut self, packet: &mut Self::PacketType) -> Result<(), Box<dyn Error>>;
+    fn decrypt_packets(&mut self, packets: &mut Vec<Self::PacketType>);
 }
 
 pub trait PacketEncryptor {
     type PacketType;
 
-    fn encrypt_packet(&mut self, packet: &mut Self::PacketType) -> Result<(), ()>;
-    fn encrypt_packets(&mut self, packets: &mut Vec<Self::PacketType>) -> Result<(), ()>;
+    fn encrypt_packet(&mut self, packet: &mut Self::PacketType) -> Result<(), Box<dyn Error>>;
+    fn encrypt_packets(
+        &mut self,
+        packets: &mut Vec<Self::PacketType>,
+    ) -> Result<(), Box<dyn Error>>;
 }
 
 pub trait MessageAssembler {
     /// Assembles a message from a vector of packets
-    fn assemble_message_from_packets(&mut self) -> Result<(), ()>;
+    fn assemble_message_from_packets(&mut self);
 }
 
-pub trait MessageDisassembler {
-    fn disassemble_message_into_packets(&mut self) -> Result<(), ()>;
+pub trait MessageDisassembler
+where 
+    Self: RegistryFields
+{
+    fn disassemble_message_into_packets(&mut self, device_self: &DeviceSelf<Self::AddressSize>) -> Result<(), ()>;
 }
 
 pub trait PacketHandler {
-    fn calc_crc_and_encrypt_tx_packets(&mut self);
-    fn check_crc_and_decrypt_packets(&mut self);
+    fn finalise_tx_packets(&mut self);
+    fn finalise_rx_packets(&mut self);
 }
 
+pub trait RegistryFields {
+    type AddressSize;
+    type AesGcmT;
 
+    fn get_address(&self) -> Option<Self::AddressSize>;
+    fn get_secret_key(&self) -> Option<Key<Self::AesGcmT>>
+    where
+        Self::AesGcmT: AeadMut + KeyInit;
+}
+
+/// This will store every network related data of a device
+/// from secrets to packets. Message handling and error handling will
+/// happen here
 #[derive(Debug, Clone)]
 pub struct ArpRegistry<PacketT, AesGcm>
 where
     AesGcm: AeadMut + KeyInit,
+    PacketT: PacketFields,
 {
     pub address: Option<u8>,
     pub device_type: Option<DeviceType>,
@@ -123,14 +151,19 @@ where
     packet_tx_vec: Vec<PacketT>,
     pub rx_message: Vec<u8>,
     tx_message: Vec<u8>,
-    faulty_packets: Vec<u8>,
+    faulty_packets: Vec<PacketT::PayloadCountType>,
     used_ivs: InitializationVectorContainer<AesGcm::NonceSize>,
     iv_expiration_duration: Option<Duration>,
 }
 
-impl<AesGcm> ArpRegistryInit for ArpRegistry<LoRaPacket, AesGcm>
+impl<PacketT, AesGcm> ArpRegistryInit for ArpRegistry<PacketT, AesGcm>
 where
     AesGcm: AeadMut + KeyInit,
+    PacketT: PacketFields
+        + PacketInit
+        + PacketDecrypt<Aes128Gcm>
+        + PacketEncrypt<Aes128Gcm>
+        + TryFrom<Vec<u8>>,
 {
     fn new(address: Option<u8>, device_status: DeviceStatus) -> Self {
         ArpRegistry {
@@ -144,18 +177,35 @@ where
             tx_message: Vec::new(),
             faulty_packets: Vec::new(),
             used_ivs: InitializationVectorContainer::new(),
-            iv_expiration_duration: Some(Duration::from_secs(5)),
+            iv_expiration_duration: Some(Duration::from_secs(30)),
         }
     }
 }
 
-impl<AesGcm> PacketDecryptor for ArpRegistry<LoRaPacket, AesGcm>
+impl<PacketT, AesGcm> RegistryFields for ArpRegistry<PacketT, AesGcm>
 where
     AesGcm: AeadMut + KeyInit,
+    PacketT: PacketFields,
 {
-    type PacketType = LoRaPacket;
+    type AddressSize = u8;
+    type AesGcmT = AesGcm;
 
-    fn decrypt_packet(&mut self, &mut packet: LoRaPacket) -> Result<(), ()> {
+    fn get_address(&self) -> Option<Self::AddressSize> {
+        self.address
+    }
+
+    fn get_secret_key(&self) -> Option<Key<Self::AesGcmT>> {
+        self.secret_key.clone()
+    }
+}
+
+impl<PacketT> PacketDecryptor for ArpRegistry<PacketT, Aes128Gcm>
+where
+    PacketT: PacketFields + PacketDecrypt<Aes128Gcm>,
+{
+    type PacketType = PacketT;
+
+    fn decrypt_packet(&mut self, packet: &mut Self::PacketType) -> Result<(), Box<dyn Error>> {
         if let Some(key) = self.secret_key {
             packet.decrypt(&key)?;
         }
@@ -163,10 +213,54 @@ where
         Ok(())
     }
 
-    fn decrypt_packets(&mut self, &mut packets: Vec<LoRaPacket>) -> Result<(), ()> {
+    fn decrypt_packets(&mut self, packets: &mut Vec<Self::PacketType>) {
         if let Some(key) = self.secret_key {
             for packet in packets {
-                packet.decrypt(&key)?;
+                let decr_res = packet.decrypt(&key);
+                match decr_res {
+                    Err(_) => self.faulty_packets.push(packet.get_message_packet_num()),
+                    Ok(_) => {}
+                };
+            }
+        }
+    }
+}
+
+impl<PacketT> PacketEncryptor for ArpRegistry<PacketT, Aes128Gcm>
+where
+    PacketT: PacketFields + PacketEncrypt<Aes128Gcm>,
+{
+    type PacketType = PacketT;
+
+    fn encrypt_packet(&mut self, packet: &mut Self::PacketType) -> Result<(), Box<dyn Error>> {
+        if let Some(key) = self.secret_key {
+            let mut nonce;
+            loop {
+                nonce = Aes128Gcm::generate_nonce(&mut OsRng);
+                if !self.used_ivs.initialization_vectors.contains_key(&nonce) {
+                    break;
+                }
+            }
+            packet.encrypt(&key, &nonce)?;
+        }
+
+        Ok(())
+    }
+
+    fn encrypt_packets(
+        &mut self,
+        packets: &mut Vec<Self::PacketType>,
+    ) -> Result<(), Box<dyn Error>> {
+        if let Some(key) = self.secret_key {
+            for packet in packets {
+                let mut nonce;
+                loop {
+                    nonce = Aes128Gcm::generate_nonce(&mut OsRng);
+                    if !self.used_ivs.initialization_vectors.contains_key(&nonce) {
+                        break;
+                    }
+                }
+                packet.encrypt(&key, &nonce)?;
             }
         }
 
@@ -174,112 +268,141 @@ where
     }
 }
 
-impl<AesGcm> PacketEncryptor for ArpRegistry<LoRaPacket, AesGcm>
+impl<PacketT, AesGcm> MessageAssembler for ArpRegistry<PacketT, AesGcm>
 where
     AesGcm: AeadMut + KeyInit,
+    PacketT: PacketFields<Payload = Vec<u8>>
 {
-    type PacketType = LoRaPacket;
-
-    fn encrypt_packet(&mut self, &mut packet: LoRaPacket) -> Result<(), ()> {
-        if let Some(key) = self.secret_key {
-            packet.encrypt(&key)?;
-        }
-
-        Ok(())
-    }
-
-    fn encrypt_packets(&mut self, &mut packets: Vec<LoRaPacket>) -> Result<(), ()> {
-        if let Some(key) = self.secret_key {
-            for packet in packets {
-                packet.encrypt(&key)?;
-            }
-        }
-
-        Ok(())
-    }
-}
-
-impl<AesGcm> MessageAssembler for ArpRegistry<LoRaPacket, AesGcm>
-where
-    AesGcm: AeadMut,
-{
-    type PacketType = LoRaPacket;
     /// Assembles a message from a vector of packets
     /// All packets are assumed to be decrypted
-    fn assemble_message_from_packets(&mut self) -> Result<(), ()> {
+    fn assemble_message_from_packets(&mut self) {
         self.rx_message.clear();
 
         for packet in self.packet_rx_vec.iter() {
-            self.rx_message.extend_from_slice(&packet.payload.payload);
+            self.rx_message.extend_from_slice(packet.get_payload_ref());
         }
 
-        Ok(())
     }
 }
 
-impl<AesGcm> MessageDisassembler for ArpRegistry<LoRaPacket, AesGcm> 
-where AesGcm: AeadMut {
-    type PacketType = LoRaPacket;
+impl<PacketT, AesGcm> MessageDisassembler for ArpRegistry<PacketT, AesGcm>
+where
+    AesGcm: AeadMut + KeyInit,
+    PacketT: PacketFields + TryFrom<Vec<u8>> + PacketSize + Debug
+{
 
     /// Disassmebles the message the device wants to send to the address.
     /// Does not calculate CRC nor encrypts the message. Must be done at a later
-    /// step
-    fn disassemble_message_into_packets(&mut self) -> Result<(), ()> {
+    /// step. Fails if the LoRaPacketPayload creation fails.
+    fn disassemble_message_into_packets(&mut self, device_self: &DeviceSelf<u8>) -> Result<(), ()> {
         self.packet_tx_vec.clear();
+        let payload_size;
+        if let Some(key) = &self.secret_key {
+            payload_size = PacketT::get_max_encrypted_raw_size();
+        } else {
+            payload_size = PacketT::MAX_PAYLOAD_SIZE;
+        }
 
-        let packet_count: usize = self
-            .tx_message
-            .chunks(MAX_RAW_MESSAGE_SIZE_AES_GCM_128)
-            .count();
+        let packet_count: usize = self.tx_message.chunks(payload_size).count();
 
         self.tx_message
-            .chunks(MAX_RAW_MESSAGE_SIZE_AES_GCM_128)
+            .chunks(payload_size)
             .enumerate()
             .for_each(|(index, item)| {
                 // TODO: Change first element of the slice to the true address
-                self.packet_tx_vec
-                    .push(
-                        LoRaPacket::new(
-                            LoRaPacketHeader::new_from_slice([
-                                0, // change it later
-                                self.address,
-                                index as u8,
-                                packet_count as u8,
-                                item.len() + AES_GCM_128_TAG_SIZE + AES_GCM_128_NONCE_SIZE,
-                                0, // calculate it at a later stage
-                            ]),
-                        LoRaPacketPayload::new_from_slice(slice).unwrap()
-                    )
-                )
+
+                let mut packet_size = if let Some(sec_key) = &self.secret_key {
+                    item.len() + PacketT::TAG_SIZE + PacketT::NONCE_SIZE
+                } else {
+                    item.len()
+                };
+
+                let mut self_addr = if let Some(self_addr) = device_self.address {
+                    self_addr
+                } else {
+                    0
+                };
+
+                let packet_res = PacketT::try_from(vec![
+                    self_addr, // change it later
+                    self.address.unwrap(),
+                    index as u8,
+                    packet_count as u8,
+                    packet_size as u8,
+                    0, // calculate header crc at a later stage
+                ]);
+
+                match packet_res {
+                    Ok(mut packet) => {
+                        self.packet_tx_vec.push(packet);
+                    }
+                    Err(_) => {
+                        error!(
+                            "Message disassemble failed!\n Address: {}\nMessage: {:?}\nChunk index: {}",
+                            self.address.unwrap(),
+                            self.tx_message,
+                            index
+                        );
+                    }
+                }
+
             });
         Ok(())
     }
 }
 
-
-impl PacketHandler for ArpRegistry<LoRaPacket, AesGcm>
-where AesGcm: AeadMut {
-    fn check_crc_and_decrypt_packets(&mut self) {
+impl <PacketT, AesGcm> PacketHandler for ArpRegistry<PacketT, AesGcm>
+where
+    AesGcm: AeadMut + KeyInit,
+    PacketT: PacketDecrypt<Aes128Gcm> + PacketPayloadCrcCalculator + PacketHeaderCrcCalculator
+{
+    /// Check CRCs and decrpyts the packets if needed.
+    /// Prepares packets for message assembly
+    fn finalise_rx_packets(&mut self) {
         self.faulty_packets.clear();
         for packet in self.packet_rx_vec.iter() {
-            if !packet.header.check_header_crc() {
-                self.faulty_packets.push(packet.clone())
-            }
-
-            // assume if the secret_key is None, then the packet is not encrypted
-            if let Some(key) = self.secret_key {
-                let packet_decrpyt_result = packet.decrypt(&key);
-                match packet_decrpyt_result {
-                    Err(_) => self.faulty_packets.push(packet.clone()),
-                    Ok(_) => {}
+            if !packet.check_payload_crc() && !packet.header.check_header_crc() {
+                self.faulty_packets.push(packet.header.message_packet_num);
+            } else {
+                // assume if the secret_key is None, then the packet is not encrypted
+                if let Some(key) = self.secret_key {
+                    let packet_decrpyt_result = packet.decrypt(&key);
+                    match packet_decrpyt_result {
+                        Err(_) => self.faulty_packets.push(packet.header.message_packet_num),
+                        Ok(_) => {}
+                    }
                 }
             }
-            
-        }   
+        }
     }
 
-    fn calc_crc_and_encrypt_tx_packets(&mut self) {
-        for 
-        
+    /// Calculates CRCs and encrypts the packets if needed.
+    /// Prepares packets for transmission
+    fn finalise_tx_packets(&mut self) {
+        for packet in self.packet_tx_vec.iter_mut() {
+            packet.header.calculate_header_crc();
+            if let Some(key) = self.secret_key {
+                let nonce;
+                loop {
+                    nonce = Aes128Gcm::generate_nonce(&mut OsRng);
+                    if !self.used_ivs.initialization_vectors.contains_key(&nonce) {
+                        break;
+                    }
+
+                    if let Some(iv_expr_dur) = self.iv_expiration_duration {
+                        self.used_ivs.initialization_vectors.insert(nonce, InitializationVector::new(nonce, iv_expr_dur, SystemTime::now()))
+
+                    } else {
+                        // Default duration will be 30 secs
+                        self.used_ivs.initialization_vectors.insert(nonce, InitializationVector::new(nonce, Duration::from_secs(30), SystemTime::now()))
+
+                    }
+                }
+
+                packet.encrypt(&key, &nonce).unwrap(); // TODO: Handle this error later
+            }
+
+            packet.payload.calculate_payload_crc();
+        }
     }
 }

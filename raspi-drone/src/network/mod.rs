@@ -1,11 +1,11 @@
-pub mod packet;
 pub mod arp_registry;
 pub mod arp_table;
-pub mod lora;
-pub mod test;
-pub(crate) mod receive_queue;
-pub(crate) mod transmit_queue;
-pub(crate) mod queue;
 pub(crate) mod blacklist;
 mod device_status;
 mod device_type;
+pub mod lora;
+pub mod packet;
+pub(crate) mod queue;
+pub(crate) mod receive_queue;
+pub mod test;
+pub(crate) mod transmit_queue;

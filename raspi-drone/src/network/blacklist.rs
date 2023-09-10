@@ -2,17 +2,16 @@ use std::collections::LinkedList;
 use std::ops::Add;
 
 pub struct BlackList<AddressSize> {
-    blacklist: Vec<AddressSize>
+    blacklist: Vec<AddressSize>,
 }
 
-
-impl <AddressSize> BlackList<AddressSize>
-    where AddressSize: PartialEq + Add
+impl<AddressSize> BlackList<AddressSize>
+where
+    AddressSize: PartialEq + Add,
 {
-
     pub fn new() -> Self {
         BlackList {
-            blacklist: Vec::new()
+            blacklist: Vec::new(),
         }
     }
 

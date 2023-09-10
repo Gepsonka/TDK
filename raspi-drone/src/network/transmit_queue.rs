@@ -1,24 +1,25 @@
+use super::{
+    lora::{self, LoRa},
+    packet::LoRaPacket,
+};
+use crate::network::lora::OperationMode;
+use crate::network::queue::Queue;
+use log::{debug, error, info};
 use std::collections::VecDeque;
 use std::sync::{Arc, Mutex};
 use std::thread;
-use log::{debug, error, info};
-use crate::network::lora::OperationMode;
-use crate::network::queue::Queue;
-use super::{packet::LoRaPacket, lora::{LoRa, self}};
-
-
 
 pub struct TransmitQueue<PacketT>
-where PacketT: Into<PacketT> + TryFrom<PacketT> + From<PacketT> + Clone
+where
+    PacketT: Into<PacketT> + TryFrom<PacketT> + From<PacketT> + Clone,
 {
-    queue: VecDeque<PacketT>
+    queue: VecDeque<PacketT>,
 }
-
 
 impl TransmitQueue<LoRaPacket> {
     pub fn new() -> Self {
         TransmitQueue {
-            queue: VecDeque::new()
+            queue: VecDeque::new(),
         }
     }
 
@@ -37,16 +38,22 @@ impl TransmitQueue<LoRaPacket> {
                     let mut lora_device = lora_device_mutex.lock().unwrap();
                     let packet = tx_queue_mutex.lock().unwrap().queue.pop_front().unwrap();
                     let lora_packet_raw: Vec<u8> = packet.into();
-                    lora_device.set_for_transmission(lora_packet_raw.as_slice()).unwrap();
-                    lora_device.set_opmod(OperationMode::SX127x_MODE_TX).unwrap();
+                    lora_device
+                        .set_for_transmission(lora_packet_raw.as_slice())
+                        .unwrap();
+                    lora_device
+                        .set_opmod(OperationMode::SX127x_MODE_TX)
+                        .unwrap();
                 } else {
                     let mut lora_device = lora_device_mutex.lock().unwrap();
                     if !lora_device.waiting_for_tx {
                         if let Some(opmode) = lora_device.opmod {
                             match opmode {
-                                OperationMode::SX127x_MODE_RX_CONT => {},
+                                OperationMode::SX127x_MODE_RX_CONT => {}
                                 _ => {
-                                    lora_device.set_opmod(OperationMode::SX127x_MODE_RX_CONT).expect("Cannot set opmode to RX_CONT");
+                                    lora_device
+                                        .set_opmod(OperationMode::SX127x_MODE_RX_CONT)
+                                        .expect("Cannot set opmode to RX_CONT");
                                     debug!("Set opmode to RX_CONT")
                                 }
                             }
@@ -55,7 +62,6 @@ impl TransmitQueue<LoRaPacket> {
                             panic!("LoRa opmode is not set.");
                         }
                     }
-
                 }
             }
             debug!("Packet transmit thread exiting");
@@ -63,8 +69,9 @@ impl TransmitQueue<LoRaPacket> {
     }
 }
 
-impl <PacketT> Queue<PacketT> for TransmitQueue<PacketT>
-    where PacketT: Into<PacketT> + TryFrom<PacketT> + From<PacketT> + Clone,
+impl<PacketT> Queue<PacketT> for TransmitQueue<PacketT>
+where
+    PacketT: Into<PacketT> + TryFrom<PacketT> + From<PacketT> + Clone,
 {
     fn get_top_item(&mut self) -> Option<PacketT> {
         self.queue.front().cloned()

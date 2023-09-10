@@ -1,9 +1,10 @@
+use aes_gcm::aead::consts::U12;
+use aes_gcm::aead::{Aead, AeadMut};
+use aes_gcm::{Aes128Gcm, Key, KeyInit, Nonce, TagSize};
 use std::error::Error;
 use std::fmt::{Display, Formatter};
-use aes_gcm::aead::consts::U12;
-use aes_gcm::aead::{AeadMut, Aead};
-use aes_gcm::{Key, KeyInit, Nonce, Aes128Gcm};
 
+use super::lora::LoRa;
 
 /// max num of bytes in a LoRa packet
 pub const MAX_PACKET_SIZE: usize = 255;
@@ -20,9 +21,8 @@ pub const AES_GCM_128_TAG_SIZE: u8 = 16;
 pub const AES_GCM_128_NONCE_SIZE: u8 = 12;
 
 /// MAX_PAYLOAD_SIZE - NONCE_SIZE - TAG_SIZE
-pub const MAX_RAW_MESSAGE_SIZE_AES_GCM_128: usize = MAX_PAYLOAD_SIZE - AES_GCM_128_NONCE_SIZE - AES_GCM_128_TAG_SIZE;
-
-
+pub const MAX_RAW_MESSAGE_SIZE_AES_GCM_128: usize =
+    MAX_PAYLOAD_SIZE - AES_GCM_128_NONCE_SIZE as usize - AES_GCM_128_TAG_SIZE as usize;
 
 #[derive(Debug)]
 pub struct PacketPayloadSizeError {
@@ -31,44 +31,44 @@ pub struct PacketPayloadSizeError {
 
 impl PacketPayloadSizeError {
     fn new(payload_size: u8) -> Self {
-        PacketPayloadSizeError{
-            payload_size
-        }
+        PacketPayloadSizeError { payload_size }
     }
 }
 
-
 impl Display for PacketPayloadSizeError {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "Payload size must me smaller than {}! ({})", MAX_PAYLOAD_SIZE, self.payload_size)
+        write!(
+            f,
+            "Payload size must me smaller than {}! ({})",
+            MAX_PAYLOAD_SIZE, self.payload_size
+        )
     }
 }
 
 impl Error for PacketPayloadSizeError {}
 
-
 #[derive(Debug)]
 pub struct PacketSizeError {
-    packet_size: usize
+    packet_size: usize,
 }
-
 
 impl PacketSizeError {
     pub fn new(packet_size: usize) -> Self {
-        PacketSizeError{
-            packet_size
-        }
+        PacketSizeError { packet_size }
     }
 }
 
 impl Display for PacketSizeError {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "Packet size must me smaller than {}! ({})", MAX_PACKET_SIZE, self.packet_size)
+        write!(
+            f,
+            "Packet size must me smaller than {}! ({})",
+            MAX_PACKET_SIZE, self.packet_size
+        )
     }
 }
 
 impl Error for PacketSizeError {}
-
 
 #[derive(Debug)]
 pub struct PacketEncryptionError {}
@@ -81,7 +81,6 @@ impl Display for PacketEncryptionError {
 
 impl Error for PacketEncryptionError {}
 
-
 #[derive(Debug)]
 pub struct PacketDecryptionError {}
 
@@ -92,8 +91,6 @@ impl Display for PacketDecryptionError {
 }
 
 impl Error for PacketDecryptionError {}
-
-
 
 #[derive(Debug)]
 pub struct CRCError {}
@@ -106,23 +103,31 @@ impl Display for CRCError {
 
 impl Error for CRCError {}
 
-
 pub trait PacketHeaderInit {
-    fn new_from_slice(slice: [u8; HEADER_SIZE]) -> Result<Self, Box<dyn std::error::Error>> where Self: Sized;
+    fn new_from_slice(slice: [u8; HEADER_SIZE]) -> Result<Self, Box<dyn std::error::Error>>
+    where
+        Self: Sized;
 }
 
 pub trait PacketPayloadInit {
-    fn new(payload: Vec<u8>) -> Result<Self, PacketPayloadSizeError> where Self: Sized;
-    fn new_from_slice(slice: &[u8]) -> Result<Self, Box<dyn std::error::Error>> where Self: Sized;
+    fn new(payload: Vec<u8>) -> Result<Self, PacketPayloadSizeError>
+    where
+        Self: Sized;
+    fn new_from_slice(slice: &[u8]) -> Result<Self, Box<dyn std::error::Error>>
+    where
+        Self: Sized;
 }
 
 pub trait PacketInit {
     type Header;
     type Payload;
 
-
-    fn new(header: Self::Header, payload: Self::Payload) -> Self where Self: Sized;
-    fn new_from_slice(slice: &[u8]) -> Result<Self, Box<dyn std::error::Error>> where Self: Sized;
+    fn new(header: Self::Header, payload: Self::Payload) -> Self
+    where
+        Self: Sized;
+    fn new_from_slice(slice: &[u8]) -> Result<Self, Box<dyn std::error::Error>>
+    where
+        Self: Sized;
 }
 
 /// Every network communication is done via packets.
@@ -135,48 +140,51 @@ pub trait PacketHeaderCrcCalculator {
     fn check_header_crc(&self) -> bool;
 }
 
-
-pub trait PacketPayloadCRC {
+pub trait PacketPayloadCrcCalculator {
     fn calculate_payload_crc(&mut self) -> Result<(), Box<dyn std::error::Error>>;
     fn check_payload_crc(&self) -> Result<bool, Box<dyn std::error::Error>>;
 }
 
-
 pub trait PacketEncrypt<AesGcm>
-where AesGcm: AeadMut + KeyInit
+where
+    AesGcm: AeadMut + KeyInit,
 {
-    fn encrypt(&mut self, key: &Key<AesGcm>, nonce: &Nonce<AesGcm::NonceSize>) -> Result<(), Box<dyn Error>>;  
+    fn encrypt(
+        &mut self,
+        key: &Key<AesGcm>,
+        nonce: &Nonce<AesGcm::NonceSize>,
+    ) -> Result<(), Box<dyn Error>>;
 }
 
 pub trait PacketDecrypt<AesGcm>
-where AesGcm: AeadMut + KeyInit
+where
+    AesGcm: AeadMut + KeyInit,
 {
     fn decrypt(&mut self, key: &Key<AesGcm>) -> Result<(), Box<dyn std::error::Error>>;
 }
 
-pub trait PacketField {
-
-    type AddressSize;
+pub trait PacketFields {
+    type AddressSizeType;
     /// For specifying the max paylaod count size in a message
-    type PayloadCount;
-    type PayloadSize;
-    type CrcSize;
+    type PayloadCountType;
+    type PayloadSizeType;
+    type CrcSizeType;
 
     type Payload;
 
-    fn get_source_address(&self) -> Self::AddressSize;
-    
-    fn get_destination_address(&self) -> Self::AddressSize;
+    fn get_source_address(&self) -> Self::AddressSizeType;
 
-    fn get_message_packet_num(&self) -> Self::PayloadCount;
+    fn get_destination_address(&self) -> Self::AddressSizeType;
 
-    fn get_total_number_of_packets(&self) -> Self::PayloadCount;
+    fn get_message_packet_num(&self) -> Self::PayloadCountType;
 
-    fn get_payload_size(&self) -> Self::PayloadSize;
+    fn get_total_number_of_packets(&self) -> Self::PayloadCountType;
 
-    fn get_header_crc(&self) -> Self::CrcSize;
+    fn get_payload_size(&self) -> Self::PayloadSizeType;
 
-    fn get_payload_crc(&self) -> Self::CrcSize;
+    fn get_header_crc(&self) -> Self::CrcSizeType;
+
+    fn get_payload_crc(&self) -> Self::CrcSizeType;
 
     fn get_payload(&self) -> Self::Payload;
 
@@ -185,7 +193,19 @@ pub trait PacketField {
     fn get_payload_mut(&mut self) -> &mut Self::Payload;
 }
 
+pub trait PacketSize
+{
+    const MAX_PACKET_SIZE: usize;
+    const HEADER_SIZE: usize;
+    const MAX_PAYLOAD_SIZE: usize;
+    const TAG_SIZE: usize;
+    const NONCE_SIZE: usize;
 
+    /// Returns the max size of the raw message that can be encrypted
+    fn get_max_encrypted_raw_size() -> usize {
+        Self::MAX_PAYLOAD_SIZE - Self::TAG_SIZE - Self::NONCE_SIZE
+    }
+}
 
 #[derive(Debug, Default, Copy, Clone, PartialEq, Eq)]
 pub struct LoRaPacketHeader {
@@ -211,7 +231,6 @@ impl PacketHeaderInit for LoRaPacketHeader {
         header.payload_size = slice[4];
         header.header_crc = u16::from_be_bytes([slice[5], slice[6]]);
 
-
         Ok(header)
     }
 }
@@ -228,10 +247,9 @@ impl PacketHeaderCrcCalculator for LoRaPacketHeader {
         let header: Vec<u8> = self.into();
 
         const X25: crc::Crc<u16> = crc::Crc::<u16>::new(&crc::CRC_16_KERMIT);
-        X25.checksum( &header.as_slice()[0..=4]) == self.header_crc
+        X25.checksum(&header.as_slice()[0..=4]) == self.header_crc
     }
 }
-
 
 impl TryFrom<Vec<u8>> for LoRaPacketHeader {
     type Error = PacketSizeError;
@@ -246,14 +264,11 @@ impl TryFrom<Vec<u8>> for LoRaPacketHeader {
                 message_packet_num: value[2],
                 total_number_of_packets: value[3],
                 payload_size: value[4],
-                header_crc: ((value[5] as u16) << 8) | value[6] as u16
+                header_crc: ((value[5] as u16) << 8) | value[6] as u16,
             })
         }
     }
 }
-
-
-
 
 impl Into<[u8; 7]> for LoRaPacketHeader {
     fn into(self) -> [u8; 7] {
@@ -264,7 +279,7 @@ impl Into<[u8; 7]> for LoRaPacketHeader {
             self.total_number_of_packets,
             self.payload_size,
             ((self.header_crc >> 8) & 0xFF) as u8,
-            (self.header_crc & 0xFF) as u8
+            (self.header_crc & 0xFF) as u8,
         ]
     }
 }
@@ -278,7 +293,7 @@ impl Into<Vec<u8>> for LoRaPacketHeader {
             self.total_number_of_packets,
             self.payload_size,
             ((self.header_crc >> 8) & 0xFF) as u8,
-            (self.header_crc & 0xFF) as u8
+            (self.header_crc & 0xFF) as u8,
         ]
     }
 }
@@ -292,7 +307,7 @@ impl Into<Vec<u8>> for &LoRaPacketHeader {
             self.total_number_of_packets,
             self.payload_size,
             ((self.header_crc >> 8) & 0xFF) as u8,
-            (self.header_crc & 0xFF) as u8
+            (self.header_crc & 0xFF) as u8,
         ]
     }
 }
@@ -306,7 +321,7 @@ impl Into<Vec<u8>> for &mut LoRaPacketHeader {
             self.total_number_of_packets,
             self.payload_size,
             ((self.header_crc >> 8) & 0xFF) as u8,
-            (self.header_crc & 0xFF) as u8
+            (self.header_crc & 0xFF) as u8,
         ]
     }
 }
@@ -332,9 +347,9 @@ impl PacketPayloadInit for LoRaPacketPayload {
 
     /// Creates a new payload from the slice.
     /// Does not calculate the CRC! Automatically sets it to 0.
-    /// 
+    ///
     /// ## Arguments
-    /// 
+    ///
     /// * `slice` - Payload slice
     fn new_from_slice(slice: &[u8]) -> Result<LoRaPacketPayload, Box<dyn Error>> {
         if slice.len() > MAX_PAYLOAD_SIZE {
@@ -364,27 +379,25 @@ impl TryFrom<Vec<u8>> for LoRaPacketPayload {
                 payload,
             })
         }
-
     }
 }
 
-
-
 impl Into<Vec<u8>> for LoRaPacketPayload {
     fn into(mut self) -> Vec<u8> {
-        let mut payload_vec: Vec<u8> = vec![((self.payload_crc >> 8) & 0xFF) as u8,
-                                            (self.payload_crc & 0xFF) as u8];
+        let mut payload_vec: Vec<u8> = vec![
+            ((self.payload_crc >> 8) & 0xFF) as u8,
+            (self.payload_crc & 0xFF) as u8,
+        ];
         payload_vec.append(&mut self.payload);
 
         payload_vec
-
     }
 }
 
 #[derive(Debug, Default, Clone, PartialEq, Eq)]
 pub struct LoRaPacket {
     pub header: LoRaPacketHeader,
-    pub payload: LoRaPacketPayload
+    pub payload: LoRaPacketPayload,
 }
 
 impl PacketInit for LoRaPacket {
@@ -392,10 +405,7 @@ impl PacketInit for LoRaPacket {
     type Payload = LoRaPacketPayload;
 
     fn new(header: Self::Header, payload: Self::Payload) -> Self {
-        LoRaPacket {
-            header,
-            payload,
-        }
+        LoRaPacket { header, payload }
     }
 
     fn new_from_slice(slice: &[u8]) -> Result<Self, Box<dyn Error>> {
@@ -406,45 +416,42 @@ impl PacketInit for LoRaPacket {
         let header = LoRaPacketHeader::try_from(slice[0..=6].to_vec())?;
         let payload = LoRaPacketPayload::try_from(slice[7..slice.len()].to_vec())?;
 
-        Ok(LoRaPacket {
-            header,
-            payload,
-        })
+        Ok(LoRaPacket { header, payload })
     }
 }
 
-impl PacketField for LoRaPacket {
-    type AddressSize = u8;
-    type PayloadCount = u8;
-    type PayloadSize = u8;
-    type CrcSize = u16;
+impl PacketFields for LoRaPacket {
+    type AddressSizeType = u8;
+    type PayloadCountType = u8;
+    type PayloadSizeType = u8;
+    type CrcSizeType = u16;
     type Payload = Vec<u8>;
 
-    fn get_source_address(&self) -> Self::AddressSize {
+    fn get_source_address(&self) -> Self::AddressSizeType {
         self.header.source_addr
     }
 
-    fn get_destination_address(&self) -> Self::AddressSize {
+    fn get_destination_address(&self) -> Self::AddressSizeType {
         self.header.destination_addr
     }
 
-    fn get_message_packet_num(&self) -> Self::PayloadCount {
+    fn get_message_packet_num(&self) -> Self::PayloadCountType {
         self.header.message_packet_num
     }
 
-    fn get_total_number_of_packets(&self) -> Self::PayloadCount {
+    fn get_total_number_of_packets(&self) -> Self::PayloadCountType {
         self.header.total_number_of_packets
     }
 
-    fn get_payload_size(&self) -> Self::PayloadSize {
+    fn get_payload_size(&self) -> Self::PayloadSizeType {
         self.header.payload_size
     }
 
-    fn get_header_crc(&self) -> Self::CrcSize {
+    fn get_header_crc(&self) -> Self::CrcSizeType {
         self.header.header_crc
     }
 
-    fn get_payload_crc(&self) -> Self::CrcSize {
+    fn get_payload_crc(&self) -> Self::CrcSizeType {
         self.payload.payload_crc
     }
 
@@ -459,20 +466,30 @@ impl PacketField for LoRaPacket {
     fn get_payload_mut(&mut self) -> &mut Self::Payload {
         &mut self.payload.payload
     }
-
-   
 }
 
-impl PacketEncrypt<Aes128Gcm> for LoRaPacket
-{
-    fn encrypt(&mut self, key: &Key<Aes128Gcm>, nonce: &Nonce<U12>) -> Result<(), Box<dyn Error>>
-    {
+
+impl PacketSize for LoRaPacket {
+    const MAX_PACKET_SIZE: usize = 255;
+    const HEADER_SIZE: usize = 7;
+    const MAX_PAYLOAD_SIZE: usize = Self::MAX_PACKET_SIZE - Self::HEADER_SIZE - 2;
+    // change it to the aes_gcm lib ones (searching for it....)
+    const NONCE_SIZE: usize = 12;
+    const TAG_SIZE: usize = 16;
+}
+
+impl PacketEncrypt<Aes128Gcm> for LoRaPacket {
+    fn encrypt(&mut self, key: &Key<Aes128Gcm>, nonce: &Nonce<U12>) -> Result<(), Box<dyn Error>> {
         let packet_content = self.payload.payload.clone();
         let cipher = Aes128Gcm::new(key);
-        let ciphertext = cipher.encrypt(nonce, self.payload.payload.as_slice()).map_err(|_e| PacketEncryptionError {})?;
+        let ciphertext = cipher
+            .encrypt(nonce, self.payload.payload.as_slice())
+            .map_err(|_e| PacketEncryptionError {})?;
 
         self.payload.payload = ciphertext;
-        self.payload.payload.append(nonce.as_slice().to_vec().as_mut());
+        self.payload
+            .payload
+            .append(nonce.as_slice().to_vec().as_mut());
 
         if self.payload.payload.len() > MAX_PAYLOAD_SIZE {
             self.payload.payload = packet_content;
@@ -483,23 +500,56 @@ impl PacketEncrypt<Aes128Gcm> for LoRaPacket
     }
 }
 
-impl PacketDecrypt<Aes128Gcm> for LoRaPacket
-{
-    fn decrypt(&mut self, key: &Key<Aes128Gcm>) -> Result<(), Box<dyn Error>>{
+impl PacketDecrypt<Aes128Gcm> for LoRaPacket {
+    fn decrypt(&mut self, key: &Key<Aes128Gcm>) -> Result<(), Box<dyn Error>> {
         let cipher = Aes128Gcm::new(key);
         let packet_content = self.payload.payload.clone();
         let mut ciphertext = self.payload.payload.clone();
 
         let mut nonce_slice = [0u8; 12];
-        nonce_slice.copy_from_slice(&packet_content[packet_content.len() - 12..packet_content.len()]);
+        nonce_slice
+            .copy_from_slice(&packet_content[packet_content.len() - 12..packet_content.len()]);
         let nonce = Nonce::from_slice(&nonce_slice);
 
         ciphertext.truncate(ciphertext.len() - 12);
 
-        self.payload.payload = cipher.decrypt(&nonce, ciphertext.as_slice()).map_err(|_e| PacketDecryptionError {})?;
-
+        self.payload.payload = cipher
+            .decrypt(&nonce, ciphertext.as_slice())
+            .map_err(|_e| PacketDecryptionError {})?;
 
         Ok(())
+    }
+}
+
+impl PacketPayloadCrcCalculator for LoRaPacketPayload {
+    fn calculate_payload_crc(&mut self) -> Result<(), Box<dyn Error>> {
+        let payload: Vec<u8> = self.payload.clone();
+        const X25: crc::Crc<u16> = crc::Crc::<u16>::new(&crc::CRC_16_KERMIT);
+        self.payload_crc = X25.checksum(&payload);
+
+        Ok(())
+    }
+
+    fn check_payload_crc(&self) -> Result<bool, Box<dyn Error>> {
+        let payload: Vec<u8> = self.payload.clone();
+        const X25: crc::Crc<u16> = crc::Crc::<u16>::new(&crc::CRC_16_KERMIT);
+        Ok(X25.checksum(&payload) == self.payload_crc)
+    }
+}
+
+impl PacketHeaderCrcCalculator for LoRaPacket {
+    fn calculate_header_crc(&mut self) {
+        let header: Vec<u8> = self.header.into();
+
+        const X25: crc::Crc<u16> = crc::Crc::<u16>::new(&crc::CRC_16_KERMIT);
+        self.header.header_crc = X25.checksum(&header.as_slice()[0..=4]);
+    }
+
+    fn check_header_crc(&self) -> bool {
+        let header: Vec<u8> = self.header.into();
+
+        const X25: crc::Crc<u16> = crc::Crc::<u16>::new(&crc::CRC_16_KERMIT);
+        X25.checksum(&header.as_slice()[0..=4]) == self.header.header_crc
     }
 }
 
@@ -519,11 +569,6 @@ impl TryFrom<Vec<u8>> for LoRaPacket {
         let header = LoRaPacketHeader::try_from(value[0..=6].to_vec())?;
         let payload = LoRaPacketPayload::try_from(value[7..value.len()].to_vec())?;
 
-        Ok(LoRaPacket {
-            header,
-            payload,
-        })
+        Ok(LoRaPacket { header, payload })
     }
 }
-
-

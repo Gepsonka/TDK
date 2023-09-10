@@ -1,63 +1,57 @@
-use std::collections::HashMap;
-use std::hash::Hash;
-use aes_gcm::{ Key, KeyInit, KeySizeUser};
-use aes_gcm::aead::generic_array::ArrayLength;
-use crate::network::arp_registry::{ArpRegistry};
-use crate::network::device_status::DeviceStatus;
-use crate::network::packet::{LoRaPacket};
+use std::{collections::HashMap, hash::Hash};
 
-pub struct ArpTable<AddressSize, PacketT, KeySize, NonceSize>
-    where KeySize: KeySizeUser,
-            NonceSize: ArrayLength<u8>,
-            AddressSize: Hash + Eq + Copy + Into<u8> + From<u8>,
-{
-    pub arp_table: HashMap<AddressSize, ArpRegistry<PacketT, KeySize, NonceSize>>
+use super::{arp_registry::ArpRegistry, packet::LoRaPacket};
+use crate::network::arp_registry::RegistryFields;
+use aes_gcm::Aes128Gcm;
+
+pub trait ArpTableInit<AddressSize, ArpReg> {
+    fn new() -> ArpTable<AddressSize, ArpReg>;
+    fn new_from_registries(registries: Vec<ArpReg>) -> ArpTable<AddressSize, ArpReg>;
 }
 
+pub struct ArpTable<AddressSize, ArpReg> {
+    pub table: HashMap<AddressSize, ArpReg>,
+}
 
-impl <KeySize, NonceSize> ArpTable<u8, LoRaPacket, KeySize, NonceSize>
-    where KeySize: KeySizeUser,
-          NonceSize: ArrayLength<u8>,
+impl<AddressSize, ArpReg> ArpTable<AddressSize, ArpReg>
+where
+    AddressSize: Eq + PartialEq + Hash + Copy,
 {
-    pub fn new() -> Self {
-        ArpTable {
-            arp_table: HashMap::new()
+    pub fn get_registry(&self, address: AddressSize) -> Option<&ArpReg> {
+        self.table.get(&address)
+    }
+
+    pub fn get_registry_mut(&mut self, address: AddressSize) -> Option<&mut ArpReg> {
+        self.table.get_mut(&address)
+    }
+
+    pub fn insert_registry(&mut self, address: AddressSize, registry: ArpReg) {
+        self.table.insert(address, registry);
+    }
+}
+
+impl<AddressSize, ArpReg> ArpTableInit<AddressSize, ArpReg> for ArpTable<AddressSize, ArpReg>
+where
+    AddressSize: Eq + PartialEq + Hash + Copy,
+    ArpReg: RegistryFields<AddressSize = AddressSize>,
+{
+    fn new() -> Self {
+        Self {
+            table: HashMap::new(),
         }
     }
 
-    pub fn add_device(&mut self, address: u8, device_status: DeviceStatus) {
-        self.arp_table.insert(address, ArpRegistry::new(address));
-    }
-
-    pub fn remove_device(&mut self, address: u8) {
-        self.arp_table.remove(&address);
-    }
-
-    pub fn get_device(&mut self, address: u8) -> Option<&mut ArpRegistry<LoRaPacket, KeySize, NonceSize>> {
-        self.arp_table.get_mut(&address)
-    }
-
-    pub fn get_device_status(&mut self, address: u8) -> Option<DeviceStatus> {
-        match self.arp_table.get(&address) {
-            Some(device) => Some(device.device_status),
-            None => None
-        }
-    }
-
-    pub fn get_device_secret_key(&mut self, address: u8) -> Option<Key<KeySize>> {
-        let curr_device;
-        match self.arp_table.get(&address) {
-            Some(device) => curr_device = device,
-            None => { return None; }
+    fn new_from_registries(registries: Vec<ArpReg>) -> Self {
+        let mut arp_table = Self {
+            table: HashMap::new(),
         };
 
-        match &curr_device.secret_key {
-            Some(secret_key) => Some(secret_key.clone()),
-            None => None
+        for registry in registries {
+            if let Some(addr) = registry.get_address() {
+                arp_table.table.insert(addr, registry);
+            }
         }
-    }
 
-    pub fn is_address_in_table(&self, address: u8) -> bool {
-        self.arp_table.contains_key(&address)
+        arp_table
     }
 }

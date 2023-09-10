@@ -1,162 +1,160 @@
+use aes_gcm::Nonce;
+use log::{debug, info, warn};
 use rppal::gpio::{Gpio, InputPin, OutputPin, Trigger};
 use rppal::spi::{Bus, Mode, Segment, SlaveSelect, Spi};
-use log::{debug, info, warn};
-use std::{thread, time};
 use std::error::Error;
-use aes_gcm::Nonce;
+use std::{thread, time};
 
 #[allow(dead_code)]
 pub const REG_FIFO: u8 = 0x00;
 #[allow(dead_code)]
-pub const REG_OP_MODE:u8 = 0x01;
+pub const REG_OP_MODE: u8 = 0x01;
 #[allow(dead_code)]
-pub const REG_BITRATE_MSB:u8 = 0x02;
+pub const REG_BITRATE_MSB: u8 = 0x02;
 #[allow(dead_code)]
-pub const REG_FDEV_MSB:u8 = 0x04;
+pub const REG_FDEV_MSB: u8 = 0x04;
 #[allow(dead_code)]
-pub const REG_FRF_MSB:u8 = 0x06;
+pub const REG_FRF_MSB: u8 = 0x06;
 #[allow(dead_code)]
-pub const REG_FRF_MID:u8 = 0x07;
+pub const REG_FRF_MID: u8 = 0x07;
 #[allow(dead_code)]
-pub const REG_FRF_LSB:u8 = 0x08;
+pub const REG_FRF_LSB: u8 = 0x08;
 #[allow(dead_code)]
-pub const REG_PA_CONFIG:u8 = 0x09;
+pub const REG_PA_CONFIG: u8 = 0x09;
 #[allow(dead_code)]
-pub const REG_PA_RAMP:u8 = 0x0a;
+pub const REG_PA_RAMP: u8 = 0x0a;
 #[allow(dead_code)]
-pub const REG_OCP:u8 = 0x0b;
+pub const REG_OCP: u8 = 0x0b;
 #[allow(dead_code)]
-pub const REG_LNA:u8 = 0x0c;
+pub const REG_LNA: u8 = 0x0c;
 #[allow(dead_code)]
-pub const REG_FIFO_ADDR_PTR:u8 = 0x0d;
+pub const REG_FIFO_ADDR_PTR: u8 = 0x0d;
 #[allow(dead_code)]
-pub const REG_RX_CONFIG:u8 = 0x0d;
+pub const REG_RX_CONFIG: u8 = 0x0d;
 #[allow(dead_code)]
-pub const REG_FIFO_TX_BASE_ADDR:u8 = 0x0e;
+pub const REG_FIFO_TX_BASE_ADDR: u8 = 0x0e;
 #[allow(dead_code)]
-pub const REG_RSSI_CONFIG:u8 = 0x0e;
+pub const REG_RSSI_CONFIG: u8 = 0x0e;
 #[allow(dead_code)]
-pub const REG_FIFO_RX_BASE_ADDR:u8 = 0x0f;
+pub const REG_FIFO_RX_BASE_ADDR: u8 = 0x0f;
 #[allow(dead_code)]
-pub const REG_RSSI_COLLISION:u8 = 0x0f;
+pub const REG_RSSI_COLLISION: u8 = 0x0f;
 #[allow(dead_code)]
-pub const REG_FIFO_RX_CURRENT_ADDR:u8 = 0x10;
+pub const REG_FIFO_RX_CURRENT_ADDR: u8 = 0x10;
 #[allow(dead_code)]
-pub const REG_RSSI_VALUE_FSK:u8 = 0x11;
+pub const REG_RSSI_VALUE_FSK: u8 = 0x11;
 #[allow(dead_code)]
-pub const REG_IRQ_FLAGS:u8 = 0x12;
+pub const REG_IRQ_FLAGS: u8 = 0x12;
 #[allow(dead_code)]
-pub const REG_RX_BW:u8 = 0x12;
+pub const REG_RX_BW: u8 = 0x12;
 #[allow(dead_code)]
-pub const REG_RX_NB_BYTES:u8 = 0x13;
+pub const REG_RX_NB_BYTES: u8 = 0x13;
 #[allow(dead_code)]
-pub const REG_AFC_BW:u8 = 0x13;
+pub const REG_AFC_BW: u8 = 0x13;
 #[allow(dead_code)]
-pub const REG_OOK_PEAK:u8 = 0x14;
+pub const REG_OOK_PEAK: u8 = 0x14;
 #[allow(dead_code)]
-pub const REG_OOK_FIX:u8 = 0x15;
+pub const REG_OOK_FIX: u8 = 0x15;
 #[allow(dead_code)]
-pub const REG_OOK_AVG:u8 = 0x16;
+pub const REG_OOK_AVG: u8 = 0x16;
 #[allow(dead_code)]
-pub const REG_PKT_SNR_VALUE:u8 = 0x19;
+pub const REG_PKT_SNR_VALUE: u8 = 0x19;
 #[allow(dead_code)]
-pub const REG_PKT_RSSI_VALUE:u8 = 0x1a;
+pub const REG_PKT_RSSI_VALUE: u8 = 0x1a;
 #[allow(dead_code)]
-pub const REG_RSSI_VALUE:u8 = 0x1b;
+pub const REG_RSSI_VALUE: u8 = 0x1b;
 #[allow(dead_code)]
-pub const REG_AFC_VALUE:u8 = 0x1b;
+pub const REG_AFC_VALUE: u8 = 0x1b;
 #[allow(dead_code)]
-pub const REG_MODEM_CONFIG_1:u8 = 0x1d;
+pub const REG_MODEM_CONFIG_1: u8 = 0x1d;
 #[allow(dead_code)]
-pub const REG_MODEM_CONFIG_2:u8 = 0x1e;
+pub const REG_MODEM_CONFIG_2: u8 = 0x1e;
 #[allow(dead_code)]
-pub const REG_PREAMBLE_DETECT:u8 = 0x1f;
+pub const REG_PREAMBLE_DETECT: u8 = 0x1f;
 #[allow(dead_code)]
-pub const REG_FEI_MSB:u8 = 0x1d;
+pub const REG_FEI_MSB: u8 = 0x1d;
 #[allow(dead_code)]
-pub const REG_PREAMBLE_MSB:u8 = 0x20;
+pub const REG_PREAMBLE_MSB: u8 = 0x20;
 #[allow(dead_code)]
-pub const REG_PREAMBLE_LSB:u8 = 0x21;
+pub const REG_PREAMBLE_LSB: u8 = 0x21;
 #[allow(dead_code)]
-pub const REG_PREAMBLE_MSB_FSK:u8 =0x25;
+pub const REG_PREAMBLE_MSB_FSK: u8 = 0x25;
 #[allow(dead_code)]
-pub const REG_PAYLOAD_LENGTH:u8 = 0x22;
+pub const REG_PAYLOAD_LENGTH: u8 = 0x22;
 #[allow(dead_code)]
-pub const REG_MODEM_CONFIG_3:u8 = 0x26;
+pub const REG_MODEM_CONFIG_3: u8 = 0x26;
 #[allow(dead_code)]
-pub const REG_SYNC_CONFIG:u8 = 0x27;
+pub const REG_SYNC_CONFIG: u8 = 0x27;
 #[allow(dead_code)]
-pub const REG_FREQ_ERROR_MSB:u8 = 0x28;
+pub const REG_FREQ_ERROR_MSB: u8 = 0x28;
 #[allow(dead_code)]
-pub const REG_SYNC_VALUE1:u8 = 0x28;
+pub const REG_SYNC_VALUE1: u8 = 0x28;
 #[allow(dead_code)]
-pub const REG_FREQ_ERROR_MID:u8 = 0x29;
+pub const REG_FREQ_ERROR_MID: u8 = 0x29;
 #[allow(dead_code)]
-pub const REG_FREQ_ERROR_LSB:u8 = 0x2a;
+pub const REG_FREQ_ERROR_LSB: u8 = 0x2a;
 #[allow(dead_code)]
-pub const REG_RSSI_WIDEBAND:u8 = 0x2c;
+pub const REG_RSSI_WIDEBAND: u8 = 0x2c;
 #[allow(dead_code)]
-pub const REG_PACKET_CONFIG1:u8 = 0x30;
+pub const REG_PACKET_CONFIG1: u8 = 0x30;
 #[allow(dead_code)]
-pub const REG_DETECTION_OPTIMIZE:u8 = 0x31;
+pub const REG_DETECTION_OPTIMIZE: u8 = 0x31;
 #[allow(dead_code)]
-pub const REG_PACKET_CONFIG2:u8 = 0x31;
+pub const REG_PACKET_CONFIG2: u8 = 0x31;
 #[allow(dead_code)]
-pub const REG_PAYLOAD_LENGTH_FSK:u8 = 0x32;
+pub const REG_PAYLOAD_LENGTH_FSK: u8 = 0x32;
 #[allow(dead_code)]
-pub const REG_INVERTIQ:u8 = 0x33;
+pub const REG_INVERTIQ: u8 = 0x33;
 #[allow(dead_code)]
-pub const REG_NODE_ADDR:u8 = 0x33;
+pub const REG_NODE_ADDR: u8 = 0x33;
 #[allow(dead_code)]
-pub const REG_BROADCAST_ADDR:u8 = 0x34;
+pub const REG_BROADCAST_ADDR: u8 = 0x34;
 #[allow(dead_code)]
-pub const REG_FIFO_THRESH:u8 = 0x35;
+pub const REG_FIFO_THRESH: u8 = 0x35;
 #[allow(dead_code)]
-pub const REG_SEQ_CONFIG1:u8 = 0x36;
+pub const REG_SEQ_CONFIG1: u8 = 0x36;
 #[allow(dead_code)]
-pub const REG_DETECTION_THRESHOLD:u8 = 0x37;
+pub const REG_DETECTION_THRESHOLD: u8 = 0x37;
 #[allow(dead_code)]
-pub const REG_TIMER_RESOLUTION:u8 = 0x38;
+pub const REG_TIMER_RESOLUTION: u8 = 0x38;
 #[allow(dead_code)]
-pub const REG_TIMER1_COEF:u8 = 0x39;
+pub const REG_TIMER1_COEF: u8 = 0x39;
 #[allow(dead_code)]
-pub const REG_TIMER2_COEF:u8 = 0x3a;
+pub const REG_TIMER2_COEF: u8 = 0x3a;
 #[allow(dead_code)]
-pub const REG_SYNC_WORD:u8 = 0x39;
+pub const REG_SYNC_WORD: u8 = 0x39;
 #[allow(dead_code)]
-pub const REG_INVERTIQ2:u8 = 0x3b;
+pub const REG_INVERTIQ2: u8 = 0x3b;
 #[allow(dead_code)]
-pub const REG_IMAGE_CAL:u8 = 0x3b;
+pub const REG_IMAGE_CAL: u8 = 0x3b;
 #[allow(dead_code)]
-pub const REG_IRQ_FLAGS_1:u8 = 0x3e;
+pub const REG_IRQ_FLAGS_1: u8 = 0x3e;
 #[allow(dead_code)]
-pub const REG_IRQ_FLAGS_2:u8 = 0x3f;
+pub const REG_IRQ_FLAGS_2: u8 = 0x3f;
 #[allow(dead_code)]
-pub const REG_DIO_MAPPING_1:u8 = 0x40;
+pub const REG_DIO_MAPPING_1: u8 = 0x40;
 #[allow(dead_code)]
-pub const REG_DIO_MAPPING_2:u8 = 0x41;
+pub const REG_DIO_MAPPING_2: u8 = 0x41;
 #[allow(dead_code)]
-pub const REG_VERSION:u8 = 0x42;
+pub const REG_VERSION: u8 = 0x42;
 #[allow(dead_code)]
-pub const REG_PA_DAC:u8 = 0x4d;
+pub const REG_PA_DAC: u8 = 0x4d;
 #[allow(dead_code)]
-pub const REG_BITRATE_FRAC:u8 = 0x5d;
+pub const REG_BITRATE_FRAC: u8 = 0x5d;
 
 #[allow(dead_code)]
-pub const SX127x_VERSION:u8 = 0x12;
+pub const SX127x_VERSION: u8 = 0x12;
 
-
-pub const SX127x_DIO0_RX_DONE: u8 = 0b00000000;          // Packet reception complete
-pub const SX127x_DIO0_TX_DONE: u8 = 0b01000000;              // FIFO Payload transmission complete
-pub const SX127x_DIO0_CAD_DONE: u8 = 0b10000000;             // CAD complete
-pub const SX127x_DIO1_RXTIMEOUT: u8 = 0b00000000;            // RX timeout interrupt. Used in RX single mode
-pub const SX127x_DIO1_FHSS_CHANGE_CHANNEL: u8 = 0b00010000;  // FHSS change channel
-pub const SX127x_DIO1_CAD_DETECTED: u8 = 0b00100000;         // Valid Lora signal detected during CAD operation
-pub const SX127x_DIO2_FHSS_CHANGE_CHANNEL: u8 = 0b00000000;  // FHSS change channel on digital pin 2
-pub const SX127x_DIO3_CAD_DONE: u8 = 0b00000000;             // CAD complete on digital pin 3
-pub const SX127x_DIO3_VALID_HEADER: u8 = 0b00000001;         // Valid header received in Rx
-pub const SX127x_DIO3_PAYLOAD_CRC_ERROR: u8 = 0b00000010;    // Payload CRC error
-
+pub const SX127x_DIO0_RX_DONE: u8 = 0b00000000; // Packet reception complete
+pub const SX127x_DIO0_TX_DONE: u8 = 0b01000000; // FIFO Payload transmission complete
+pub const SX127x_DIO0_CAD_DONE: u8 = 0b10000000; // CAD complete
+pub const SX127x_DIO1_RXTIMEOUT: u8 = 0b00000000; // RX timeout interrupt. Used in RX single mode
+pub const SX127x_DIO1_FHSS_CHANGE_CHANNEL: u8 = 0b00010000; // FHSS change channel
+pub const SX127x_DIO1_CAD_DETECTED: u8 = 0b00100000; // Valid Lora signal detected during CAD operation
+pub const SX127x_DIO2_FHSS_CHANGE_CHANNEL: u8 = 0b00000000; // FHSS change channel on digital pin 2
+pub const SX127x_DIO3_CAD_DONE: u8 = 0b00000000; // CAD complete on digital pin 3
+pub const SX127x_DIO3_VALID_HEADER: u8 = 0b00000001; // Valid header received in Rx
+pub const SX127x_DIO3_PAYLOAD_CRC_ERROR: u8 = 0b00000010; // Payload CRC error
 
 pub const SX127x_OSCILLATOR_FREQUENCY: f32 = 32000000.0f32;
 pub const SX127x_FREQ_ERROR_FACTOR: f32 = ((1 << 24) as f32 / SX127x_OSCILLATOR_FREQUENCY);
@@ -164,40 +162,38 @@ pub const SX127x_FSTEP: f32 = (SX127x_OSCILLATOR_FREQUENCY / (1 << 19) as f32);
 pub const SX127x_REG_MODEM_CONFIG_3_AGC_ON: u8 = 0b00000100;
 pub const SX127x_REG_MODEM_CONFIG_3_AGC_OFF: u8 = 0b00000000;
 
-pub const SX127x_IRQ_FLAG_RXTIMEOUT: u8 = 0b10000000                      ;
-pub const SX127x_IRQ_FLAG_RXDONE: u8 =  0b01000000                         ;
-pub const SX127x_IRQ_FLAG_PAYLOAD_CRC_ERROR: u8 =  0b00100000               ;
-pub const SX127x_IRQ_FLAG_VALID_HEADER: u8 =  0b00010000                     ;
-pub const SX127x_IRQ_FLAG_TXDONE: u8 =  0b00001000                            ;
-pub const SX127x_IRQ_FLAG_CADDONE: u8 =  0b00000100                            ;
-pub const SX127x_IRQ_FLAG_FHSSCHANGECHANNEL: u8 =  0b00000010                   ;
-pub const SX127x_IRQ_FLAG_CAD_DETECTED: u8 =  0b00000001                         ;
+pub const SX127x_IRQ_FLAG_RXTIMEOUT: u8 = 0b10000000;
+pub const SX127x_IRQ_FLAG_RXDONE: u8 = 0b01000000;
+pub const SX127x_IRQ_FLAG_PAYLOAD_CRC_ERROR: u8 = 0b00100000;
+pub const SX127x_IRQ_FLAG_VALID_HEADER: u8 = 0b00010000;
+pub const SX127x_IRQ_FLAG_TXDONE: u8 = 0b00001000;
+pub const SX127x_IRQ_FLAG_CADDONE: u8 = 0b00000100;
+pub const SX127x_IRQ_FLAG_FHSSCHANGECHANNEL: u8 = 0b00000010;
+pub const SX127x_IRQ_FLAG_CAD_DETECTED: u8 = 0b00000001;
 
-pub const SX127X_FSK_IRQ_FIFO_FULL: u8 =  0b10000000                              ;
-pub const SX127X_FSK_IRQ_FIFO_EMPTY: u8 =  0b01000000                              ;
-pub const SX127X_FSK_IRQ_FIFO_LEVEL: u8 =  0b00100000                               ;
-pub const SX127X_FSK_IRQ_FIFO_OVERRUN: u8 =  0b00010000                              ;
-pub const SX127X_FSK_IRQ_PACKET_SENT: u8 =  0b00001000                                ;
-pub const SX127X_FSK_IRQ_PAYLOAD_READY: u8 =  0b00000100                               ;
-pub const SX127X_FSK_IRQ_CRC_OK: u8 =  0b00000010                                       ;
-pub const SX127X_FSK_IRQ_LOW_BATTERY: u8 =  0b00000001                                   ;
-pub const SX127X_FSK_IRQ_PREAMBLE_DETECT: u8 =  0b00000010                                ;
-pub const SX127X_FSK_IRQ_SYNC_ADDRESS_MATCH: u8 =  0b00000001                              ;
+pub const SX127X_FSK_IRQ_FIFO_FULL: u8 = 0b10000000;
+pub const SX127X_FSK_IRQ_FIFO_EMPTY: u8 = 0b01000000;
+pub const SX127X_FSK_IRQ_FIFO_LEVEL: u8 = 0b00100000;
+pub const SX127X_FSK_IRQ_FIFO_OVERRUN: u8 = 0b00010000;
+pub const SX127X_FSK_IRQ_PACKET_SENT: u8 = 0b00001000;
+pub const SX127X_FSK_IRQ_PAYLOAD_READY: u8 = 0b00000100;
+pub const SX127X_FSK_IRQ_CRC_OK: u8 = 0b00000010;
+pub const SX127X_FSK_IRQ_LOW_BATTERY: u8 = 0b00000001;
+pub const SX127X_FSK_IRQ_PREAMBLE_DETECT: u8 = 0b00000010;
+pub const SX127X_FSK_IRQ_SYNC_ADDRESS_MATCH: u8 = 0b00000001;
 
 pub const FIFO_TX_BASE_ADDR: u8 = 0b00000000;
 pub const FIFO_RX_BASE_ADDR: u8 = 0b00000000;
 
-pub const RF_MID_BAND_THRESHOLD: u32 =  525000000    ;
-pub const RSSI_OFFSET_HF_PORT: u8 =  157             ;
-pub const RSSI_OFFSET_LF_PORT: u8 =  164              ;
+pub const RF_MID_BAND_THRESHOLD: u32 = 525000000;
+pub const RSSI_OFFSET_HF_PORT: u8 = 157;
+pub const RSSI_OFFSET_LF_PORT: u8 = 164;
 
-pub const SX127x_MAX_POWER: u8 =  0b01110000           ;
-pub const SX127x_LOW_POWER: u8 =  0b00000000            ;
+pub const SX127x_MAX_POWER: u8 = 0b01110000;
+pub const SX127x_LOW_POWER: u8 = 0b00000000;
 
-pub const SX127x_HIGH_POWER_ON: u8 =  0b10000111         ;
-pub const SX127x_HIGH_POWER_OFF: u8 =  0b10000100         ;
-
-
+pub const SX127x_HIGH_POWER_ON: u8 = 0b10000111;
+pub const SX127x_HIGH_POWER_OFF: u8 = 0b10000100;
 
 #[allow(dead_code)]
 #[derive(Clone, Copy, Eq, PartialEq)]
@@ -211,48 +207,47 @@ pub enum Bandwidth {
     SX127x_BW_62500 = 0b01100000,
     SX127x_BW_125000 = 0b01110000, // default
     SX127x_BW_250000 = 0b10000000,
-    SX127x_BW_500000 = 0b10010000
+    SX127x_BW_500000 = 0b10010000,
 }
 
 #[allow(dead_code)]
 #[derive(Clone, Copy, Eq, PartialEq, Debug)]
 pub enum OperationMode {
-    SX127x_MODE_SLEEP = 0b00000000,      // SLEEP
-    SX127x_MODE_STANDBY = 0b00000001,    // STDBY
-    SX127x_MODE_FSTX = 0b00000010,       // Frequency synthesis TX
-    SX127x_MODE_TX = 0b00000011,         // Transmit
-    SX127x_MODE_FSRX = 0b00000100,       // Frequency synthesis RX
-    SX127x_MODE_RX_CONT = 0b00000101,    // Receive continuous
-    SX127x_MODE_RX_SINGLE = 0b00000110,  // Receive single
-    SX127x_MODE_CAD = 0b00000111          // Channel activity detection
+    SX127x_MODE_SLEEP = 0b00000000,     // SLEEP
+    SX127x_MODE_STANDBY = 0b00000001,   // STDBY
+    SX127x_MODE_FSTX = 0b00000010,      // Frequency synthesis TX
+    SX127x_MODE_TX = 0b00000011,        // Transmit
+    SX127x_MODE_FSRX = 0b00000100,      // Frequency synthesis RX
+    SX127x_MODE_RX_CONT = 0b00000101,   // Receive continuous
+    SX127x_MODE_RX_SINGLE = 0b00000110, // Receive single
+    SX127x_MODE_CAD = 0b00000111,       // Channel activity detection
 }
 
 #[allow(dead_code)]
 #[derive(Clone, Copy, Eq, PartialEq)]
-pub enum SpreadFactor{
-    SX127x_SF_6 = 0b01100000,   // 64 chips / symbol
-    SX127x_SF_7 = 0b01110000,   // 128 chips / symbol
-    SX127x_SF_8 = 0b10000000,   // 256 chips / symbol
-    SX127x_SF_9 = 0b10010000,   // 512 chips / symbol
-    SX127x_SF_10 = 0b10100000,  // 1024 chips / symbol
-    SX127x_SF_11 = 0b10110000,  // 2048 chips / symbol
-    SX127x_SF_12 = 0b11000000   // 4096 chips / symbol
+pub enum SpreadFactor {
+    SX127x_SF_6 = 0b01100000,  // 64 chips / symbol
+    SX127x_SF_7 = 0b01110000,  // 128 chips / symbol
+    SX127x_SF_8 = 0b10000000,  // 256 chips / symbol
+    SX127x_SF_9 = 0b10010000,  // 512 chips / symbol
+    SX127x_SF_10 = 0b10100000, // 1024 chips / symbol
+    SX127x_SF_11 = 0b10110000, // 2048 chips / symbol
+    SX127x_SF_12 = 0b11000000, // 4096 chips / symbol
 }
 
 #[allow(dead_code)]
 pub enum Modulation {
     SX127x_MODULATION_LORA = 0b10000000,
     SX127x_MODULATION_FSK = 0b00000000, // default
-    SX127x_MODULATION_OOK = 0b00100000
+    SX127x_MODULATION_OOK = 0b00100000,
 } // for now we will only use lora
 
 #[allow(dead_code)]
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub enum HeaderMode {
     Implicit = 0b00000000,
-    Explicit = 0b00000001
+    Explicit = 0b00000001,
 }
-
 
 #[allow(dead_code)]
 pub struct LoRa {
@@ -265,11 +260,17 @@ pub struct LoRa {
     rx_callback: fn(Vec<u8>),
     tx_callback: fn(),
     pub waiting_for_tx: bool,
-
 }
 
 impl LoRa {
-    pub fn new(spi: Spi, reset_pin: OutputPin, header_mode: HeaderMode, frequency: u64, rx_callback: fn(Vec<u8>), tx_callback: fn()) -> Result<Self, Box<dyn Error>> {
+    pub fn new(
+        spi: Spi,
+        reset_pin: OutputPin,
+        header_mode: HeaderMode,
+        frequency: u64,
+        rx_callback: fn(Vec<u8>),
+        tx_callback: fn(),
+    ) -> Result<Self, Box<dyn Error>> {
         let mut lora = LoRa {
             spi,
             reset_pin,
@@ -279,24 +280,27 @@ impl LoRa {
             frequency,
             rx_callback,
             tx_callback,
-            waiting_for_tx: false
+            waiting_for_tx: false,
         };
-
-
-
 
         Ok(lora)
     }
 
-    fn read_register(&mut self, register: u8, buff: &mut [u8]) -> Result<(), Box<dyn std::error::Error>> {
-        self.spi.transfer_segments(&[
-            Segment::with_write(&[register]),
-            Segment::with_read(buff),
-        ])?;
+    fn read_register(
+        &mut self,
+        register: u8,
+        buff: &mut [u8],
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        self.spi
+            .transfer_segments(&[Segment::with_write(&[register]), Segment::with_read(buff)])?;
         Ok(())
     }
 
-    pub fn write_register(&mut self, register: u8, buff: &[u8]) -> Result<(), Box<dyn std::error::Error>> {
+    pub fn write_register(
+        &mut self,
+        register: u8,
+        buff: &[u8],
+    ) -> Result<(), Box<dyn std::error::Error>> {
         self.spi.transfer_segments(&[
             Segment::with_write(&[0b10000000 | register]),
             Segment::with_write(buff),
@@ -304,12 +308,21 @@ impl LoRa {
         Ok(())
     }
 
-    pub fn write_single(&mut self, register: u8, value: u8) -> Result<(), Box<dyn std::error::Error>> {
+    pub fn write_single(
+        &mut self,
+        register: u8,
+        value: u8,
+    ) -> Result<(), Box<dyn std::error::Error>> {
         self.spi.write(&[register, value])?;
         Ok(())
     }
-    
-    pub fn append_register(&mut self, register: u8, value: u8, mask: u8) -> Result<(), Box<dyn std::error::Error>> {
+
+    pub fn append_register(
+        &mut self,
+        register: u8,
+        value: u8,
+        mask: u8,
+    ) -> Result<(), Box<dyn std::error::Error>> {
         let mut prev: [u8; 1] = [0];
         self.read_register(register, &mut prev)?;
         let mut data: [u8; 1] = [((prev[0] & mask) | value)];
@@ -335,13 +348,15 @@ impl LoRa {
         Ok(buff[0])
     }
 
-    pub fn sleep(&mut self) -> Result<(),  Box<dyn Error>> {
+    pub fn sleep(&mut self) -> Result<(), Box<dyn Error>> {
         self.write_register(REG_OP_MODE, &[0x80, 0x00])?;
         Ok(())
     }
 
     pub fn set_opmod(&mut self, opmod: OperationMode) -> Result<(), Box<dyn std::error::Error>> {
-        if opmod == OperationMode::SX127x_MODE_RX_CONT || opmod == OperationMode::SX127x_MODE_RX_SINGLE {
+        if opmod == OperationMode::SX127x_MODE_RX_CONT
+            || opmod == OperationMode::SX127x_MODE_RX_SINGLE
+        {
             self.append_register(REG_DIO_MAPPING_1, SX127x_DIO0_RX_DONE, 0b00111111)?;
         } else if opmod == OperationMode::SX127x_MODE_TX {
             self.append_register(REG_DIO_MAPPING_1, SX127x_DIO0_TX_DONE, 0b00111111)?;
@@ -366,7 +381,7 @@ impl LoRa {
         let data: [u8; 3] = [
             ((adjusted >> 16) & 0xff) as u8,
             ((adjusted >> 8) & 0xff) as u8,
-            (adjusted & 0xff) as u8
+            (adjusted & 0xff) as u8,
         ];
         self.write_register(REG_FRF_MSB, &data)?;
         self.frequency = freq;
@@ -388,7 +403,10 @@ impl LoRa {
         Ok(())
     }
 
-    pub fn set_low_datarate_optimization(&mut self, enable: bool) -> Result<(), Box<dyn std::error::Error>> {
+    pub fn set_low_datarate_optimization(
+        &mut self,
+        enable: bool,
+    ) -> Result<(), Box<dyn std::error::Error>> {
         let mut value: u8;
         if enable {
             value = 0b00001000;
@@ -416,13 +434,16 @@ impl LoRa {
             0b0111 => 125000,
             0b1000 => 250000,
             0b1001 => 500000,
-            _ => Err("Invalid bandwidth")?
+            _ => Err("Invalid bandwidth")?,
         };
 
         Ok(bw)
     }
-    
-    pub fn set_bandwidth(&mut self, bandwidth: Bandwidth) -> Result<(), Box<dyn std::error::Error>> {
+
+    pub fn set_bandwidth(
+        &mut self,
+        bandwidth: Bandwidth,
+    ) -> Result<(), Box<dyn std::error::Error>> {
         self.append_register(REG_MODEM_CONFIG_1, bandwidth as u8, 0b00001111)?;
         self.reload_low_datarate_optimalization()?;
         info!("LoRa bandwidth set to: {}", bandwidth as u32);
@@ -448,7 +469,10 @@ impl LoRa {
         Ok(())
     }
 
-    pub fn set_header_type(&mut self, header_mode: HeaderMode) -> Result<(), Box<dyn std::error::Error>> {
+    pub fn set_header_type(
+        &mut self,
+        header_mode: HeaderMode,
+    ) -> Result<(), Box<dyn std::error::Error>> {
         if header_mode == HeaderMode::Explicit {
             self.append_register(REG_MODEM_CONFIG_1, HeaderMode::Explicit as u8, 0b11111110)?;
             info!("LoRa header mode: Explicit");
@@ -458,7 +482,10 @@ impl LoRa {
         Ok(())
     }
 
-    pub fn set_modem_config_2(&mut self, sf: SpreadFactor) -> Result<(), Box<dyn std::error::Error>> {
+    pub fn set_modem_config_2(
+        &mut self,
+        sf: SpreadFactor,
+    ) -> Result<(), Box<dyn std::error::Error>> {
         let detection_optimize: u8;
         let detection_threshold: u8;
         if sf == SpreadFactor::SX127x_SF_6 {
@@ -486,10 +513,7 @@ impl LoRa {
     }
 
     pub fn set_preamble_length(&mut self, value: u16) -> Result<(), Box<dyn std::error::Error>> {
-        let data: [u8; 2] = [
-            ((value >> 8) & 0xff) as u8,
-            (value & 0xff) as u8
-        ];
+        let data: [u8; 2] = [((value >> 8) & 0xff) as u8, (value & 0xff) as u8];
         self.write_register(REG_PREAMBLE_MSB, &data)?;
         info!("Preamble length set to: {}", value);
         Ok(())
@@ -507,10 +531,8 @@ impl LoRa {
 
         let mut snr = self.get_packet_snr();
         match snr {
-            Ok(snr) => {
-                Ok((rssi + (snr as i16)))
-            },
-            Err(_) => Ok(0)
+            Ok(snr) => Ok((rssi + (snr as i16))),
+            Err(_) => Ok(0),
         }
     }
 
@@ -527,7 +549,8 @@ impl LoRa {
         let mut result: i32;
         let mut buff: [u8; 3] = [0; 3];
         self.read_register(REG_FREQ_ERROR_MSB, &mut buff)?;
-        let mut freq_error: i32 = ((buff[0] as i32) << 16) | ((buff[1] as i32) << 8) | (buff[2] as i32);
+        let mut freq_error: i32 =
+            ((buff[0] as i32) << 16) | ((buff[1] as i32) << 8) | (buff[2] as i32);
         let mut bandwidth: u32 = self.get_bandwidth()?;
         if freq_error & 0x80000 != 0 {
             freq_error = (!(freq_error) + 1) & 0xfffff;
@@ -536,10 +559,10 @@ impl LoRa {
             result = 1;
         }
 
-        Ok(result * (freq_error as f32 * SX127x_FREQ_ERROR_FACTOR * bandwidth as f32 / 500000.0f32) as i32)
+        Ok(result
+            * (freq_error as f32 * SX127x_FREQ_ERROR_FACTOR * bandwidth as f32 / 500000.0f32)
+                as i32)
     }
-
-
 
     pub fn read_payload(&mut self, buff: &mut [u8]) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
         let mut length: [u8; 1] = [0];
@@ -602,6 +625,4 @@ impl LoRa {
 
         Ok(())
     }
-
-
 }
