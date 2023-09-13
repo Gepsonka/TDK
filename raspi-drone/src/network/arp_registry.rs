@@ -135,8 +135,8 @@ pub trait RegistryFields {
 }
 
 /// This will store every network related data of a device
-/// from secrets to packets. Message handling and error handling will
-/// happen here
+/// from secrets to packets. Message handling and error handling for a network entity will
+/// happen here.
 #[derive(Debug, Clone)]
 pub struct ArpRegistry<PacketT, AesGcm>
 where

@@ -140,11 +140,16 @@ pub trait PacketHeaderCrcCalculator {
     fn check_header_crc(&self) -> bool;
 }
 
+
 pub trait PacketPayloadCrcCalculator {
     fn calculate_payload_crc(&mut self) -> Result<(), Box<dyn std::error::Error>>;
     fn check_payload_crc(&self) -> Result<bool, Box<dyn std::error::Error>>;
 }
 
+
+/// Every packet must implement this trait,
+/// since after successful authentication 
+/// every packet must be encrypted.
 pub trait PacketEncrypt<AesGcm>
 where
     AesGcm: AeadMut + KeyInit,
@@ -156,6 +161,7 @@ where
     ) -> Result<(), Box<dyn Error>>;
 }
 
+
 pub trait PacketDecrypt<AesGcm>
 where
     AesGcm: AeadMut + KeyInit,
@@ -163,6 +169,10 @@ where
     fn decrypt(&mut self, key: &Key<AesGcm>) -> Result<(), Box<dyn std::error::Error>>;
 }
 
+
+/// Since the protocol is mostly standardised
+/// the packet fields are the same/almost same for every packet.
+/// This trait defines the basic fields and its types of a packet.
 pub trait PacketFields {
     type AddressSizeType;
     /// For specifying the max paylaod count size in a message
@@ -193,6 +203,10 @@ pub trait PacketFields {
     fn get_payload_mut(&mut self) -> &mut Self::Payload;
 }
 
+
+/// Contains all the packet relates sizes.
+/// For example: max packet size, max payload when encrypted, etc.
+/// Every packet implementation must implement this trait.
 pub trait PacketSize
 {
     const MAX_PACKET_SIZE: usize;
@@ -207,6 +221,11 @@ pub trait PacketSize
     }
 }
 
+
+
+/// Header of the LoRa packet
+/// Contains the source and destination address, the packet number in the message,
+/// the total number of packets in the message and the payload size.
 #[derive(Debug, Default, Copy, Clone, PartialEq, Eq)]
 pub struct LoRaPacketHeader {
     pub source_addr: u8,
@@ -236,6 +255,7 @@ impl PacketHeaderInit for LoRaPacketHeader {
 }
 
 impl PacketHeaderCrcCalculator for LoRaPacketHeader {
+    /// Calculates the header CRC and sets it to the header_crc field
     fn calculate_header_crc(&mut self) {
         let header: Vec<u8> = self.into();
 
@@ -243,6 +263,7 @@ impl PacketHeaderCrcCalculator for LoRaPacketHeader {
         self.header_crc = X25.checksum(&header.as_slice()[0..=4]);
     }
 
+    /// Checks if the header CRC is correct
     fn check_header_crc(&self) -> bool {
         let header: Vec<u8> = self.into();
 
@@ -326,6 +347,14 @@ impl Into<Vec<u8>> for &mut LoRaPacketHeader {
     }
 }
 
+/// A packet is the basic unit of communication in the network.
+/// It contains a header and a payload.
+/// The header contains the source and destination address, the packet number in the message,
+/// the total number of packets in the message and the payload size.
+/// The payload contains the actual data.
+/// The packet is encrypted using AES-GCM-128.
+/// The nonce is the last 12 bytes of the payload.
+/// It is an implementation for a custom LoRa mesh network.
 #[derive(Debug, Default, Clone, PartialEq, Eq)]
 pub struct LoRaPacketPayload {
     pub payload_crc: u16,
@@ -351,6 +380,11 @@ impl PacketPayloadInit for LoRaPacketPayload {
     /// ## Arguments
     ///
     /// * `slice` - Payload slice
+    /// 
+    /// ## Returns
+    /// 
+    /// * `Result<LoRaPacketPayload, Box<dyn Error>>` - If the payload size is bigger than the max payload size
+    /// returns an error, otherwise returns the payload.
     fn new_from_slice(slice: &[u8]) -> Result<LoRaPacketPayload, Box<dyn Error>> {
         if slice.len() > MAX_PAYLOAD_SIZE {
             return Err(Box::new(PacketSizeError::new(slice.len())));
@@ -478,7 +512,14 @@ impl PacketSize for LoRaPacket {
     const TAG_SIZE: usize = 16;
 }
 
+
 impl PacketEncrypt<Aes128Gcm> for LoRaPacket {
+    /// Encrypts the payload of the packet.
+    /// ## Arguments:
+    /// 
+    /// * `key` - The key used for encryption
+    /// * `nonce` - The nonce used for encryption
+    /// 
     fn encrypt(&mut self, key: &Key<Aes128Gcm>, nonce: &Nonce<U12>) -> Result<(), Box<dyn Error>> {
         let packet_content = self.payload.payload.clone();
         let cipher = Aes128Gcm::new(key);
@@ -501,6 +542,17 @@ impl PacketEncrypt<Aes128Gcm> for LoRaPacket {
 }
 
 impl PacketDecrypt<Aes128Gcm> for LoRaPacket {
+    /// Decrypts the payload of the packet.
+    /// Packet includes both the tag and the nonce
+    /// ## Arguments:
+    /// 
+    /// * `key` - The key used for decryption
+    /// 
+    /// ## Returns:
+    /// 
+    /// * `Result<(), Box<dyn Error>>` - If the decryption was successful returns nothing
+    /// otherwise returns an error (this happens when the tag is not correct).
+    /// 
     fn decrypt(&mut self, key: &Key<Aes128Gcm>) -> Result<(), Box<dyn Error>> {
         let cipher = Aes128Gcm::new(key);
         let packet_content = self.payload.payload.clone();
@@ -522,6 +574,7 @@ impl PacketDecrypt<Aes128Gcm> for LoRaPacket {
 }
 
 impl PacketPayloadCrcCalculator for LoRaPacketPayload {
+    /// Calculates the payload CRC and sets it to the payload_crc field
     fn calculate_payload_crc(&mut self) -> Result<(), Box<dyn Error>> {
         let payload: Vec<u8> = self.payload.clone();
         const X25: crc::Crc<u16> = crc::Crc::<u16>::new(&crc::CRC_16_KERMIT);
@@ -530,6 +583,7 @@ impl PacketPayloadCrcCalculator for LoRaPacketPayload {
         Ok(())
     }
 
+    /// Checks if the payload CRC is correct
     fn check_payload_crc(&self) -> Result<bool, Box<dyn Error>> {
         let payload: Vec<u8> = self.payload.clone();
         const X25: crc::Crc<u16> = crc::Crc::<u16>::new(&crc::CRC_16_KERMIT);
@@ -538,6 +592,7 @@ impl PacketPayloadCrcCalculator for LoRaPacketPayload {
 }
 
 impl PacketHeaderCrcCalculator for LoRaPacket {
+    /// Calculates the header CRC and sets it to the header_crc field
     fn calculate_header_crc(&mut self) {
         let header: Vec<u8> = self.header.into();
 
@@ -545,6 +600,7 @@ impl PacketHeaderCrcCalculator for LoRaPacket {
         self.header.header_crc = X25.checksum(&header.as_slice()[0..=4]);
     }
 
+    /// Checks if the header CRC is correct
     fn check_header_crc(&self) -> bool {
         let header: Vec<u8> = self.header.into();
 
